@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, Settings, ShieldAlert,
   Sparkles, CircleDollarSign, Receipt, MessageSquare, Package,
-  ChevronRight, ChevronLeft, Sun, Moon, Menu
+  ChevronRight, ChevronLeft, Sun, Moon, Menu, LifeBuoy
 } from 'lucide-react'
 import LogoutButton from './LogoutButton'
 import DentalLogo from '@/components/DentalLogo'
@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { href: '/admin/billing',   icon: Receipt,         label: 'Billing & Checkout',   color: '#059669', bg: '#ecfdf5' },
   { href: '/admin/inventory', icon: Package,         label: 'Inventory & Stock',   color: '#ea580c', bg: '#fff7ed' },
   { href: '/admin/finances',  icon: CircleDollarSign,label: 'Finances & Profits',   color: '#d97706', bg: '#fffbeb' },
+  { href: '/admin/complaints',icon: LifeBuoy,        label: 'Complaints & Tickets', color: '#10b981', bg: '#ecfdf5' },
   { href: '/admin/messaging', icon: MessageSquare,   label: 'Messaging & Campaigns',color: '#e11d48', bg: '#fff1f2' },
   { href: '/admin/settings',  icon: Settings,        label: 'Settings',             color: '#475569', bg: '#f8fafc' },
 ]

@@ -6,8 +6,10 @@ import { supabase } from '@/lib/supabase'
 import { sendAppointmentEmail } from '@/app/admin/actions'
 import { 
   Calendar, Clock, User, Phone, Mail, FileText, 
-  CheckCircle, AlertCircle, ChevronRight, Loader2, ArrowLeft, Sparkles
+  CheckCircle, AlertCircle, ChevronRight, Loader2, ArrowLeft, Sparkles, ShieldCheck
 } from 'lucide-react'
+import DpdpModal from '@/components/DpdpModal'
+
 
 const TIME_SLOTS = [
   { value: '09:00:00', label: '09:00 AM' },
@@ -80,6 +82,10 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
   const [dbConfigured, setDbConfigured] = useState(true)
   const [step, setStep] = useState(1)
 
+  // DPDP Consent state & modal
+  const [dpdpConsent, setDpdpConsent] = useState(true)
+  const [showDpdpModal, setShowDpdpModal] = useState(false)
+
   // Patient uniqueness / Family member flow state
   const [existingPatientId, setExistingPatientId] = useState<string | null>(null)
   const [isFamilyMember, setIsFamilyMember] = useState<boolean>(false)
@@ -96,6 +102,22 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
   const [selectedDoctorId, setSelectedDoctorId] = useState('')
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedTime, setSelectedTime] = useState('')
+
+  // Pre-fill logged in patient credentials
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedUser = localStorage.getItem('falix_patient_user')
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser)
+          if (parsed.email && !patientEmail) setPatientEmail(parsed.email)
+          if (parsed.fullName && !patientName) setPatientName(parsed.fullName)
+        } catch (e) {
+          console.error('Error parsing patient session', e)
+        }
+      }
+    }
+  }, [])
 
   // Input change handlers that reset conflict detection
   const handleNameChange = (val: string) => {
@@ -124,12 +146,18 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
       return
     }
 
+    if (!dpdpConsent) {
+      setError('Please accept the DPDP Act 2023 consent to proceed with appointment booking.')
+      return
+    }
+
     try {
       setCheckingPatient(true)
       setError(null)
 
       const trimmedEmail = patientEmail.trim().toLowerCase()
       const trimmedMobile = patientMobile.trim()
+
 
       // Query database for patients with same email or mobile
       const { data: matched, error: matchError } = await supabase
@@ -449,63 +477,96 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Full Name</label>
+                <label className="block text-xs font-semibold text-slate-700">Full Name</label>
                 <div className="relative group">
-                  <User className="absolute left-3.5 top-3 w-4 h-4 text-slate-300 group-focus-within:text-slate-500 transition-colors duration-200" />
+                  <User className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400 group-focus-within:text-slate-600 transition-colors duration-200" />
                   <input
                     type="text"
                     required
-                    placeholder="John Doe"
+                    autoComplete="name"
+                    placeholder="e.g. Priya Sharma"
                     value={patientName}
                     onChange={e => handleNameChange(e.target.value)}
-                    className={`w-full pl-11 pr-4 py-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-transparent focus:ring-2 ${theme.accentRing} transition-all duration-200 bg-white hover:border-slate-300`}
+                    className={`w-full pl-11 pr-4 py-3 text-sm rounded-xl border border-slate-200 placeholder-slate-400 text-slate-900 focus:outline-none focus:border-transparent focus:ring-2 ${theme.accentRing} transition-all duration-200 bg-white hover:border-slate-300`}
                   />
                 </div>
+                <p className="text-[11px] text-slate-400 font-light">Hint: Enter patient&apos;s full name for appointment records.</p>
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Age</label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  max="120"
-                  placeholder="30"
-                  value={patientAge}
-                  onChange={e => setPatientAge(e.target.value)}
-                  className={`w-full px-4 py-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-transparent focus:ring-2 ${theme.accentRing} transition-all duration-200 bg-white hover:border-slate-300`}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Mobile Number</label>
+                <label className="block text-xs font-semibold text-slate-700">Patient Age (Years)</label>
                 <div className="relative group">
-                  <Phone className="absolute left-3.5 top-3 w-4 h-4 text-slate-300 group-focus-within:text-slate-500 transition-colors duration-200" />
+                  <Calendar className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400 group-focus-within:text-slate-600 transition-colors duration-200" />
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    max="120"
+                    inputMode="numeric"
+                    placeholder="e.g. 28"
+                    value={patientAge}
+                    onChange={e => setPatientAge(e.target.value)}
+                    className={`w-full pl-11 pr-4 py-3 text-sm rounded-xl border border-slate-200 placeholder-slate-400 text-slate-900 focus:outline-none focus:border-transparent focus:ring-2 ${theme.accentRing} transition-all duration-200 bg-white hover:border-slate-300`}
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 font-light">Hint: Enter patient&apos;s age in years.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700">Mobile Number</label>
+                <div className="relative group">
+                  <Phone className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400 group-focus-within:text-slate-600 transition-colors duration-200" />
                   <input
                     type="tel"
                     required
-                    placeholder="+1 (555) 000-0000"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="e.g. 9876543210"
                     value={patientMobile}
                     onChange={e => handleMobileChange(e.target.value)}
-                    className={`w-full pl-11 pr-4 py-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-transparent focus:ring-2 ${theme.accentRing} transition-all duration-200 bg-white hover:border-slate-300`}
+                    className={`w-full pl-11 pr-4 py-3 text-sm rounded-xl border border-slate-200 placeholder-slate-400 text-slate-900 focus:outline-none focus:border-transparent focus:ring-2 ${theme.accentRing} transition-all duration-200 bg-white hover:border-slate-300`}
                   />
                 </div>
+                <p className="text-[11px] text-slate-400 font-light">Hint: Used by clinic doctors to coordinate your appointment.</p>
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Email Address</label>
+                <label className="block text-xs font-semibold text-slate-700">Email Address</label>
                 <div className="relative group">
-                  <Mail className="absolute left-3.5 top-3 w-4 h-4 text-slate-300 group-focus-within:text-slate-500 transition-colors duration-200" />
+                  <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400 group-focus-within:text-slate-600 transition-colors duration-200" />
                   <input
                     type="email"
                     required
-                    placeholder="patient@example.com"
+                    inputMode="email"
+                    autoComplete="email"
+                    placeholder="e.g. patient@example.com"
                     value={patientEmail}
                     onChange={e => handleEmailChange(e.target.value)}
-                    className={`w-full pl-11 pr-4 py-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-transparent focus:ring-2 ${theme.accentRing} transition-all duration-200 bg-white hover:border-slate-300`}
+                    className={`w-full pl-11 pr-4 py-3 text-sm rounded-xl border border-slate-200 placeholder-slate-400 text-slate-900 focus:outline-none focus:border-transparent focus:ring-2 ${theme.accentRing} transition-all duration-200 bg-white hover:border-slate-300`}
                   />
                 </div>
+                <p className="text-[11px] text-slate-400 font-light">Hint: Your email address for appointment confirmation.</p>
               </div>
+            </div>
+
+            <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+              <input
+                type="checkbox"
+                id="booking-dpdp-checkbox"
+                checked={dpdpConsent}
+                onChange={(e) => setDpdpConsent(e.target.checked)}
+                className="mt-0.5 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+              />
+              <label htmlFor="booking-dpdp-checkbox" className="text-xs text-slate-600 leading-snug">
+                I consent to the collection & processing of my health details under the{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowDpdpModal(true)}
+                  className="text-teal-600 font-semibold underline hover:text-teal-700"
+                >
+                  DPDP Act 2023 & DPDP Rules 2025
+                </button>.
+              </label>
             </div>
 
             <div className="flex justify-end pt-4">
@@ -778,6 +839,9 @@ export default function BookingForm({ branchSlug }: BookingFormProps) {
           </div>
         )}
       </form>
+
+      {/* DPDP Compliance Modal */}
+      <DpdpModal isOpen={showDpdpModal} onClose={() => setShowDpdpModal(false)} />
     </div>
   )
 }

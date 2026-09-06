@@ -72,20 +72,24 @@ export default function AdminLoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in-up delay-300">
           <div className="space-y-2">
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Admin Password
+            <label className="block text-xs font-semibold text-slate-700">
+              Admin Passcode
             </label>
             <div className="relative group">
-              <Key className="absolute left-4 top-3.5 w-4 h-4 text-slate-300 group-focus-within:text-slate-500 transition-colors duration-200" />
+              <Key className="absolute left-4 top-3.5 w-4 h-4 text-slate-400 group-focus-within:text-slate-700 transition-colors duration-200" />
               <input
                 type="password"
                 required
-                placeholder="••••••••"
+                autoComplete="current-password"
+                placeholder="e.g. Passcode123"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 className="w-full pl-12 pr-4 py-3.5 text-sm rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 transition-all duration-200 bg-white/90 text-slate-900 placeholder-slate-400 hover:border-slate-300"
               />
             </div>
+            <p className="text-[11px] text-slate-400 font-light">
+              Hint: Enter your confidential clinic owner passcode to access the management dashboard.
+            </p>
           </div>
 
           <button

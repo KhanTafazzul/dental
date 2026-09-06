@@ -1,10 +1,15 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
-import { Sparkles, MapPin, ArrowRight, Heart, Star, Shield, CheckCircle2 } from 'lucide-react'
+import { Sparkles, MapPin, ArrowRight, Heart, Star, Shield, CheckCircle2, User, LogOut, ShieldCheck, Lock } from 'lucide-react'
 import DentalLogo from '@/components/DentalLogo'
+import DpdpModal from '@/components/DpdpModal'
+
+import DeleteAccountModal from '@/components/DeleteAccountModal'
+
+import SupportModal from '@/components/SupportModal'
 
 // Motion Variants
 const containerVariants = {
@@ -52,6 +57,47 @@ const cardVariantRight = {
 export default function Home() {
   const shouldReduceMotion = useReducedMotion()
 
+  const [patientUser, setPatientUser] = useState<{ email: string; fullName: string } | null>(null)
+  const [showDpdpModal, setShowDpdpModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showSupportModal, setShowSupportModal] = useState(false)
+
+  const checkPatientAuth = () => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('falix_patient_user')
+      if (saved) {
+        try {
+          setPatientUser(JSON.parse(saved))
+        } catch (e) {
+          setPatientUser(null)
+        }
+      } else {
+        setPatientUser(null)
+      }
+    }
+  }
+
+  useEffect(() => {
+    checkPatientAuth()
+    const handleTriggerDelete = () => setShowDeleteModal(true)
+    const handleTriggerSupport = () => setShowSupportModal(true)
+    window.addEventListener('falix_auth_changed', checkPatientAuth)
+    window.addEventListener('falix_trigger_delete_modal', handleTriggerDelete)
+    window.addEventListener('falix_trigger_support_modal', handleTriggerSupport)
+    return () => {
+      window.removeEventListener('falix_auth_changed', checkPatientAuth)
+      window.removeEventListener('falix_trigger_delete_modal', handleTriggerDelete)
+      window.removeEventListener('falix_trigger_support_modal', handleTriggerSupport)
+    }
+  }, [])
+
+  const handlePatientLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('falix_patient_user')
+      window.dispatchEvent(new Event('falix_auth_changed'))
+    }
+  }
+
   const blob1Animate = shouldReduceMotion ? {} : { scale: [1, 1.08, 1], rotate: [0, 5, 0] }
   const blob1Transition = shouldReduceMotion ? { duration: 0 } : { duration: 4.8, repeat: Infinity, ease: 'easeInOut' as const }
 
@@ -92,6 +138,50 @@ export default function Home() {
               </span>
             </div>
           </Link>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowSupportModal(true)}
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-700 hover:text-cyan-900 bg-cyan-50 hover:bg-cyan-100/80 px-3 py-1.5 rounded-xl border border-cyan-200/60 transition-colors"
+            >
+              Patient Support & FAQ
+            </button>
+
+            <button
+              onClick={() => setShowDpdpModal(true)}
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100/80 px-3 py-1.5 rounded-xl border border-teal-200/60 transition-colors"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" /> DPDP Compliance
+            </button>
+
+            {patientUser ? (
+              <div className="flex items-center gap-2 bg-slate-900 text-white px-3 py-1.5 rounded-2xl shadow-md text-xs">
+                <User className="w-3.5 h-3.5 text-teal-400" />
+                <span className="font-semibold max-w-[120px] truncate">{patientUser.fullName}</span>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  title="Delete Account"
+                  className="px-2 py-0.5 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-[10px] font-semibold transition-colors"
+                >
+                  Delete Account
+                </button>
+                <button
+                  onClick={handlePatientLogout}
+                  title="Sign Out"
+                  className="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-900 hover:text-cyan-700 bg-slate-100 hover:bg-slate-200/80 px-4 py-2 rounded-xl transition-colors shadow-sm"
+              >
+                <User className="w-3.5 h-3.5" /> Patient Sign In
+              </Link>
+            )}
+          </div>
         </div>
       </motion.header>
 
@@ -306,9 +396,39 @@ export default function Home() {
         transition={{ delay: 0.8, duration: 0.6 }}
         className="glass border-t border-slate-200/40 py-10 text-center"
       >
-        <p className="text-xs text-slate-500 font-medium">© 2026 Dental Clinics. All rights reserved.</p>
-        <p className="mt-1.5 text-[11px] text-slate-400 font-light">Modern Minimalist Care across Hazara & Family Branches.</p>
+        <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-xs text-slate-500 font-medium">© 2026 Dental Clinics. All rights reserved.</p>
+          <div className="flex items-center gap-4 text-xs text-slate-500 font-medium flex-wrap justify-center">
+            <button
+              onClick={() => setShowSupportModal(true)}
+              className="hover:text-cyan-700 transition-colors text-cyan-600 font-bold"
+            >
+              Contact Support & FAQ
+            </button>
+            <button
+              onClick={() => setShowDpdpModal(true)}
+              className="hover:text-cyan-700 transition-colors inline-flex items-center gap-1"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-teal-600" /> DPDP Compliance
+            </button>
+            <Link href="/dpdp" className="hover:text-cyan-700 transition-colors">
+              Data Rights Portal
+            </Link>
+            <Link href="/privacy" className="hover:text-cyan-700 transition-colors">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="hover:text-cyan-700 transition-colors">
+              Terms of Service
+            </Link>
+          </div>
+        </div>
       </motion.footer>
+
+      {/* DPDP Compliance Modal & Delete Account Modal & Support Modal */}
+      <DpdpModal isOpen={showDpdpModal} onClose={() => setShowDpdpModal(false)} />
+      <DeleteAccountModal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} patientEmail={patientUser?.email} />
+      <SupportModal isOpen={showSupportModal} onClose={() => setShowSupportModal(false)} />
     </div>
   )
 }
+
