@@ -66,13 +66,13 @@ export default function AuthPortal({ initialMode = 'login' }: { initialMode?: 'l
     mouseY.set(0);
   };
 
-  // Password Requirements Checker
-  const passRequirements = {
+  // Password Requirements Checker (Wrapped in useMemo)
+  const passRequirements = React.useMemo(() => ({
     length: password.length >= 6,
     uppercase: /[A-Z]/.test(password),
     number: /[0-9]/.test(password),
     symbol: /[^A-Za-z0-9]/.test(password),
-  };
+  }), [password]);
 
   const calculatePasswordStrength = (pass: string) => {
     let score = 0;

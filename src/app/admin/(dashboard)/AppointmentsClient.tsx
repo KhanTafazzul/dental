@@ -302,36 +302,40 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
     setTimeout(() => setCopiedLink(false), 2000)
   }
 
-  // Calculate stats
-  const totalCount = appointments.length
-  const pendingCount = appointments.filter(a => a.status === 'pending').length
-  const confirmedCount = appointments.filter(a => a.status === 'confirmed').length
-  const completedCount = appointments.filter(a => a.status === 'completed').length
+  // Calculate stats using useMemo
+  const { totalCount, pendingCount, confirmedCount, completedCount } = React.useMemo(() => ({
+    totalCount: appointments.length,
+    pendingCount: appointments.filter(a => a.status === 'pending').length,
+    confirmedCount: appointments.filter(a => a.status === 'confirmed').length,
+    completedCount: appointments.filter(a => a.status === 'completed').length,
+  }), [appointments])
 
-  // Filtered Appointments
-  const filteredAppointments = appointments.filter(appt => {
-    if (selectedBranch !== 'all' && appt.branches?.slug !== selectedBranch) {
-      return false
-    }
-    if (selectedDate && appt.appointment_date !== selectedDate) {
-      return false
-    }
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      const patientName = appt.patients?.name?.toLowerCase() || ''
-      const patientEmail = appt.patients?.email?.toLowerCase() || ''
-      const patientMobile = appt.patients?.mobile?.toLowerCase() || ''
-      const doctorName = appt.doctors?.name?.toLowerCase() || ''
+  // Filtered Appointments using useMemo
+  const filteredAppointments = React.useMemo(() => {
+    const query = searchQuery.toLowerCase().trim()
+    return appointments.filter(appt => {
+      if (selectedBranch !== 'all' && appt.branches?.slug !== selectedBranch) {
+        return false
+      }
+      if (selectedDate && appt.appointment_date !== selectedDate) {
+        return false
+      }
+      if (query) {
+        const patientName = appt.patients?.name?.toLowerCase() || ''
+        const patientEmail = appt.patients?.email?.toLowerCase() || ''
+        const patientMobile = appt.patients?.mobile?.toLowerCase() || ''
+        const doctorName = appt.doctors?.name?.toLowerCase() || ''
 
-      return (
-        patientName.includes(query) ||
-        patientEmail.includes(query) ||
-        patientMobile.includes(query) ||
-        doctorName.includes(query)
-      )
-    }
-    return true
-  })
+        return (
+          patientName.includes(query) ||
+          patientEmail.includes(query) ||
+          patientMobile.includes(query) ||
+          doctorName.includes(query)
+        )
+      }
+      return true
+    })
+  }, [appointments, selectedBranch, selectedDate, searchQuery])
 
   // Format Status Badge
   const getStatusBadge = (status: string) => {
@@ -349,8 +353,14 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
     }
   }
 
-  const mobileCaptureUrl = `http://${customIp}:3000/admin/capture?branch=${activeAppt?.branches?.slug}&appointment=${activeAppt?.id || ''}`
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(mobileCaptureUrl)}`
+  const mobileCaptureUrl = React.useMemo(() => 
+    `http://${customIp}:3000/admin/capture?branch=${activeAppt?.branches?.slug || ''}&appointment=${activeAppt?.id || ''}`,
+    [customIp, activeAppt]
+  )
+  const qrCodeUrl = React.useMemo(() => 
+    `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(mobileCaptureUrl)}`,
+    [mobileCaptureUrl]
+  )
 
   return (
     <motion.div

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LifeBuoy, Search, Filter, RefreshCw, CheckCircle2, Clock, 
@@ -39,7 +39,7 @@ export default function ComplaintsClient() {
   const [updating, setUpdating] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  const fetchComplaints = async () => {
+  const fetchComplaints = useCallback(async () => {
     setLoading(true);
     try {
       const res = await getComplaintsAction();
@@ -51,13 +51,13 @@ export default function ComplaintsClient() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchComplaints();
-  }, []);
+  }, [fetchComplaints]);
 
-  const handleUpdateStatus = async (e: React.FormEvent) => {
+  const handleUpdateStatus = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedComplaint) return;
 
@@ -72,17 +72,17 @@ export default function ComplaintsClient() {
         ));
         setSelectedComplaint(prev => prev ? { ...prev, status: newStatus, admin_notes: adminNotes } : null);
         setToastMsg(`Ticket ${selectedComplaint.ticket_id} updated to ${newStatus.toUpperCase()}`);
-        setTimeout(() => setToastMsg(null), 4000);
+        setTimeout(() => setToastMsg(null), 3000);
       }
     } catch (err: any) {
       console.error('Failed to update ticket status:', err);
     } finally {
       setUpdating(false);
     }
-  };
+  }, [selectedComplaint, newStatus, adminNotes]);
 
   // Quick mark resolved shortcut
-  const handleQuickResolve = async (comp: ComplaintItem) => {
+  const handleQuickResolve = useCallback(async (comp: ComplaintItem) => {
     try {
       const res = await updateComplaintStatusAction(comp.ticket_id, 'resolved', 'Quickly marked as resolved by Clinic Admin.');
       if (res.success) {
@@ -97,57 +97,58 @@ export default function ComplaintsClient() {
     } catch (err) {
       console.error('Quick resolve failed:', err);
     }
-  };
+  }, []);
 
-  // Filter complaints logic
-  const filteredComplaints = complaints.filter(item => {
-    const matchesSearch = 
-      item.ticket_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.details.toLowerCase().includes(searchQuery.toLowerCase());
+  // Filter complaints logic wrapped in useMemo to prevent render freezing!
+  const filteredComplaints = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return complaints.filter(item => {
+      const matchesSearch = !q ||
+        item.ticket_id.toLowerCase().includes(q) ||
+        item.full_name.toLowerCase().includes(q) ||
+        item.email.toLowerCase().includes(q) ||
+        item.details.toLowerCase().includes(q);
 
-    const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
-    const matchesCategory = categoryFilter === 'all' || item.category.toLowerCase().includes(categoryFilter.toLowerCase());
-    const matchesBranch = branchFilter === 'all' || item.branch.toLowerCase().includes(branchFilter.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+      const matchesCategory = categoryFilter === 'all' || item.category.toLowerCase().includes(categoryFilter.toLowerCase());
+      const matchesBranch = branchFilter === 'all' || item.branch.toLowerCase().includes(branchFilter.toLowerCase());
 
-    return matchesSearch && matchesStatus && matchesCategory && matchesBranch;
-  });
+      return matchesSearch && matchesStatus && matchesCategory && matchesBranch;
+    });
+  }, [complaints, searchQuery, statusFilter, categoryFilter, branchFilter]);
 
-  // KPI Calculations
-  const totalCount = complaints.length;
-  const receivedCount = complaints.filter(c => c.status === 'received').length;
-  const inProgressCount = complaints.filter(c => c.status === 'in_progress').length;
-  const resolvedCount = complaints.filter(c => c.status === 'resolved').length;
+  // KPI Calculations wrapped in useMemo
+  const { totalCount, receivedCount, inProgressCount, resolvedCount } = useMemo(() => ({
+    totalCount: complaints.length,
+    receivedCount: complaints.filter(c => c.status === 'received').length,
+    inProgressCount: complaints.filter(c => c.status === 'in_progress').length,
+    resolvedCount: complaints.filter(c => c.status === 'resolved').length,
+  }), [complaints]);
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = useCallback((status: string) => {
     switch (status) {
       case 'received':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-bold animate-pulse">
-            <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
-            Action Required
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-bold">
+            <AlertCircle className="w-3.5 h-3.5 text-amber-400" /> Action Required
           </span>
         );
       case 'in_progress':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[11px] font-bold">
-            <Clock className="w-3.5 h-3.5 text-cyan-400" />
-            In Progress
+            <Clock className="w-3.5 h-3.5 text-cyan-400" /> In Progress
           </span>
         );
       case 'resolved':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-            Resolved
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Resolved
           </span>
         );
       case 'rejected':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[11px] font-bold">
-            <X className="w-3.5 h-3.5 text-rose-400" />
-            Rejected
+            <X className="w-3.5 h-3.5 text-rose-400" /> Rejected
           </span>
         );
       default:
@@ -157,10 +158,10 @@ export default function ComplaintsClient() {
           </span>
         );
     }
-  };
+  }, []);
 
   return (
-    <div className="p-4 sm:p-8 space-y-8 text-slate-100 max-w-7xl mx-auto selection:bg-teal-500 selection:text-slate-950 font-sans">
+    <div className="p-4 sm:p-8 space-y-8 text-slate-100 max-w-7xl mx-auto selection:bg-teal-500 selection:text-slate-950 font-sans transform-gpu">
       
       {/* Toast Notification */}
       <AnimatePresence>
@@ -207,7 +208,7 @@ export default function ComplaintsClient() {
       {/* KPI Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        <div className="p-5 rounded-2xl bg-slate-900/90 border border-white/10 shadow-lg flex items-center justify-between">
+        <div className="p-5 rounded-2xl bg-slate-900 border border-white/10 shadow-lg flex items-center justify-between">
           <div>
             <span className="text-xs text-slate-400 font-medium block">Total Tickets Logged</span>
             <span className="text-2xl font-bold text-white mt-1 block">{totalCount}</span>
@@ -217,7 +218,7 @@ export default function ComplaintsClient() {
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900/90 border border-amber-500/30 shadow-lg flex items-center justify-between">
+        <div className="p-5 rounded-2xl bg-slate-900 border border-amber-500/30 shadow-lg flex items-center justify-between">
           <div>
             <span className="text-xs text-amber-300 font-medium block">Pending Action</span>
             <span className="text-2xl font-bold text-amber-400 mt-1 block">{receivedCount}</span>
@@ -227,7 +228,7 @@ export default function ComplaintsClient() {
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900/90 border border-cyan-500/30 shadow-lg flex items-center justify-between">
+        <div className="p-5 rounded-2xl bg-slate-900 border border-cyan-500/30 shadow-lg flex items-center justify-between">
           <div>
             <span className="text-xs text-cyan-300 font-medium block">Under Investigation</span>
             <span className="text-2xl font-bold text-cyan-400 mt-1 block">{inProgressCount}</span>
@@ -237,7 +238,7 @@ export default function ComplaintsClient() {
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900/90 border border-emerald-500/30 shadow-lg flex items-center justify-between">
+        <div className="p-5 rounded-2xl bg-slate-900 border border-emerald-500/30 shadow-lg flex items-center justify-between">
           <div>
             <span className="text-xs text-emerald-300 font-medium block">Resolved & Closed</span>
             <span className="text-2xl font-bold text-emerald-400 mt-1 block">{resolvedCount}</span>
@@ -250,7 +251,7 @@ export default function ComplaintsClient() {
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="p-4 rounded-2xl bg-slate-900/90 border border-white/10 space-y-4 sm:space-y-0 sm:flex sm:items-center sm:justify-between gap-4">
+      <div className="p-4 rounded-2xl bg-slate-900 border border-white/10 space-y-4 sm:space-y-0 sm:flex sm:items-center sm:justify-between gap-4">
         
         {/* Search */}
         <div className="relative flex-1 max-w-md">
@@ -309,7 +310,7 @@ export default function ComplaintsClient() {
       {/* Complaints List Table / Grid */}
       <div className="space-y-4">
         {loading ? (
-          <div className="text-center py-16 bg-slate-900/60 rounded-3xl border border-white/10 text-slate-400 text-xs">
+          <div className="text-center py-16 bg-slate-900 rounded-3xl border border-white/10 text-slate-400 text-xs">
             Loading patient tickets and complaints...
           </div>
         ) : filteredComplaints.length > 0 ? (
@@ -317,7 +318,7 @@ export default function ComplaintsClient() {
             {filteredComplaints.map((comp) => (
               <div
                 key={comp.id}
-                className="p-5 sm:p-6 rounded-3xl bg-slate-900/90 border border-white/10 hover:border-teal-500/40 transition-all shadow-lg space-y-4"
+                className="p-5 sm:p-6 rounded-3xl bg-slate-900 border border-white/10 hover:border-teal-500/40 transition-all shadow-lg space-y-4"
               >
                 {/* Header Row */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
@@ -339,25 +340,22 @@ export default function ComplaintsClient() {
 
                 {/* Content Details */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                  
-                  {/* Patient Info */}
                   <div className="space-y-1.5">
                     <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">Patient Details</span>
                     <div className="font-bold text-white flex items-center gap-1.5">
                       <User className="w-3.5 h-3.5 text-teal-400" />
                       {comp.full_name}
                     </div>
-                    <div className="text-slate-400 flex items-center gap-1.5">
+                    <div className="text-slate-400 flex items-center gap-1.5 font-mono">
                       <Mail className="w-3.5 h-3.5 text-slate-500" />
                       {comp.email}
                     </div>
-                    <div className="text-slate-400 flex items-center gap-1.5">
+                    <div className="text-slate-400 flex items-center gap-1.5 font-mono">
                       <Phone className="w-3.5 h-3.5 text-slate-500" />
                       {comp.phone}
                     </div>
                   </div>
 
-                  {/* Branch & Category */}
                   <div className="space-y-1.5">
                     <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">Clinic & Scope</span>
                     <div className="text-slate-200 font-semibold flex items-center gap-1.5">
@@ -369,17 +367,15 @@ export default function ComplaintsClient() {
                     </div>
                   </div>
 
-                  {/* Message Preview & Action Trigger */}
                   <div className="space-y-1.5 md:col-span-1">
                     <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">Complaint Summary</span>
                     <p className="text-slate-300 line-clamp-2 italic font-light">
                       &quot;{comp.details}&quot;
                     </p>
                   </div>
-
                 </div>
 
-                {/* Admin Notes Preview if resolved */}
+                {/* Admin Notes Preview */}
                 {comp.admin_notes && (
                   <div className="p-3 rounded-2xl bg-teal-500/10 border border-teal-500/20 text-xs text-teal-200 space-y-1">
                     <span className="font-bold text-white flex items-center gap-1.5">
@@ -437,10 +433,9 @@ export default function ComplaintsClient() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-16 bg-slate-900/60 rounded-3xl border border-white/10 text-slate-400 text-xs space-y-2">
+          <div className="text-center py-16 bg-slate-900 rounded-3xl border border-white/10 text-slate-400 text-xs space-y-2">
             <LifeBuoy className="w-10 h-10 text-slate-600 mx-auto" />
-            <p className="text-white font-semibold">No complaints or support tickets match your filter criteria.</p>
-            <p className="text-slate-500">Try adjusting your search query or selecting &quot;All Statuses&quot;.</p>
+            <p className="text-white font-semibold">No complaints match your filter criteria.</p>
           </div>
         )}
       </div>
@@ -448,7 +443,7 @@ export default function ComplaintsClient() {
       {/* Ticket Management Modal */}
       <AnimatePresence>
         {selectedComplaint && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-slate-950/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -470,7 +465,6 @@ export default function ComplaintsClient() {
                 </button>
               </div>
 
-              {/* Detail Breakdown */}
               <div className="space-y-3 bg-slate-950 p-4 rounded-2xl border border-white/10 text-xs">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
@@ -483,15 +477,14 @@ export default function ComplaintsClient() {
                   </div>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Complete Complaint Message</span>
+                  <span className="text-slate-500 block">Complete Message</span>
                   <p className="text-slate-200 mt-1 leading-relaxed">{selectedComplaint.details}</p>
                 </div>
               </div>
 
-              {/* Status Update Form */}
               <form onSubmit={handleUpdateStatus} className="space-y-4 text-xs">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1.5">Update Ticket Status</label>
+                  <label className="block text-slate-300 font-semibold mb-1.5">Update Status</label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {['received', 'in_progress', 'resolved', 'rejected'].map((st) => (
                       <button
@@ -511,7 +504,7 @@ export default function ComplaintsClient() {
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1.5">Admin Resolution / DPO Action Notes</label>
+                  <label className="block text-slate-300 font-semibold mb-1.5">Admin Resolution Notes</label>
                   <textarea
                     rows={3}
                     value={adminNotes}
