@@ -32,7 +32,20 @@ export default function AuthPortal({ initialMode = 'login' }: { initialMode?: 'l
 
   // DPDP Consent state & modal
   const [dpdpConsent, setDpdpConsent] = useState(true);
+  const [rememberMe, setRememberMe] = useState(true);
   const [showDpdpModal, setShowDpdpModal] = useState(false);
+
+  // Pre-fill email if remembered from previous session
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedEmail = localStorage.getItem('falix_remembered_email');
+      if (savedEmail) {
+        setEmail(savedEmail);
+        setRememberMe(true);
+      }
+    }
+  }, []);
+
 
   const cardRef = useRef<HTMLDivElement>(null);
   const mouseX = useMotionValue(0);
@@ -134,8 +147,15 @@ export default function AuthPortal({ initialMode = 'login' }: { initialMode?: 'l
       if (mode === 'login') {
         const res = await loginWithEmail(email, password);
         if (res.error) {
+          // Pre-fill email after failed login, user only re-enters password
+          setPassword('');
           triggerError(res.error);
         } else {
+          if (rememberMe) {
+            localStorage.setItem('falix_remembered_email', email.trim().toLowerCase());
+          } else {
+            localStorage.removeItem('falix_remembered_email');
+          }
           savePatientSession(email, fullName, res.user?.uid);
           setSuccessMsg('Welcome back! Redirecting to clinic portal...');
           setTimeout(() => {
@@ -149,6 +169,9 @@ export default function AuthPortal({ initialMode = 'login' }: { initialMode?: 'l
         if (res.error) {
           triggerError(res.error);
         } else {
+          if (rememberMe) {
+            localStorage.setItem('falix_remembered_email', email.trim().toLowerCase());
+          }
           savePatientSession(email, fullName, res.user?.uid);
           setSuccessMsg('Account created successfully! Preparing your clinic portal...');
           setTimeout(() => {
@@ -159,10 +182,12 @@ export default function AuthPortal({ initialMode = 'login' }: { initialMode?: 'l
         }
       }
     } catch (err: any) {
+      setPassword('');
       triggerError(err.message || 'Authentication error occurred.');
     } finally {
       setLoading(false);
     }
+
   };
 
   const handleGoogleSignIn = async () => {
@@ -527,28 +552,46 @@ export default function AuthPortal({ initialMode = 'login' }: { initialMode?: 'l
                     </div>
                   )}
 
-                  {/* DPDP Act 2023 Consent Checkbox */}
+                  {/* Remember Me & DPDP Consent Checkboxes */}
                   {mode !== 'forgot' && (
-                    <div className="flex items-start gap-2.5 pt-1">
-                      <input
-                        type="checkbox"
-                        id="dpdp-auth-consent-cb"
-                        checked={dpdpConsent}
-                        onChange={(e) => setDpdpConsent(e.target.checked)}
-                        className="mt-0.5 rounded border-white/20 bg-slate-950 text-teal-500 focus:ring-teal-500/50 cursor-pointer"
-                      />
-                      <label htmlFor="dpdp-auth-consent-cb" className="text-[11px] leading-tight text-slate-300">
-                        I consent to the collection & processing of my data under the{' '}
-                        <button
-                          type="button"
-                          onClick={() => setShowDpdpModal(true)}
-                          className="text-teal-400 font-semibold underline hover:text-teal-300"
-                        >
-                          DPDP Act 2023 & Rules 2025
-                        </button>.
-                      </label>
+                    <div className="space-y-2 pt-1">
+                      {mode === 'login' && (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="remember-me-cb"
+                            checked={rememberMe}
+                            onChange={(e) => setRememberMe(e.target.checked)}
+                            className="rounded border-white/20 bg-slate-950 text-teal-500 focus:ring-teal-500/50 cursor-pointer"
+                          />
+                          <label htmlFor="remember-me-cb" className="text-xs text-slate-300 font-medium cursor-pointer">
+                            Remember me on this device
+                          </label>
+                        </div>
+                      )}
+
+                      <div className="flex items-start gap-2.5">
+                        <input
+                          type="checkbox"
+                          id="dpdp-auth-consent-cb"
+                          checked={dpdpConsent}
+                          onChange={(e) => setDpdpConsent(e.target.checked)}
+                          className="mt-0.5 rounded border-white/20 bg-slate-950 text-teal-500 focus:ring-teal-500/50 cursor-pointer"
+                        />
+                        <label htmlFor="dpdp-auth-consent-cb" className="text-[11px] leading-tight text-slate-300">
+                          I consent to the collection & processing of my data under the{' '}
+                          <button
+                            type="button"
+                            onClick={() => setShowDpdpModal(true)}
+                            className="text-teal-400 font-semibold underline hover:text-teal-300"
+                          >
+                            DPDP Act 2023 & Rules 2025
+                          </button>.
+                        </label>
+                      </div>
                     </div>
                   )}
+
 
                   <button
                     disabled={loading || googleLoading}

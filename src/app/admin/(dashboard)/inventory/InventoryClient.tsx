@@ -121,11 +121,11 @@ export default function InventoryClient({ initialItems, branches }: Props) {
     return matchesSearch && matchesCategory && matchesSupplier && matchesStockLevel
   })
 
-  // KPI Calculations
-  const totalProducts = items.length
-  const totalStockUnits = items.reduce((acc, curr) => acc + Number(curr.stock || 0), 0)
+  // KPI Calculations (Uses pre-computed server metrics if available)
+  const totalProducts = initialStats?.totalItems ?? items.length
+  const totalStockUnits = initialStats?.totalStockUnits ?? items.reduce((acc, curr) => acc + Number(curr.stock || 0), 0)
   const outOfStockCount = items.filter(i => Number(i.stock || 0) === 0).length
-  const lowStockCount = items.filter(i => Number(i.stock || 0) > 0 && Number(i.stock || 0) <= 30).length
+  const lowStockCount = initialStats?.lowStockCount ?? items.filter(i => Number(i.stock || 0) > 0 && Number(i.stock || 0) <= 30).length
 
   // Trigger PDF Generation for Out of Stock Items
   const handleExportOutOfStockPdf = () => {

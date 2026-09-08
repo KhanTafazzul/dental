@@ -1,5 +1,6 @@
 import React from 'react'
 import { getAdminSupabase } from '@/lib/supabase'
+import { fetchServerFinancialAnalytics } from '@/lib/analytics'
 import FinancesClient from './FinancesClient'
 import { AlertCircle } from 'lucide-react'
 
@@ -18,6 +19,7 @@ export default async function AdminFinancesPage() {
   let electricityExpenses: any[] = []
   let extraExpenses: any[] = []
   let appointments: any[] = []
+  let analyticsData: any = null
   let dbConfigured = true
 
   try {
@@ -25,8 +27,9 @@ export default async function AdminFinancesPage() {
         process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-supabase-project')) {
       dbConfigured = false
     } else {
-      // Fetch all financial resources in parallel
+      // Fetch pre-computed server financial analytics in parallel with raw records
       const [
+        analyticsRes,
         branchRes,
         docRes,
         helperRes,
@@ -36,6 +39,7 @@ export default async function AdminFinancesPage() {
         extraRes,
         apptRes
       ] = await Promise.all([
+        fetchServerFinancialAnalytics('all', new Date().getFullYear()),
         adminDb.from('branches').select('id, name, slug'),
         adminDb.from('doctors').select('id, name, slug, specialty, compensation_type, fixed_salary, profit_percentage, profit_sharing_target, branch_id').order('name'),
         adminDb.from('helper_boys').select('id, name, shift_1_rate, shift_2_rate, shift_1_enabled, shift_2_enabled, sunday_enabled, branch_id').order('name'),
@@ -71,6 +75,7 @@ export default async function AdminFinancesPage() {
         `).order('appointment_date', { ascending: false })
       ])
 
+      analyticsData = analyticsRes
       branches = branchRes.data || []
       doctors = docRes.data || []
       helperBoys = helperRes.data || []
@@ -121,6 +126,7 @@ export default async function AdminFinancesPage() {
         initialElectricityExpenses={electricityExpenses}
         initialExtraExpenses={extraExpenses}
         initialAppointments={appointments}
+        initialAnalytics={analyticsData}
       />
     </div>
   )

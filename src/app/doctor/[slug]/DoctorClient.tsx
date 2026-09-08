@@ -20,8 +20,10 @@ import { supabase } from '@/lib/supabase'
 import { 
   Calendar, Clock, Check, X, FileText, Upload, Copy, Info, Mail, Phone,
   TrendingUp, Award, LogOut, Sparkles, RefreshCw, User, HelpCircle, CheckCircle,
-  Search, PlusCircle, Trash2, Loader2, Percent, AlertCircle, ShoppingCart, Send, Barcode, Activity
+  Search, PlusCircle, Trash2, Loader2, Percent, AlertCircle, ShoppingCart, Send, Barcode, Activity, MessageSquare
 } from 'lucide-react'
+import DoctorChatPortal from '@/components/chat/DoctorChatPortal'
+
 
 interface Doctor {
   id: string
@@ -180,8 +182,9 @@ export default function DoctorClient({
   treatments
 }: DoctorClientProps) {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'appointments' | 'book' | 'finances'>('appointments')
+  const [activeTab, setActiveTab] = useState<'appointments' | 'book' | 'finances' | 'chat'>('appointments')
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments)
+
 
   // Postpone Appointment Modal states for Doctor
   const [showPostponeModal, setShowPostponeModal] = useState(false)
@@ -1002,7 +1005,16 @@ export default function DoctorClient({
           >
             Earnings
           </button>
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={`flex-1 sm:flex-initial px-3 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 flex items-center gap-1.5 ${
+              activeTab === 'chat' ? 'bg-white text-teal-700 shadow-[0_4px_12px_rgba(0,0,0,0.05)]' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5 text-teal-600" /> Doctor Chat & Consultations
+          </button>
         </div>
+
 
         {/* ═══ MAIN CONTENT AREA ═══ */}
         <AnimatePresence mode="wait">
@@ -1420,8 +1432,36 @@ export default function DoctorClient({
           </motion.div>
         )}
 
+        {/* TAB 4: DOCTOR-TO-DOCTOR CHAT & CASE REFERRALS */}
+        {activeTab === 'chat' && (
+          <motion.div
+            key="chat"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.12 }}
+            className="space-y-4"
+          >
+            <DoctorChatPortal
+              currentUser={{
+                id: doctor.id,
+                name: doctor.name,
+                role: 'doctor'
+              }}
+              doctorsList={[
+                { id: doctor.id, name: doctor.name, slug: doctor.slug, specialty: doctor.specialty || 'Dentist', isOnline: true },
+                { id: 'doc-sarah', name: 'Dr. Sarah Jenkins', slug: 'sarah-jenkins', specialty: 'Orthodontist & Implants', branchName: 'Hazara Clinic', isOnline: true },
+                { id: 'doc-khan', name: 'Dr. A. K. Khan', slug: 'ak-khan', specialty: 'Endodontist & Root Canal Specialist', branchName: 'Family Dental Clinic', isOnline: true },
+                { id: 'doc-neha', name: 'Dr. Neha Sharma', slug: 'neha-sharma', specialty: 'Pediatric Dentistry', branchName: 'Hazara Clinic', isOnline: false }
+              ]}
+              appointments={appointments}
+            />
+          </motion.div>
+        )}
+
         </AnimatePresence>
       </div>
+
 
       {/* ═══ MODAL OVERLAY FOR PATIENT REPORT EMAIL ═══ */}
       <AnimatePresence>

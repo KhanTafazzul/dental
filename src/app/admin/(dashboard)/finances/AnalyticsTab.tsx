@@ -8,6 +8,7 @@ import {
 } from 'recharts'
 import { Calendar, TrendingUp, DollarSign, Activity, Sparkles, ShieldCheck, ArrowUpRight, BarChart3 } from 'lucide-react'
 import DentalLogo from '@/components/DentalLogo'
+import { FinancialAnalyticsResult } from '@/lib/analytics'
 
 const PIE_COLORS = ['#0891b2', '#10b981', '#6366f1', '#f59e0b', '#ec4899', '#8b5cf6']
 
@@ -21,6 +22,7 @@ interface AnalyticsTabProps {
   doctorAttendance: any[]
   selectedBranch: string
   branches: any[]
+  initialAnalytics?: FinancialAnalyticsResult
 }
 
 function getAppointmentFinances(appt: any) {
@@ -95,11 +97,22 @@ function getWorkingDaysInMonth(year: number, month: number, includeSundays: bool
 }
 
 export default function AnalyticsTab({
-  appointments, electricityExpenses, helperBoys, helperAttendance, extraExpenses, doctors, doctorAttendance, selectedBranch, branches
+  appointments, electricityExpenses, helperBoys, helperAttendance, extraExpenses, doctors, doctorAttendance, selectedBranch, branches, initialAnalytics
 }: AnalyticsTabProps) {
 
-  // Aggregate Data by Month
+  // Aggregate Data by Month (Uses pre-computed server metrics if available)
   const monthlyData = useMemo(() => {
+    if (initialAnalytics?.monthlyChartData && selectedBranch === 'all') {
+      return initialAnalytics.monthlyChartData.map(d => ({
+        month: d.label,
+        revenue: d.revenue,
+        expenses: d.expenses,
+        netProfit: d.netProfit,
+        treatmentProfit: Math.round(d.revenue * 0.6),
+        medicineProfit: Math.round(d.revenue * 0.4)
+      }))
+    }
+
     const dataMap: Record<string, any> = {}
 
     appointments.forEach(appt => {

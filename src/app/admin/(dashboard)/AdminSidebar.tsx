@@ -16,6 +16,7 @@ import { useTheme } from '@/components/ThemeContext'
 const NAV_ITEMS = [
   { href: '/admin',           icon: LayoutDashboard, label: 'Appointments',         color: '#0891b2', bg: '#ecfeff' },
   { href: '/admin/doctors',   icon: Users,           label: 'Manage Doctors',       color: '#7c3aed', bg: '#f5f3ff' },
+  { href: '/admin/doctor-chat',icon: MessageSquare,  label: 'Doctor-Doctor Chat',   color: '#0ea5e9', bg: '#f0f9ff' },
   { href: '/admin/billing',   icon: Receipt,         label: 'Billing & Checkout',   color: '#059669', bg: '#ecfdf5' },
   { href: '/admin/inventory', icon: Package,         label: 'Inventory & Stock',   color: '#ea580c', bg: '#fff7ed' },
   { href: '/admin/finances',  icon: CircleDollarSign,label: 'Finances & Profits',   color: '#d97706', bg: '#fffbeb' },
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { href: '/admin/messaging', icon: MessageSquare,   label: 'Messaging & Campaigns',color: '#e11d48', bg: '#fff1f2' },
   { href: '/admin/settings',  icon: Settings,        label: 'Settings',             color: '#475569', bg: '#f8fafc' },
 ]
+
 
 export default function AdminSidebar() {
   const pathname = usePathname()

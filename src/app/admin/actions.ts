@@ -7,6 +7,8 @@ import { randomUUID } from 'crypto'
 import { writeFile, mkdir, readFile } from 'fs/promises'
 import { join, basename } from 'path'
 import { signToken, verifyToken } from '@/lib/auth'
+import { revalidateTag, revalidatePath } from 'next/cache'
+
 
 // Admin Cookie Login
 export async function loginAdmin(password: string) {
@@ -959,6 +961,7 @@ export async function addExtraExpense(amount: number, note: string, date: string
       .select()
       
     if (error) throw error
+    revalidateTag('financial-analytics')
     return { success: true, data }
   } catch (err: any) {
     console.error('Error adding extra expense:', err)
@@ -985,6 +988,7 @@ export async function updateExtraExpense(id: string, amount: number, note: strin
       .select()
       
     if (error) throw error
+    revalidateTag('financial-analytics')
     return { success: true, data }
   } catch (err: any) {
     console.error('Error updating extra expense:', err)
@@ -1307,8 +1311,10 @@ export async function saveMedicineStock(
       )
     }
 
+    revalidateTag('inventory-stats')
     return { success: true, medicineId }
   } catch (err: any) {
+
     console.error('Error saving medicine stock:', err)
     return { success: false, error: err.message || 'Failed to save medicine stock.' }
   }
@@ -2295,6 +2301,30 @@ export async function resetClinicSettingsAction(confirmationText: string) {
     return { success: false, error: err.message || 'Failed to reset clinic settings.' }
   }
 }
+
+// Server-side Aggregations & Analytics Server Actions
+import { fetchServerFinancialAnalytics, fetchServerInventoryStats } from '@/lib/analytics'
+
+export async function getFinancialAnalyticsAction(selectedBranch: string = 'all', selectedYear: number = new Date().getFullYear()) {
+  try {
+    const data = await fetchServerFinancialAnalytics(selectedBranch, selectedYear)
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('Error fetching server financial analytics:', err)
+    return { success: false, error: err?.message || 'Failed to compute financial analytics.' }
+  }
+}
+
+export async function getInventoryStatsAction(branchSlug: string = 'hazara') {
+  try {
+    const data = await fetchServerInventoryStats(branchSlug)
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('Error fetching server inventory stats:', err)
+    return { success: false, error: err?.message || 'Failed to compute inventory stats.' }
+  }
+}
+
 
 
 
