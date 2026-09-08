@@ -55,17 +55,19 @@ export default function AuthPortal({ initialMode = 'login' }: { initialMode?: 'l
   const rotateY = useSpring(useTransform(mouseX, [-0.5, 0.5], [-6, 6]), springConfig);
   const shineOpacity = useSpring(useTransform(mouseY, [-0.5, 0.5], [0.15, 0.35]), springConfig);
 
-  const savePatientSession = (userEmail: string, name?: string, uid?: string) => {
+  const savePatientSession = (userEmail: string, name?: string, uid?: string, photoURL?: string) => {
     if (typeof window === 'undefined') return;
     const sessionObj = {
       email: userEmail.trim().toLowerCase(),
       fullName: name || fullName || userEmail.split('@')[0],
       uid: uid || 'user_' + Date.now(),
+      avatarUrl: photoURL || '',
       loggedInAt: new Date().toISOString()
     };
     localStorage.setItem('falix_patient_user', JSON.stringify(sessionObj));
     window.dispatchEvent(new Event('falix_auth_changed'));
   };
+
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
@@ -202,7 +204,8 @@ export default function AuthPortal({ initialMode = 'login' }: { initialMode?: 'l
       if (res.error) {
         triggerError(res.error);
       } else {
-        savePatientSession(res.user?.email || email, res.user?.displayName || fullName, res.user?.uid);
+        savePatientSession(res.user?.email || email, res.user?.displayName || fullName, res.user?.uid, res.user?.photoURL || '');
+
         setSuccessMsg('Authenticated via Google! Redirecting...');
         setTimeout(() => {
           const params = new URLSearchParams(window.location.search);
