@@ -274,31 +274,31 @@ export default function DoctorChatPortal({
   )
 
   return (
-    <div className="w-full h-[82vh] bg-slate-950 border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col lg:flex-row text-sans">
+    <div className="w-full h-[calc(100vh-140px)] min-h-[640px] bg-[#0c1a17]/90 dark:bg-[#071411]/90 border border-emerald-900/40 rounded-3xl overflow-hidden shadow-2xl flex flex-col lg:flex-row font-sans backdrop-blur-xl">
       
       {/* ════ LEFT COLUMN: DOCTOR DIRECTORY ════ */}
-      <div className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r border-white/10 bg-slate-900/90 flex flex-col shrink-0">
+      <div className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r border-emerald-900/40 bg-[#0a1714]/80 flex flex-col shrink-0">
         
         {/* Directory Header */}
-        <div className="p-4 border-b border-white/10 space-y-3">
+        <div className="p-4 border-b border-emerald-900/40 bg-[#0f2420]/50 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-serif font-bold text-white flex items-center gap-2">
-              <Stethoscope className="w-4 h-4 text-teal-400" />
+              <Stethoscope className="w-4 h-4 text-emerald-400" />
               Doctor Consultations
             </h2>
-            <span className="text-[10px] font-mono font-semibold text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded-full border border-teal-500/20">
+            <span className="text-[10px] font-mono font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
               {doctorsList.length} Active
             </span>
           </div>
 
           <div className="relative">
-            <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-500" />
+            <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-emerald-600/70" />
             <input
               type="text"
               placeholder="Search doctor or specialty..."
               value={searchDoctorQuery}
               onChange={e => setSearchDoctorQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-slate-950/80 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-400"
+              className="w-full pl-9 pr-3 py-2 bg-[#050f0c] border border-emerald-900/40 rounded-xl text-xs text-white placeholder-emerald-700/60 focus:outline-none focus:border-emerald-500"
             />
           </div>
         </div>
@@ -327,12 +327,12 @@ export default function DoctorChatPortal({
                     isUserScrollingUpRef.current = false
                   }}
                   className={`w-full p-3 rounded-2xl transition-all text-left flex items-start gap-3 relative cursor-pointer ${
-                    isSelected ? 'bg-gradient-to-r from-teal-500/20 to-cyan-500/10 border border-teal-500/40' : 'hover:bg-white/5 border border-transparent'
+                    isSelected ? 'bg-gradient-to-r from-emerald-500/20 to-teal-500/10 border border-emerald-500/40' : 'hover:bg-emerald-950/30 border border-transparent'
                   }`}
                 >
                   {/* Doctor Avatar */}
                   <div className="relative shrink-0">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-600 to-cyan-700 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white font-bold text-sm shadow-md">
                       {doc.name.replace(/^Dr\.\s*/i, '').charAt(0)}
                     </div>
                     <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 ${
@@ -343,7 +343,7 @@ export default function DoctorChatPortal({
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <h3 className={`text-xs font-semibold truncate ${isSelected ? 'text-teal-300' : 'text-slate-200'}`}>
+                      <h3 className={`text-xs font-semibold truncate ${isSelected ? 'text-emerald-300' : 'text-slate-200'}`}>
                         {doc.name}
                       </h3>
                       {lastMsg && (
@@ -369,11 +369,11 @@ export default function DoctorChatPortal({
       </div>
 
       {/* ════ RIGHT COLUMN: ACTIVE CONVERSATION THREAD ════ */}
-      <div className="flex-1 flex flex-col bg-slate-950 min-w-0 relative">
+      <div className="flex-1 flex flex-col bg-[#071411]/95 min-w-0 relative">
         
         {/* Chat Thread Header */}
         {targetDoctor ? (
-          <div className="p-4 border-b border-white/10 bg-slate-900/60 backdrop-blur-md flex items-center justify-between shrink-0">
+          <div className="p-4 border-b border-emerald-900/40 bg-[#0f2420]/60 backdrop-blur-md flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <div className="relative">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-600 to-cyan-700 flex items-center justify-center text-white font-bold text-sm">
@@ -580,8 +580,8 @@ export default function DoctorChatPortal({
         </div>
 
         {/* ═══ MESSAGE INPUT COMPOSER ═══ */}
-        <div className="p-3.5 border-t border-white/10 bg-slate-900/80 backdrop-blur-md">
-          <div className="relative flex items-end gap-2 bg-slate-950 border border-white/15 rounded-2xl p-2 focus-within:border-teal-400 transition-all">
+        <div className="p-3.5 border-t border-emerald-900/40 bg-[#0a1714]/90 backdrop-blur-md">
+          <div className="relative flex items-end gap-2 bg-[#050f0c] border border-emerald-900/40 rounded-2xl p-2 focus-within:border-emerald-500 transition-all">
             
             {/* Hidden File Input */}
             <input
@@ -597,7 +597,7 @@ export default function DoctorChatPortal({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               title="Attach File or Image"
-              className="p-2 text-slate-400 hover:text-teal-400 hover:bg-white/5 rounded-xl transition-colors cursor-pointer shrink-0"
+              className="p-2 text-emerald-600 hover:text-emerald-400 hover:bg-emerald-950/40 rounded-xl transition-colors cursor-pointer shrink-0"
             >
               <ImageIcon className="w-4 h-4" />
             </button>
@@ -607,7 +607,7 @@ export default function DoctorChatPortal({
               type="button"
               onClick={() => setShowShareModal(true)}
               title="Share Patient Bill or Report"
-              className="p-2 text-slate-400 hover:text-teal-400 hover:bg-white/5 rounded-xl transition-colors cursor-pointer shrink-0"
+              className="p-2 text-emerald-600 hover:text-emerald-400 hover:bg-emerald-950/40 rounded-xl transition-colors cursor-pointer shrink-0"
             >
               <Paperclip className="w-4 h-4" />
             </button>
@@ -619,7 +619,7 @@ export default function DoctorChatPortal({
               value={inputText}
               onChange={e => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="flex-1 bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none resize-none py-2 px-1 max-h-32"
+              className="flex-1 bg-transparent text-xs text-white placeholder-emerald-700/60 focus:outline-none resize-none py-2 px-1 max-h-32"
             />
 
             {/* Send Button */}
@@ -627,13 +627,13 @@ export default function DoctorChatPortal({
               type="button"
               onClick={() => handleSendMessage()}
               disabled={!inputText.trim()}
-              className="p-2.5 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-slate-950 font-bold rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-md cursor-pointer shrink-0"
+              className="p-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-md cursor-pointer shrink-0"
             >
               <Send className="w-4 h-4" />
             </button>
           </div>
-          <p className="text-[10px] text-slate-500 mt-1.5 text-right px-2">
-            💡 Press <kbd className="px-1 bg-slate-800 rounded border border-white/10 text-slate-400">Enter</kbd> to send • <kbd className="px-1 bg-slate-800 rounded border border-white/10 text-slate-400">Shift + Enter</kbd> for multi-line
+          <p className="text-[10px] text-emerald-600/70 mt-1.5 text-right px-2">
+            💡 Press <kbd className="px-1 bg-[#050f0c] rounded border border-emerald-900/40 text-emerald-400">Enter</kbd> to send • <kbd className="px-1 bg-[#050f0c] rounded border border-emerald-900/40 text-emerald-400">Shift + Enter</kbd> for multi-line
           </p>
         </div>
       </div>

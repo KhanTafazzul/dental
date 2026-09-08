@@ -8,13 +8,13 @@ export const metadata = {
   description: 'Inter-doctor messaging portal for sharing patient reports, clinical cases, and treatment bills.',
 }
 
-export default async function AdminDoctorChatPage() {
+export default async function AdminDoctorChatDashboardPage() {
   const adminDb = getAdminSupabase()
   let doctors: any[] = []
   let appointments: any[] = []
 
   try {
-    const [docRes, apptRes] = await Promise.all([
+    const [docRes, apptRes] = await Promise.allSettled([
       adminDb.from('doctors').select('id, name, slug, specialty, branch_id, branches(name)').order('name'),
       adminDb.from('appointments').select(`
         id,
@@ -28,16 +28,20 @@ export default async function AdminDoctorChatPage() {
       `).order('appointment_date', { ascending: false }).limit(20)
     ])
 
-    doctors = (docRes.data || []).map((d: any) => ({
-      id: d.id,
-      name: d.name,
-      slug: d.slug,
-      specialty: d.specialty || 'General Dentist',
-      branchName: d.branches?.name || 'Hazara Clinic',
-      isOnline: true
-    }))
+    if (docRes.status === 'fulfilled' && docRes.value?.data) {
+      doctors = docRes.value.data.map((d: any) => ({
+        id: d.id,
+        name: d.name,
+        slug: d.slug,
+        specialty: d.specialty || 'General Dentist',
+        branchName: d.branches?.name || 'Hazara Clinic',
+        isOnline: true
+      }))
+    }
 
-    appointments = apptRes.data || []
+    if (apptRes.status === 'fulfilled' && apptRes.value?.data) {
+      appointments = apptRes.value.data
+    }
   } catch (err) {
     console.error('Error fetching data for doctor chat:', err)
   }
@@ -61,11 +65,11 @@ export default async function AdminDoctorChatPage() {
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-serif text-slate-900 font-normal flex items-center gap-2.5">
-            <MessageSquare className="w-6 h-6 text-teal-600" />
+          <h1 className="text-2xl font-serif text-slate-900 dark:text-slate-100 font-normal flex items-center gap-2.5">
+            <MessageSquare className="w-6 h-6 text-emerald-500" />
             Doctor Consultations & Case Referrals
           </h1>
-          <p className="text-xs text-slate-400 font-light uppercase tracking-wider mt-1">
+          <p className="text-xs text-slate-500 dark:text-emerald-400/70 font-light uppercase tracking-wider mt-1">
             Real-time Doctor-to-Doctor Messaging, Patient Report & Invoice Sharing
           </p>
         </div>

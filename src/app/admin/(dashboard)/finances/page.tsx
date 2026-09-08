@@ -28,25 +28,15 @@ export default async function AdminFinancesPage() {
       dbConfigured = false
     } else {
       // Fetch pre-computed server financial analytics in parallel with raw records
-      const [
-        analyticsRes,
-        branchRes,
-        docRes,
-        helperRes,
-        helperAttRes,
-        doctorAttRes,
-        elecRes,
-        extraRes,
-        apptRes
-      ] = await Promise.all([
+      const results = await Promise.allSettled([
         fetchServerFinancialAnalytics('all', new Date().getFullYear()),
         adminDb.from('branches').select('id, name, slug'),
         adminDb.from('doctors').select('id, name, slug, specialty, compensation_type, fixed_salary, profit_percentage, profit_sharing_target, branch_id').order('name'),
         adminDb.from('helper_boys').select('id, name, shift_1_rate, shift_2_rate, shift_1_enabled, shift_2_enabled, sunday_enabled, branch_id').order('name'),
-        adminDb.from('helper_attendance').select('helper_boy_id, date, shift, status'),
-        adminDb.from('doctor_attendance').select('doctor_id, date, status'),
+        adminDb.from('helper_attendance').select('helper_boy_id, date, shift, status').limit(200),
+        adminDb.from('doctor_attendance').select('doctor_id, date, status').limit(200),
         adminDb.from('monthly_expenses').select('id, month_year, electricity_bill, branch_id'),
-        adminDb.from('extra_expenses').select('id, amount, note, expense_date, branch_id').order('expense_date', { ascending: false }),
+        adminDb.from('extra_expenses').select('id, amount, note, expense_date, branch_id').order('expense_date', { ascending: false }).limit(100),
         adminDb.from('appointments').select(`
           id,
           appointment_date,
@@ -72,18 +62,22 @@ export default async function AdminFinancesPage() {
               total_price
             )
           )
-        `).order('appointment_date', { ascending: false })
+        `).order('appointment_date', { ascending: false }).limit(100)
       ])
 
+      const [
+        analyticsRes, branchRes, docRes, helperRes, helperAttRes, doctorAttRes, elecRes, extraRes, apptRes
+      ] = results.map(r => r.status === 'fulfilled' ? r.value : { data: null })
+
       analyticsData = analyticsRes
-      branches = branchRes.data || []
-      doctors = docRes.data || []
-      helperBoys = helperRes.data || []
-      helperAttendance = helperAttRes.data || []
-      doctorAttendance = doctorAttRes.data || []
-      electricityExpenses = elecRes.data || []
-      extraExpenses = extraRes.data || []
-      appointments = (apptRes.data || []).map(appt => ({
+      branches = (branchRes as any)?.data || []
+      doctors = (docRes as any)?.data || []
+      helperBoys = (helperRes as any)?.data || []
+      helperAttendance = (helperAttRes as any)?.data || []
+      doctorAttendance = (doctorAttRes as any)?.data || []
+      electricityExpenses = (elecRes as any)?.data || []
+      extraExpenses = (extraRes as any)?.data || []
+      appointments = (((apptRes as any)?.data) || []).map((appt: any) => ({
         ...appt,
         patients: Array.isArray(appt.patients) ? appt.patients[0] : appt.patients,
         branches: Array.isArray(appt.branches) ? appt.branches[0] : appt.branches,

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Package, Search, Filter, Plus, FileDown, MoreVertical,
@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { generateOutOfStockPDF, generateLowStockPDF } from '@/lib/pdfGenerator'
 import { saveMedicineStock, deleteInventoryItem } from '@/app/admin/actions'
+import { getClientCache, saveClientCache } from '@/lib/clientCache'
 
 interface Branch {
   id: string
@@ -37,11 +38,25 @@ interface InventoryItem {
 
 interface Props {
   initialItems: InventoryItem[]
+  initialStats?: any
   branches: Branch[]
 }
 
-export default function InventoryClient({ initialItems, branches }: Props) {
-  const [items, setItems] = useState<InventoryItem[]>(initialItems)
+export default function InventoryClient({ initialItems, initialStats, branches }: Props) {
+  const [items, setItems] = useState<InventoryItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = getClientCache<InventoryItem[]>('admin_inventory')
+      if (cached && cached.length > 0) return cached
+    }
+    return initialItems
+  })
+
+  useEffect(() => {
+    if (initialItems && initialItems.length > 0) {
+      setItems(initialItems)
+      saveClientCache('admin_inventory', initialItems)
+    }
+  }, [initialItems])
   const [selectedBranch, setSelectedBranch] = useState<string>(branches[0]?.slug || 'hazara')
 
   // Search & Filter state

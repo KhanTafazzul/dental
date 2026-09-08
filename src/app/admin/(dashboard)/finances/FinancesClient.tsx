@@ -19,6 +19,7 @@ import {
   deleteExtraExpense
 } from '@/app/admin/actions'
 import AnalyticsTab from './AnalyticsTab'
+import { getClientCache, saveClientCache } from '@/lib/clientCache'
 
 interface Branch {
   id: string
@@ -203,13 +204,35 @@ export default function FinancesClient({
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
   
-  // Local lists
-  const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments)
-  const [helperBoysList, setHelperBoysList] = useState<HelperBoy[]>(helperBoys)
-  const [helperAttendance, setHelperAttendance] = useState<HelperAttendance[]>(initialHelperAttendance)
-  const [doctorAttendance, setDoctorAttendance] = useState<DoctorAttendance[]>(initialDoctorAttendance)
-  const [electricityExpenses, setElectricityExpenses] = useState<ElectricityExpense[]>(initialElectricityExpenses)
-  const [extraExpenses, setExtraExpenses] = useState<ExtraExpense[]>(initialExtraExpenses)
+  // Local lists with 0ms client-side cache restoration
+  const cachedData = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      return getClientCache<any>('admin_finances_state')
+    }
+    return null
+  }, [])
+
+  const [appointments, setAppointments] = useState<Appointment[]>(cachedData?.appointments || initialAppointments)
+  const [helperBoysList, setHelperBoysList] = useState<HelperBoy[]>(cachedData?.helperBoysList || helperBoys)
+  const [helperAttendance, setHelperAttendance] = useState<HelperAttendance[]>(cachedData?.helperAttendance || initialHelperAttendance)
+  const [doctorAttendance, setDoctorAttendance] = useState<DoctorAttendance[]>(cachedData?.doctorAttendance || initialDoctorAttendance)
+  const [electricityExpenses, setElectricityExpenses] = useState<ElectricityExpense[]>(cachedData?.electricityExpenses || initialElectricityExpenses)
+  const [extraExpenses, setExtraExpenses] = useState<ExtraExpense[]>(cachedData?.extraExpenses || initialExtraExpenses)
+
+  useEffect(() => {
+    if (initialAppointments && initialAppointments.length > 0) setAppointments(initialAppointments)
+    if (helperBoys && helperBoys.length > 0) setHelperBoysList(helperBoys)
+    if (initialHelperAttendance) setHelperAttendance(initialHelperAttendance)
+    if (initialDoctorAttendance) setDoctorAttendance(initialDoctorAttendance)
+    if (initialElectricityExpenses) setElectricityExpenses(initialElectricityExpenses)
+    if (initialExtraExpenses) setExtraExpenses(initialExtraExpenses)
+  }, [initialAppointments, helperBoys, initialHelperAttendance, initialDoctorAttendance, initialElectricityExpenses, initialExtraExpenses])
+
+  useEffect(() => {
+    saveClientCache('admin_finances_state', {
+      appointments, helperBoysList, helperAttendance, doctorAttendance, electricityExpenses, extraExpenses
+    })
+  }, [appointments, helperBoysList, helperAttendance, doctorAttendance, electricityExpenses, extraExpenses])
   
   // Attendance Date Selector
   const [attendanceDate, setAttendanceDate] = useState<string>(() => {

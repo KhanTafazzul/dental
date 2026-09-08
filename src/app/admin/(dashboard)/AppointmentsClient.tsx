@@ -9,6 +9,7 @@ import {
   Building, User2, RefreshCw, ChevronDown, CheckCircle2, Clock,
   FileText, QrCode, UploadCloud, Copy, HelpCircle, User, Plus, Loader2
 } from 'lucide-react'
+import { getClientCache, saveClientCache } from '@/lib/clientCache'
 
 interface AppointmentsClientProps {
   initialAppointments: any[]
@@ -16,7 +17,20 @@ interface AppointmentsClientProps {
 }
 
 export default function AppointmentsClient({ initialAppointments, branches }: AppointmentsClientProps) {
-  const [appointments, setAppointments] = useState(initialAppointments)
+  const [appointments, setAppointments] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = getClientCache<any[]>('admin_appointments')
+      if (cached && cached.length > 0) return cached
+    }
+    return initialAppointments
+  })
+
+  useEffect(() => {
+    if (initialAppointments && initialAppointments.length > 0) {
+      setAppointments(initialAppointments)
+      saveClientCache('admin_appointments', initialAppointments)
+    }
+  }, [initialAppointments])
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   
   // Filters
