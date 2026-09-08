@@ -64,13 +64,14 @@ export default function DpdpModal({ isOpen, onClose, defaultLang = 'en' }: DpdpM
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-slate-950/80 backdrop-blur-md">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-[#040c0a]/80 backdrop-blur-md">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          transition={{ type: 'spring', stiffness: 350, damping: 30 }}
           dir={currentLangObj.dir}
-          className="relative w-full max-w-2xl bg-slate-900 border border-teal-500/30 rounded-3xl p-6 sm:p-8 text-slate-100 shadow-[0_25px_70px_rgba(0,0,0,0.8)] overflow-hidden"
+          className="relative w-full max-w-2xl bg-[#0c1a17]/95 border border-emerald-500/30 rounded-3xl p-6 sm:p-8 text-slate-100 shadow-[0_25px_70px_rgba(0,0,0,0.85)] overflow-hidden backdrop-blur-2xl"
         >
           {/* Top Header */}
           <div className="flex items-center justify-between border-b border-white/10 pb-5 mb-6">

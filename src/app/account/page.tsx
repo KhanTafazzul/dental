@@ -10,7 +10,7 @@ export const metadata = {
 
 export default function AccountPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-teal-950/30 to-slate-950 text-white selection:bg-teal-500/30 selection:text-teal-200 py-8 px-4 sm:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-[#06120f] via-[#0b1f1a] to-[#040c0a] text-white selection:bg-emerald-500/30 selection:text-emerald-200 py-8 px-4 sm:px-8">
       
       {/* Header Bar */}
       <div className="max-w-6xl mx-auto mb-8 flex items-center justify-between">
@@ -20,7 +20,7 @@ export default function AccountPage() {
 
         <Link
           href="/"
-          className="text-xs font-semibold text-slate-300 hover:text-teal-300 transition-colors py-2 px-4 rounded-xl bg-white/5 border border-white/10"
+          className="text-xs font-semibold text-emerald-300 hover:text-emerald-200 transition-colors py-2 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20"
         >
           ← Return to Clinic Gateway
         </Link>

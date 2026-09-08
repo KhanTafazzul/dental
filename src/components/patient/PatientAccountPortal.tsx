@@ -180,7 +180,7 @@ export default function PatientAccountPortal() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-white/12 shadow-[0_20px_50px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6"
+        className="relative p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-[#06120f] via-[#0c1a17] to-[#040c0a] border border-emerald-500/25 shadow-[0_20px_50px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6"
       >
         {/* Background glow */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-teal-500/10 rounded-full blur-[120px] pointer-events-none" />
@@ -266,7 +266,7 @@ export default function PatientAccountPortal() {
         
         {/* Navigation Sidebar Tabs */}
         <div className="lg:col-span-4 space-y-2">
-          <div className="p-2 rounded-3xl bg-slate-900/90 border border-white/10 space-y-1">
+          <div className="p-2 rounded-3xl bg-[#0c1a17]/90 border border-emerald-500/20 space-y-1">
             
             {[
               { id: 'profile', label: 'Display Name & Identity', icon: User },
