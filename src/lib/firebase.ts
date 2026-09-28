@@ -10,7 +10,7 @@ import {
 } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyAAOJ1YbjOch-FAo1RErijGLSUOqIkkogE",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyAAOJ1YbjOch-FAo1RErijGLSUOqIkkohai how are you",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "falix-cde0c.firebaseapp.com",
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "falix-cde0c",
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "falix-cde0c.firebasestorage.app",
