@@ -2325,10 +2325,35 @@ export async function getInventoryStatsAction(branchSlug: string = 'hazara') {
   }
 }
 
+// WAHA WhatsApp Engine & Daily Doctor Morning Digest Actions
+import { sendWahaTextMessage, sendDailyDoctorAppointmentDigest, checkWahaHealth, DEFAULT_TARGET_TEST_NUMBER } from '@/lib/waha'
 
+export async function triggerDoctorMorningDigestAction() {
+  try {
+    const result = await sendDailyDoctorAppointmentDigest()
+    return result
+  } catch (err: any) {
+    console.error('Error executing morning digest action:', err)
+    return { success: false, count: 0, sentDoctors: [], details: [{ error: err.message }] }
+  }
+}
 
+export async function testWahaWhatsAppAction(phone: string = DEFAULT_TARGET_TEST_NUMBER, text: string = '') {
+  try {
+    const sampleMsg = text || `👋 Hello! Testing WAHA WhatsApp GOWS engine integration.\nTarget: ${phone}`
+    const result = await sendWahaTextMessage({ phone, text: sampleMsg })
+    return result
+  } catch (err: any) {
+    console.error('Error testing WAHA WhatsApp action:', err)
+    return { success: false, error: err.message || 'Failed to send WhatsApp message via WAHA' }
+  }
+}
 
-
-
-
-
+export async function getWahaStatusAction() {
+  try {
+    const health = await checkWahaHealth()
+    return health
+  } catch (err: any) {
+    return { status: 'offline', ok: false, message: err.message || 'Offline' }
+  }
+}

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import imageCompression from 'browser-image-compression'
 import { supabase } from '@/lib/supabase'
 import { validateCameraPasscode, uploadMobilePrescription, saveMedicineStock, getMedicineByBarcode } from '@/app/admin/actions'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -427,64 +428,28 @@ export default function MobileCapturePage() {
     }
   }
 
-  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       setCompressing(true)
       setUploadSuccess(false)
-      
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const img = new Image()
-        img.onload = () => {
-          const canvas = document.createElement('canvas')
-          let width = img.width
-          let height = img.height
-          const max_size = 1200
-          
-          if (width > height) {
-            if (width > max_size) {
-              height *= max_size / width
-              width = max_size
-            }
-          } else {
-            if (height > max_size) {
-              width *= max_size / height
-              height = max_size
-            }
-          }
-          
-          canvas.width = width
-          canvas.height = height
-          
-          const ctx = canvas.getContext('2d')
-          ctx?.drawImage(img, 0, 0, width, height)
-          
-          canvas.toBlob((blob) => {
-            if (blob) {
-              const compressedFile = new File([blob], file.name || 'prescription.jpg', {
-                type: 'image/jpeg',
-                lastModified: Date.now()
-              })
-              setSelectedFile(compressedFile)
-              setPreviewUrl(URL.createObjectURL(compressedFile))
-            }
-            setCompressing(false)
-          }, 'image/jpeg', 0.8)
+
+      try {
+        const options = {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true
         }
-        img.onerror = () => {
-          setCompressing(false)
-          setSelectedFile(file)
-          setPreviewUrl(URL.createObjectURL(file))
-        }
-        img.src = event.target?.result as string
-      }
-      reader.onerror = () => {
-        setCompressing(false)
+        const compressedFile = await imageCompression(file, options)
+        setSelectedFile(compressedFile)
+        setPreviewUrl(URL.createObjectURL(compressedFile))
+      } catch (err) {
+        console.warn('browser-image-compression fallback to original file:', err)
         setSelectedFile(file)
         setPreviewUrl(URL.createObjectURL(file))
+      } finally {
+        setCompressing(false)
       }
-      reader.readAsDataURL(file)
     }
   }
 

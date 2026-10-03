@@ -860,10 +860,116 @@ html {
 
 /* Dark Mode Scrollbars */
 .dark ::-webkit-scrollbar-thumb {
-  background: rgba(20, 184, 166, 0.2);
+  background: rgba(110, 134, 98, 0.3);
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(20, 184, 166, 0.4);
+  background: rgba(110, 134, 98, 0.5);
 }
+
+/* ═══════════════════════════════════════════
+   APPLE LIQUID GLASS & OLIVE BRUTALIST THEME
+   ═══════════════════════════════════════════ */
+
+:root {
+  --olive-950: #0f150d;
+  --olive-900: #1c2618;
+  --olive-800: #2c3a27;
+  --olive-700: #3e5037;
+  --olive-600: #556b4b;
+  --olive-500: #6e8662;
+  --olive-300: #a3b799;
+  --olive-100: #e2e8dc;
+  --olive-50: #f5f7f3;
+}
+
+/* Apple Liquid Glass Container */
+.apple-liquid-glass {
+  background: rgba(245, 247, 243, 0.72);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 
+    0 20px 40px -15px rgba(28, 38, 24, 0.08),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.7);
+  border-radius: 1.25rem;
+}
+
+.apple-liquid-glass-dark {
+  background: rgba(28, 38, 24, 0.82);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    0 30px 60px -15px rgba(0, 0, 0, 0.45),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+  border-radius: 1.25rem;
+}
+
+/* Liquid Sheen Reflection */
+.liquid-sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.liquid-sheen::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 45%,
+    rgba(255, 255, 255, 0.12) 50%,
+    transparent 55%
+  );
+  pointer-events: none;
+  transform: rotate(30deg);
+  transition: transform 0.6s var(--ease-out-expo);
+}
+
+/* Touch-Only vs Desktop-Only Hover Optimization */
+@media (hover: hover) and (pointer: fine) {
+  .liquid-hover:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: 0 24px 48px -12px rgba(44, 58, 39, 0.16);
+  }
+  
+  .liquid-hover:hover .liquid-sheen::after {
+    transform: rotate(30deg) translate(20%, 20%);
+  }
+}
+
+/* Instant Touch Response for Mobile (prevents sticky hover) */
+@media (hover: none) {
+  .liquid-hover:active {
+    transform: scale(0.97);
+    opacity: 0.92;
+  }
+}
+
+/* Industrial Brutalist Grid blueprint background */
+.blueprint-grid {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(44, 58, 39, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(44, 58, 39, 0.05) 1px, transparent 1px);
+}
+
+.blueprint-grid-dark {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+}
+
+/* Telemetry Badge Monospace */
+.telemetry-tag {
+  font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 
 

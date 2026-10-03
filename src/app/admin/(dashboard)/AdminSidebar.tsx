@@ -121,9 +121,11 @@ export default function AdminSidebar() {
             ? { x: isMobileOpen ? 0 : -256, width: 256 }
             : { x: 0, width: isCollapsed ? 80 : 256 }
         }
-        transition={{ type: 'tween', ease: 'easeInOut', duration: 0.25 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 32 }}
         style={{
-          background: 'linear-gradient(170deg, #0c1a17 0%, #152d28 100%)',
+          background: 'rgba(12, 26, 23, 0.90)',
+          backdropFilter: 'blur(24px) saturate(190%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(190%)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
@@ -135,7 +137,8 @@ export default function AdminSidebar() {
           height: '100vh',
           zIndex: 50,
           overflow: 'visible',
-          borderRight: '1px solid rgba(255,255,255,0.05)',
+          borderRight: '1px solid rgba(255, 255, 255, 0.12)',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.4)',
         }}
       >
         {/* Background decoration */}

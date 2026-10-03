@@ -1,32 +1,33 @@
-import React from 'react'
-import PatientAccountPortal from '@/components/patient/PatientAccountPortal'
-import Link from 'next/link'
-import DentalLogo from '@/components/DentalLogo'
+import React from "react";
+import PatientAccountPortal from "@/components/patient/PatientAccountPortal";
+import Link from "next/link";
+import DentalLogo from "@/components/DentalLogo";
+import { TelemetryBadge } from "@/components/ui/TelemetryBadge";
+import { AntigravityButton } from "@/components/ui/AntigravityButton";
 
 export const metadata = {
-  title: 'My Patient Account & Settings | Falix Dental Care',
-  description: 'Manage your patient profile, contact details, medical history, linked accounts, and privacy settings.',
-}
+  title: "My Patient Account & Settings | Falix Dental Care",
+  description: "Manage your patient profile, family members, contact details, medical history, invoices, and lab reports.",
+};
 
 export default function AccountPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#06120f] via-[#0b1f1a] to-[#040c0a] text-white selection:bg-emerald-500/30 selection:text-emerald-200 py-8 px-4 sm:px-8">
-      
+    <div className="min-h-screen bg-[#F5F7F3] dark:bg-[#0F150D] text-[#1C2618] dark:text-[#E2E8DC] blueprint-grid transition-colors py-8 px-4 sm:px-8">
       {/* Header Bar */}
-      <div className="max-w-6xl mx-auto mb-8 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto mb-8 flex items-center justify-between">
         <Link href="/" className="inline-flex items-center gap-3">
-          <DentalLogo iconOnly={false} size={36} />
+          <DentalLogo size={36} />
+          <TelemetryBadge label="Patient Portal" code="PORTAL-V2" variant="sage" />
         </Link>
 
-        <Link
-          href="/"
-          className="text-xs font-semibold text-emerald-300 hover:text-emerald-200 transition-colors py-2 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20"
-        >
-          ← Return to Clinic Gateway
+        <Link href="/">
+          <AntigravityButton variant="secondary" size="sm">
+            ← Return to Clinic Gateway
+          </AntigravityButton>
         </Link>
       </div>
 
       <PatientAccountPortal />
     </div>
-  )
+  );
 }

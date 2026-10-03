@@ -127,7 +127,8 @@ export function generateOutOfStockPDF(items: InventoryItemPDF[], clinicName: str
   })
 
   // Summary Footer Card
-  const finalY = (doc as any).lastAutoTable.finalY || 100
+  const autoDoc = doc as unknown as { lastAutoTable: { finalY: number }; internal: { getNumberOfPages: () => number }; setPage: (p: number) => void }
+  const finalY = autoDoc.lastAutoTable?.finalY || 100
   doc.setFillColor(lightGrayColor[0], lightGrayColor[1], lightGrayColor[2])
   doc.roundedRect(14, finalY + 8, 182, 22, 2, 2, 'F')
 
@@ -143,7 +144,7 @@ export function generateOutOfStockPDF(items: InventoryItemPDF[], clinicName: str
   doc.text(`Estimated Reorder Budget (20 units default target): INR ${totalReorderCostEstimate.toLocaleString()}`, 95, finalY + 23)
 
   // Signature Block & Footer Page Numbers
-  const pageCount = (doc as any).internal.getNumberOfPages()
+  const pageCount = autoDoc.internal.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
     doc.setFontSize(8)
@@ -271,7 +272,8 @@ export function generateLowStockPDF(items: InventoryItemPDF[], threshold: number
   })
 
   // Summary Footer Card
-  const finalY = (doc as any).lastAutoTable.finalY || 100
+  const autoDoc = doc as unknown as { lastAutoTable: { finalY: number }; internal: { getNumberOfPages: () => number }; setPage: (p: number) => void }
+  const finalY = autoDoc.lastAutoTable?.finalY || 100
   doc.setFillColor(248, 250, 252)
   doc.roundedRect(14, finalY + 8, 182, 22, 2, 2, 'F')
 
@@ -287,7 +289,7 @@ export function generateLowStockPDF(items: InventoryItemPDF[], threshold: number
   doc.text(`Total Additional Units Needed To Reach ${threshold} Units: ${totalDeficitUnits} Units`, 95, finalY + 23)
 
   // Page Numbers & Signature
-  const pageCount = (doc as any).internal.getNumberOfPages()
+  const pageCount = autoDoc.internal.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
     doc.setFontSize(8)
@@ -298,4 +300,83 @@ export function generateLowStockPDF(items: InventoryItemPDF[], threshold: number
 
   // Save PDF
   doc.save(`Low_Stock_Below_${threshold}_Report_${new Date().toISOString().split('T')[0]}.pdf`)
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// ══ BACKEND PDF-LIB INVOICE GENERATOR ══
+// ════════════════════════════════════════════════════════════════════════
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+
+export interface PdfLibInvoiceItem {
+  description: string
+  amount: number
+}
+
+export interface PdfLibInvoiceData {
+  invoiceId: string
+  patientName: string
+  date: string
+  items: PdfLibInvoiceItem[]
+  totalAmount: number
+  clinicName?: string
+}
+
+/**
+ * Generate official backend PDF invoice using pdf-lib library
+ */
+export async function generateInvoicePdfLibBytes(data: PdfLibInvoiceData): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.create()
+  const page = pdfDoc.addPage([595.28, 841.89]) // A4 dimensions
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+
+  // Header Title
+  page.drawText((data.clinicName || 'HAZARA & FAMILY DENTAL CLINIC').toUpperCase(), {
+    x: 40,
+    y: 800,
+    size: 18,
+    font: boldFont,
+    color: rgb(0.05, 0.5, 0.4),
+  })
+
+  page.drawText('OFFICIAL PATIENT INVOICE & RECEIPT', {
+    x: 40,
+    y: 780,
+    size: 9,
+    font,
+    color: rgb(0.4, 0.4, 0.4),
+  })
+
+  // Details Card
+  page.drawText(`Invoice ID: ${data.invoiceId}`, { x: 40, y: 745, size: 11, font: boldFont })
+  page.drawText(`Date: ${data.date}`, { x: 40, y: 730, size: 10, font })
+  page.drawText(`Patient Name: ${data.patientName}`, { x: 40, y: 715, size: 10, font: boldFont })
+
+  // Items Header
+  let y = 675
+  page.drawText('Treatment / Prescription Item', { x: 40, y, size: 10, font: boldFont })
+  page.drawText('Amount (INR)', { x: 450, y, size: 10, font: boldFont })
+  y -= 10
+  page.drawLine({ start: { x: 40, y }, end: { x: 550, y }, thickness: 1, color: rgb(0.85, 0.85, 0.85) })
+  y -= 20
+
+  for (const item of data.items) {
+    page.drawText(item.description, { x: 40, y, size: 9.5, font })
+    page.drawText(`INR ${item.amount}`, { x: 450, y, size: 9.5, font })
+    y -= 18
+  }
+
+  y -= 10
+  page.drawLine({ start: { x: 40, y }, end: { x: 550, y }, thickness: 1.5, color: rgb(0.2, 0.2, 0.2) })
+  y -= 25
+
+  page.drawText(`TOTAL PAID: INR ${data.totalAmount}`, {
+    x: 350,
+    y,
+    size: 13,
+    font: boldFont,
+    color: rgb(0.05, 0.5, 0.4),
+  })
+
+  return await pdfDoc.save()
 }

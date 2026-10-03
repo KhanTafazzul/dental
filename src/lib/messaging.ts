@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { sendWahaTextMessage } from './waha'
 
 export interface MessagePayload {
   recipientName: string
@@ -51,53 +52,35 @@ export function saveMessagingSettings(settings: MessagingSettings) {
 
 /**
  * Unified Dispatcher for Email & WhatsApp.
- * Supports Sandbox / Mock mode if Meta WhatsApp credentials are missing.
+ * Uses WAHA (WhatsApp HTTP API - GOWS engine on Render) for WhatsApp transmission.
  */
 export async function sendNotification(payload: MessagePayload): Promise<{ success: boolean; whatsappStatus: string; emailStatus: string; logId?: string }> {
   const settings = getMessagingSettings()
   let whatsappStatus = 'disabled'
   let emailStatus = 'disabled'
 
-  // Format phone number to clean E.164 (e.g., +919876543210 or 919876543210)
+  // Format phone number
   const cleanPhone = payload.recipientPhone ? payload.recipientPhone.replace(/[^0-9]/g, '') : ''
 
-  // 1. WhatsApp Dispatch (or Mock Sandbox)
+  // 1. WhatsApp Dispatch via WAHA Engine
   if (settings.channel === 'whatsapp' || settings.channel === 'both') {
-    const token = process.env.WHATSAPP_API_TOKEN
-    const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID
-
-    if (token && phoneId && cleanPhone) {
+    if (cleanPhone) {
       try {
-        // Send via Meta WhatsApp Cloud API
-        const response = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            to: cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`,
-            type: 'text',
-            text: { body: `${payload.messageBody}${payload.attachmentUrl ? `\n\nAttachment: ${payload.attachmentUrl}` : ''}` },
-          }),
+        const messageText = `${payload.messageBody}${payload.attachmentUrl ? `\n\n📄 Attachment: ${payload.attachmentUrl}` : ''}`
+        const wahaRes = await sendWahaTextMessage({
+          phone: cleanPhone,
+          text: messageText,
         })
-        const resData = await response.json()
-        if (response.ok) {
-          whatsappStatus = 'sent_live'
+        if (wahaRes.success) {
+          whatsappStatus = 'sent_waha_live'
         } else {
-          console.warn('WhatsApp API warning:', resData)
-          whatsappStatus = `mocked_sandbox (${resData.error?.message || 'Meta API Pending'})`
+          whatsappStatus = `waha_notice (${wahaRes.error || 'Server Idle'})`
         }
       } catch (err: any) {
-        console.warn('WhatsApp API Exception fallback to Sandbox:', err)
-        whatsappStatus = `mocked_sandbox (${err.message})`
+        whatsappStatus = `waha_error (${err.message})`
       }
     } else {
-      // Credentials pending from Meta — log to Mock Sandbox driver cleanly without error
-      whatsappStatus = cleanPhone 
-        ? `mocked_sandbox (Meta API Credentials Pending for ${cleanPhone})`
-        : 'skipped (No Phone)'
+      whatsappStatus = 'skipped (No Phone)'
     }
   }
 

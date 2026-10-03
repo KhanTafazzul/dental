@@ -1,66 +1,70 @@
-import React from 'react'
-import { getAdminSupabase } from '@/lib/supabase'
-import AppointmentsClient from './AppointmentsClient'
-import { AlertCircle } from 'lucide-react'
+import React from "react";
+import { getAdminSupabase } from "@/lib/supabase";
+import AppointmentsClient from "./AppointmentsClient";
+import { AlertCircle } from "lucide-react";
+import { TelemetryBadge } from "@/components/ui/TelemetryBadge";
+import { ProgressiveLoader } from "@/components/ui/ProgressiveLoader";
+import { AdminDashboardSkeleton } from "@/components/skeletons/AdminDashboardSkeleton";
 
 export const metadata = {
-  title: 'Admin Dashboard | Appointments Overview',
-  description: 'Master list of clinic appointments.',
-}
+  title: "Admin Dashboard | Appointments Overview",
+  description: "Master list of clinic appointments.",
+};
 
 export default async function AdminDashboardPage() {
-  const adminDb = getAdminSupabase()
-  let appointments: any[] = []
-  let branches: any[] = []
-  let dbConfigured = true
+  const adminDb = getAdminSupabase();
+  let appointments: any[] = [];
+  let branches: any[] = [];
+  let dbConfigured = true;
 
   try {
-    // Check if supabase keys are placeholders
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || 
-        process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-supabase-project')) {
-      dbConfigured = false
+    if (
+      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-supabase-project")
+    ) {
+      dbConfigured = false;
     } else {
-      // 1. Fetch Branches and Appointments in parallel
       const [branchRes, apptRes] = await Promise.all([
-        adminDb.from('branches').select('id, name, slug'),
-        adminDb.from('appointments').select(`
-          id,
-          appointment_date,
-          appointment_time,
-          problem_description,
-          status,
-          created_at,
-          patients (id, name, email, mobile, age),
-          doctors (id, name, email, specialty),
-          branches (id, name, slug)
-        `).order('appointment_date', { ascending: false })
-      ])
+        adminDb.from("branches").select("id, name, slug"),
+        adminDb
+          .from("appointments")
+          .select(`
+            id,
+            appointment_date,
+            appointment_time,
+            problem_description,
+            status,
+            created_at,
+            patients (id, name, email, mobile, age),
+            doctors (id, name, email, specialty),
+            branches (id, name, slug)
+          `)
+          .order("appointment_date", { ascending: false }),
+      ]);
 
       if (apptRes.error) {
-        throw apptRes.error
+        throw apptRes.error;
       }
 
-      const fetchedBranches = branchRes.data || []
-      
-      // Auto-heal database: Rename Store to Clinic if found in database records
-      const hazaraBranch = fetchedBranches.find(b => b.slug === 'hazara')
-      const familyBranch = fetchedBranches.find(b => b.slug === 'family')
-      
-      if (hazaraBranch?.name.includes('Store') || familyBranch?.name.includes('Store')) {
+      const fetchedBranches = branchRes.data || [];
+      const hazaraBranch = fetchedBranches.find((b) => b.slug === "hazara");
+      const familyBranch = fetchedBranches.find((b) => b.slug === "family");
+
+      if (hazaraBranch?.name.includes("Store") || familyBranch?.name.includes("Store")) {
         await Promise.all([
-          adminDb.from('branches').update({ name: 'Hazara Dental Clinic' }).eq('slug', 'hazara'),
-          adminDb.from('branches').update({ name: 'Family Dental Clinic' }).eq('slug', 'family')
-        ])
-        const refetch = await adminDb.from('branches').select('id, name, slug')
-        branches = refetch.data || []
+          adminDb.from("branches").update({ name: "Hazara Dental Clinic" }).eq("slug", "hazara"),
+          adminDb.from("branches").update({ name: "Family Dental Clinic" }).eq("slug", "family"),
+        ]);
+        const refetch = await adminDb.from("branches").select("id, name, slug");
+        branches = refetch.data || [];
       } else {
-        branches = fetchedBranches
+        branches = fetchedBranches;
       }
 
-      appointments = apptRes.data || []
+      appointments = apptRes.data || [];
     }
   } catch (error) {
-    console.error('Error loading dashboard appointments:', error)
+    console.error("Error loading dashboard appointments:", error);
   }
 
   if (!dbConfigured) {
@@ -72,21 +76,22 @@ export default async function AdminDashboardPage() {
           Please set your <code>NEXT_PUBLIC_SUPABASE_URL</code>, <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, and <code>SUPABASE_SERVICE_ROLE_KEY</code> in the <code>.env.local</code> file.
         </p>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-serif text-slate-900 font-normal">
-          Appointments Dashboard
-        </h1>
-        <p className="text-xs text-slate-400 font-light uppercase tracking-wider">
-          Master Appointment Logs across hazara & family branches
-        </p>
-      </div>
+    <ProgressiveLoader skeleton={<AdminDashboardSkeleton />}>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-[#1C2618] dark:text-[#F5F7F3]">Appointments Overview</h1>
+            <p className="text-xs text-[#556B4B]">Master schedule across Hazara & Family branches</p>
+          </div>
+          <TelemetryBadge label="Clinic HQ" code="ADMIN-V2" variant="olive" />
+        </div>
 
-      <AppointmentsClient initialAppointments={appointments} branches={branches} />
-    </div>
-  )
+        <AppointmentsClient initialAppointments={appointments} branches={branches} />
+      </div>
+    </ProgressiveLoader>
+  );
 }

@@ -1,68 +1,80 @@
-import React from 'react';
-import { Metadata } from 'next';
-import Link from 'next/link';
-import { ArrowLeft, ShieldCheck, FileText, Lock } from 'lucide-react';
-import DentalLogo from '@/components/DentalLogo';
+"use client";
 
-export const metadata: Metadata = {
-  title: 'Terms of Service | Dental Clinic Care Network',
-  description: 'Terms and conditions governing appointment bookings, patient responsibilities, and clinic services under DPDP Act 2023.',
-};
+import React from "react";
+import Link from "next/link";
+import { ArrowLeft, ShieldCheck, FileText, Lock } from "lucide-react";
+import DentalLogo from "@/components/DentalLogo";
+import { AppleLiquidCard } from "@/components/ui/AppleLiquidCard";
+import { TelemetryBadge } from "@/components/ui/TelemetryBadge";
+import { AntigravityButton } from "@/components/ui/AntigravityButton";
+import { ProgressiveLoader } from "@/components/ui/ProgressiveLoader";
+import { LegalDocSkeleton } from "@/components/skeletons/LegalDocSkeleton";
 
-export default function TermsPage() {
+function TermsContent() {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col justify-between">
-      <header className="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-white/10">
+    <div className="min-h-screen bg-[#F5F7F3] dark:bg-[#0F150D] text-[#1C2618] dark:text-[#E2E8DC] blueprint-grid flex flex-col justify-between transition-colors">
+      <header className="sticky top-0 z-40 bg-[#F5F7F3]/70 dark:bg-[#0F150D]/70 backdrop-blur-2xl border-b border-white/40 dark:border-white/10">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="inline-flex items-center gap-3">
             <DentalLogo size={34} />
-            <span className="text-base font-serif font-semibold text-white">Dental Clinic Network</span>
+            <span className="text-base font-bold text-[#1C2618] dark:text-[#F5F7F3]">Terms of Service</span>
           </Link>
-          <Link href="/" className="text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-white/5 border border-white/10">
-            <ArrowLeft className="w-3.5 h-3.5" /> Back Home
+          <Link href="/">
+            <AntigravityButton variant="secondary" size="sm">
+              <ArrowLeft className="w-3.5 h-3.5" /> Back Home
+            </AntigravityButton>
           </Link>
         </div>
       </header>
 
       <main className="flex-1 max-w-4xl mx-auto px-6 py-12 w-full space-y-8">
-        <div className="text-center max-w-2xl mx-auto">
-          <h1 className="text-3xl font-serif font-bold text-white mb-2">Terms & Conditions of Service</h1>
-          <p className="text-xs text-slate-400">Effective Date: September 2026 • Governed by Indian Medical & Healthcare Statutes</p>
+        <div className="text-center max-w-2xl mx-auto space-y-2">
+          <TelemetryBadge label="Legal Compliance" code="DPDP-2023" variant="olive" />
+          <h1 className="text-3xl font-bold text-[#1C2618] dark:text-[#F5F7F3]">Terms & Conditions of Service</h1>
+          <p className="text-xs text-[#556B4B]">Effective Date: October 2026 • Governed by Healthcare Statutes</p>
         </div>
 
-        <div className="bg-slate-900 border border-white/10 rounded-3xl p-8 space-y-6 text-xs text-slate-300 leading-relaxed shadow-2xl">
+        <AppleLiquidCard variant="light" className="p-8 space-y-6 text-xs leading-relaxed">
           <section className="space-y-2">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <FileText className="w-4 h-4 text-teal-400" /> 1. Free Appointment Booking Policy
+            <h2 className="text-sm font-bold text-[#1C2618] dark:text-[#F5F7F3] flex items-center gap-2">
+              <FileText className="w-4 h-4 text-[#556B4B]" /> 1. Free Appointment Booking Policy
             </h2>
-            <p>
-              Appointments booked through Hazara Dental Store or Family Dental Store portals are provided free of upfront fees. Patients are required to provide truthful clinical history and contact information.
+            <p className="text-[#556B4B]">
+              Appointments booked through Hazara Dental Clinic or Family Dental Clinic portals are provided free of upfront fees. Patients are required to provide truthful clinical history and contact information.
             </p>
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <Lock className="w-4 h-4 text-teal-400" /> 2. Digital Personal Data Protection (DPDP Act 2023)
+            <h2 className="text-sm font-bold text-[#1C2618] dark:text-[#F5F7F3] flex items-center gap-2">
+              <Lock className="w-4 h-4 text-[#556B4B]" /> 2. Digital Personal Data Protection (DPDP Act 2023)
             </h2>
-            <p>
-              By utilizing our booking portal, you consent to the processing of your personal and health data strictly for clinical consultation, diagnostic evaluation, and scheduling. Full rights details can be reviewed in our <Link href="/dpdp" className="text-teal-400 underline">DPDP Compliance Center</Link>.
+            <p className="text-[#556B4B]">
+              By utilizing our booking portal, you consent to the processing of your personal and health data strictly for clinical consultation, diagnostic evaluation, and scheduling.
             </p>
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-teal-400" /> 3. Practitioner Responsibility & Diagnosis
+            <h2 className="text-sm font-bold text-[#1C2618] dark:text-[#F5F7F3] flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#556B4B]" /> 3. Practitioner Responsibility & Diagnosis
             </h2>
-            <p>
+            <p className="text-[#556B4B]">
               All clinical examinations, dental prescriptions, and X-ray evaluations are rendered exclusively by licensed dental practitioners assigned to the respective branch.
             </p>
           </section>
-        </div>
+        </AppleLiquidCard>
       </main>
 
-      <footer className="border-t border-white/10 py-6 text-center text-xs text-slate-500">
+      <footer className="border-t border-[#A3B799]/30 py-6 text-center text-xs text-[#556B4B]">
         © 2026 Dental Clinic Network • DPDP Act 2023 Compliant
       </footer>
     </div>
+  );
+}
+
+export default function TermsPage() {
+  return (
+    <ProgressiveLoader skeleton={<LegalDocSkeleton />}>
+      <TermsContent />
+    </ProgressiveLoader>
   );
 }
