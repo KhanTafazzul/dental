@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Poppins, Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeContext";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -45,6 +46,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-800 font-sans transition-colors duration-300 dark:bg-[var(--background)] dark:text-slate-100">
         <ThemeProvider>
           {children}
+          <CookieConsentBanner />
         </ThemeProvider>
       </body>
     </html>
