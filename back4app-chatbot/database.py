@@ -7,7 +7,30 @@ from config import SUPABASE_URL, SUPABASE_KEY
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("database")
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+_supabase_instance = None
+
+def get_supabase():
+    """
+    Safely retrieves or initializes the Supabase client instance.
+    Prevents server boot crash if SUPABASE_URL or SUPABASE_KEY are missing.
+    """
+    global _supabase_instance
+    if _supabase_instance is not None:
+        return _supabase_instance
+
+    url = (SUPABASE_URL or "").strip()
+    key = (SUPABASE_KEY or "").strip()
+
+    if not url or not key:
+        logger.warning("[Supabase Notice] SUPABASE_URL or SUPABASE_KEY environment variables are missing.")
+        return None
+
+    try:
+        _supabase_instance = create_client(url, key)
+        return _supabase_instance
+    except Exception as err:
+        logger.error(f"[Supabase Init Exception]: {err}")
+        return None
 
 def clean_phone_number(phone: str) -> str:
     """Extracts last 10 digits of phone number for matching."""
@@ -25,9 +48,13 @@ def get_patients_by_phone(phone: str) -> list:
     if not last10:
         return []
 
+    client = get_supabase()
+    if not client:
+        return []
+
     try:
         # Match mobile containing last 10 digits
-        res = supabase.from_("patients").select("*").ilike("mobile", f"%{last10}%").execute()
+        res = client.from_("patients").select("*").ilike("mobile", f"%{last10}%").execute()
         return res.data or []
     except Exception as err:
         logger.error(f"Error fetching patients by phone {phone}: {err}")
@@ -37,8 +64,12 @@ def get_branches() -> list:
     """
     100% Dynamic: Queries all clinic branches from Supabase.
     """
+    client = get_supabase()
+    if not client:
+        return []
+
     try:
-        res = supabase.from_("branches").select("id, name, slug, working_hours").order("name").execute()
+        res = client.from_("branches").select("id, name, slug, working_hours").order("name").execute()
         return res.data or []
     except Exception as err:
         logger.error(f"Error fetching branches: {err}")
@@ -48,8 +79,12 @@ def get_doctors_by_branch(branch_id: str) -> list:
     """
     100% Dynamic: Queries all active doctors for a specific clinic branch from Supabase.
     """
+    client = get_supabase()
+    if not client:
+        return []
+
     try:
-        res = supabase.from_("doctors").select("id, name, specialty, branch_id").eq("branch_id", branch_id).order("name").execute()
+        res = client.from_("doctors").select("id, name, specialty, branch_id").eq("branch_id", branch_id).order("name").execute()
         return res.data or []
     except Exception as err:
         logger.error(f"Error fetching doctors for branch {branch_id}: {err}")
@@ -60,7 +95,6 @@ def get_available_time_slots(doctor_id: str, date_str: str) -> list:
     100% Dynamic: Calculates available time slots for a doctor on a specific date.
     Fetches already booked appointments from Supabase and subtracts them from clinic operating slots.
     """
-    # Standard 30-min clinic slots from 09:00 AM to 08:00 PM
     all_slots = [
         "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
         "12:00 PM", "12:30 PM", "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM",
@@ -68,9 +102,12 @@ def get_available_time_slots(doctor_id: str, date_str: str) -> list:
         "07:00 PM", "07:30 PM", "08:00 PM"
     ]
 
+    client = get_supabase()
+    if not client:
+        return all_slots
+
     try:
-        # Fetch booked slots for this doctor on this date
-        res = supabase.from_("appointments") \
+        res = client.from_("appointments") \
             .select("appointment_time, status") \
             .eq("doctor_id", doctor_id) \
             .eq("appointment_date", date_str) \
@@ -82,15 +119,12 @@ def get_available_time_slots(doctor_id: str, date_str: str) -> list:
             for item in res.data:
                 raw_time = item.get("appointment_time")
                 if raw_time:
-                    # Normalize HH:MM:SS to 12-hour format or string match
                     booked_times.append(str(raw_time).strip())
 
-        # Filter out booked slots
         available = []
         for slot in all_slots:
             is_booked = False
             for bt in booked_times:
-                # Compare exact string or 24hr format matching
                 if slot in bt or bt in slot or (len(bt) >= 5 and bt[:5] in slot):
                     is_booked = True
                     break
@@ -113,6 +147,10 @@ def create_appointment(
     """
     100% Dynamic: Inserts new appointment record into Supabase appointments table.
     """
+    client = get_supabase()
+    if not client:
+        return {"success": False, "error": "Database client not initialized. Check SUPABASE_URL environment variable."}
+
     try:
         payload = {
             "patient_id": patient_id,
@@ -124,7 +162,7 @@ def create_appointment(
             "status": "pending"
         }
 
-        res = supabase.from_("appointments").insert(payload).select().execute()
+        res = client.from_("appointments").insert(payload).select().execute()
         if res.data and len(res.data) > 0:
             return {"success": True, "data": res.data[0]}
         return {"success": False, "error": "Failed to insert appointment into database"}
@@ -136,9 +174,13 @@ def get_today_appointments() -> list:
     """
     100% Dynamic: Fetches today's appointments for automated morning WhatsApp reminders.
     """
+    client = get_supabase()
+    if not client:
+        return []
+
     today_str = date.today().isoformat()
     try:
-        res = supabase.from_("appointments") \
+        res = client.from_("appointments") \
             .select("id, appointment_date, appointment_time, status, patient_id, doctor_id, branch_id, patients(name, mobile, email), doctors(name), branches(name, address)") \
             .eq("appointment_date", today_str) \
             .in_("status", ["pending", "confirmed"]) \
@@ -152,6 +194,10 @@ def get_patient_upcoming_appointments(phone: str) -> list:
     """
     100% Dynamic: Fetches upcoming appointments for a phone number (@myappointments).
     """
+    client = get_supabase()
+    if not client:
+        return []
+
     last10 = clean_phone_number(phone)
     if not last10:
         return []
@@ -163,7 +209,7 @@ def get_patient_upcoming_appointments(phone: str) -> list:
             return []
             
         patient_ids = [p["id"] for p in patients]
-        res = supabase.from_("appointments") \
+        res = client.from_("appointments") \
             .select("id, appointment_date, appointment_time, status, doctors(name), branches(name), patients(name)") \
             .in_("patient_id", patient_ids) \
             .gte("appointment_date", today_str) \
