@@ -37,6 +37,12 @@ async def health_check():
         "version": "1.0.0"
     }
 
+@app.get("/webhook")
+@app.get("/api/whatsapp/webhook")
+async def waha_webhook_get():
+    """Health check for WAHA Webhook verification."""
+    return {"status": "online", "message": "WAHA Webhook endpoint is active and listening"}
+
 @app.post("/webhook")
 @app.post("/api/whatsapp/webhook")
 async def waha_webhook(request: Request, background_tasks: BackgroundTasks):
@@ -47,7 +53,10 @@ async def waha_webhook(request: Request, background_tasks: BackgroundTasks):
     try:
         payload = await request.json()
     except Exception:
-        return JSONResponse({"status": "invalid_json"}, status_code=400)
+        payload = {}
+
+    if not payload:
+        return {"status": "online", "message": "Webhook received empty test ping"}
 
     # Extract payload data structure matching WAHA spec
     msg_data = payload.get("payload") or payload.get("data") or payload
