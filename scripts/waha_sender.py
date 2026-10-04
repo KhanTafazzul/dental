@@ -21,8 +21,8 @@ if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
 # Default WAHA Configuration (Configurable via environment variables)
-DEFAULT_WAHA_ENDPOINT = os.getenv("WAHA_ENDPOINT", "https://your-waha-app.onrender.com/api/sendText")
-DEFAULT_API_KEY = os.getenv("WAHA_API_KEY", "KhanAman@9807")
+DEFAULT_WAHA_ENDPOINT = os.getenv("WAHA_ENDPOINT", "https://waha-latest-7jqm.onrender.com/api/sendText")
+DEFAULT_API_KEY = os.getenv("WAHA_API_KEY", "key_oQDECaeadKV0p98LhnmocNKz2QwGnSSs")
 DEFAULT_SESSION = os.getenv("WAHA_SESSION", "default")
 
 def format_waha_chat_id(phone_number: str) -> str:

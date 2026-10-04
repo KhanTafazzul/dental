@@ -53,8 +53,8 @@ export interface WahaBranchRecord {
 }
 
 // Default Configuration matching WAHA Render Deployment (Configurable via ENV)
-export const DEFAULT_WAHA_ENDPOINT = process.env.WAHA_ENDPOINT || 'https://your-waha-app.onrender.com/api/sendText'
-export const DEFAULT_WAHA_API_KEY = process.env.WAHA_API_KEY || 'KhanAman@9807'
+export const DEFAULT_WAHA_ENDPOINT = process.env.WAHA_ENDPOINT || 'https://waha-latest-7jqm.onrender.com/api/sendText'
+export const DEFAULT_WAHA_API_KEY = process.env.WAHA_API_KEY || 'key_oQDECaeadKV0p98LhnmocNKz2QwGnSSs'
 export const DEFAULT_WAHA_SESSION = process.env.WAHA_SESSION || 'default'
 export const DEFAULT_TARGET_TEST_NUMBER = process.env.WAHA_TARGET_NUMBER || '918418878491@c.us'
 
@@ -129,9 +129,16 @@ export async function sendWahaTextMessage({
     let resData: Record<string, unknown> = {}
     
     try {
-      resData = (await response.json()) as Record<string, unknown>
+      const responseText = await response.text()
+      if (responseText) {
+        try {
+          resData = JSON.parse(responseText) as Record<string, unknown>
+        } catch {
+          resData = { rawText: responseText }
+        }
+      }
     } catch {
-      resData = { rawText: await response.text() }
+      resData = {}
     }
 
     if (!response.ok) {
@@ -205,7 +212,13 @@ export async function checkWahaHealth(): Promise<{ status: string; ok: boolean; 
     })
 
     if (response.ok) {
-      const data = (await response.json()) as unknown[]
+      let data: unknown[] = []
+      try {
+        const text = await response.text()
+        data = text ? (JSON.parse(text) as unknown[]) : []
+      } catch {
+        data = []
+      }
       return {
         status: 'online',
         ok: true,
@@ -414,8 +427,8 @@ export async function processWahaIncomingWebhook(payload: Record<string, unknown
 
       if (dbDoctors && dbDoctors.length > 0) {
         replyText = `👨‍⚕️ *Our Available Dental Specialists:*\n\n`
-        dbDoctors.forEach((doc: WahaDoctorRecord) => {
-          replyText += `• *${doc.name}* - ${doc.specialty || 'Dental Surgeon'}\n`
+        dbDoctors.forEach((doc: { name?: string; specialty?: string }) => {
+          replyText += `• *${doc.name || 'Doctor'}* - ${doc.specialty || 'Dental Surgeon'}\n`
         })
         replyText += `\n⏰ *Clinic Hours:* Monday to Saturday | 09:00 AM - 08:30 PM`
       } else {
