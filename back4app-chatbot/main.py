@@ -27,29 +27,26 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-@app.get("/")
-@app.get("/health")
+@app.api_route("/", methods=["GET", "HEAD", "POST", "OPTIONS"])
+@app.api_route("/health", methods=["GET", "HEAD", "POST", "OPTIONS"])
 async def health_check():
-    """Liveness probe for Back4App hosting platform."""
+    """Liveness probe for Back4App hosting platform & UptimeRobot."""
     return {
         "status": "online",
         "service": "Dental Care Clinic WhatsApp Chatbot",
         "version": "1.0.0"
     }
 
-@app.get("/webhook")
-@app.get("/api/whatsapp/webhook")
-async def waha_webhook_get():
-    """Health check for WAHA Webhook verification."""
-    return {"status": "online", "message": "WAHA Webhook endpoint is active and listening"}
-
-@app.post("/webhook")
-@app.post("/api/whatsapp/webhook")
-async def waha_webhook(request: Request, background_tasks: BackgroundTasks):
+@app.api_route("/webhook", methods=["GET", "HEAD", "POST", "OPTIONS"])
+@app.api_route("/api/whatsapp/webhook", methods=["GET", "HEAD", "POST", "OPTIONS"])
+async def waha_webhook_route(request: Request, background_tasks: BackgroundTasks):
     """
     WAHA Webhook Listener:
-    Receives incoming WhatsApp messages forwarded by WAHA GOWS engine on Render.
+    Handles incoming WhatsApp messages & WAHA worker health check pings.
     """
+    if request.method in ["GET", "HEAD", "OPTIONS"]:
+        return {"status": "online", "message": "WAHA Webhook endpoint is active and listening"}
+
     try:
         payload = await request.json()
     except Exception:
