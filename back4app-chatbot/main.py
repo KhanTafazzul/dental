@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
-from config import PORT, BREVO_API_KEY, BREVO_SENDER_EMAIL
+from config import BREVO_API_KEY, BREVO_SENDER_EMAIL
 from chatbot_engine import process_incoming_message
 from waha_client import send_waha_message
 from scheduler import start_scheduler, send_morning_appointment_reminders

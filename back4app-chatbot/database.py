@@ -1,6 +1,6 @@
 import re
 import logging
-from datetime import datetime, date
+from datetime import date
 from supabase import create_client, Client
 from config import SUPABASE_URL, SUPABASE_KEY
 

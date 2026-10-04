@@ -1,5 +1,4 @@
 import logging
-import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from database import get_today_appointments
 from waha_client import send_waha_message
