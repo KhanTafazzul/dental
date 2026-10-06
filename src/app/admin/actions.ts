@@ -506,6 +506,23 @@ export async function sendPatientReport(formData: FormData) {
         .eq('active_capture_appointment_id', appointmentId)
     }
 
+    // 5. Automated Dispatch via WAHA WhatsApp Engine to Patient
+    const patientPhone = finalPatient?.mobile || appt.patients?.mobile || appt.mobile
+    if (patientPhone) {
+      try {
+        const branchName = appt.branches?.name || 'Hazara & Family Dental Clinic'
+        const doctorName = appt.doctors?.name ? `Dr. ${appt.doctors.name}` : 'Senior Dental Surgeon'
+        const wahaText = `🦷 *${branchName} - Prescription & Clinical Summary* 🦷\n\nDear *${finalPatient?.name || 'Patient'}*,\n\nYour consultation record with ${doctorName} has been processed.\n\n*📄 Prescription Notes:* \n${prescriptionText || 'Prescription uploaded by doctor.'}\n${xrayUrl ? `\n*📷 Digital X-Ray Report:* ${xrayUrl}\n` : ''}${prescriptionUrl ? `\n*📄 Download Digital Prescription PDF:* ${prescriptionUrl}\n` : ''}\nThank you for choosing ${branchName}! Contact us for follow-ups.`
+
+        await sendWahaTextMessage({
+          phone: patientPhone,
+          text: wahaText
+        })
+      } catch (wahaErr) {
+        console.warn('WAHA WhatsApp notification warning:', wahaErr)
+      }
+    }
+
     return { 
       success: true, 
       updatedPatient: finalPatient,
@@ -1043,33 +1060,19 @@ export async function clearCaptureTicket(branchId: string) {
   }
 }
 
-// Action: Search medicines from TiDB Cloud MySQL database for a specific branch
+// Action: Search medicines from TiDB Cloud MySQL database for a specific branch (High Speed Optimized)
 export async function searchMedicines(query: string, branchSlug?: string) {
   try {
-    // Ensure tables are in sync
-    try {
-      await queryTiDB('ALTER TABLE medicines ADD COLUMN tablets_per_patch INT NOT NULL DEFAULT 10')
-    } catch (e) {}
-    try {
-      await queryTiDB('ALTER TABLE medicine_batches ADD COLUMN cost_price DECIMAL(10, 2) NOT NULL DEFAULT 0.00')
-    } catch (e) {}
-    try {
-      await queryTiDB("ALTER TABLE medicine_batches ADD COLUMN branch_slug VARCHAR(50) NOT NULL DEFAULT 'hazara'")
-    } catch (e) {}
-    try {
-      await queryTiDB('ALTER TABLE medicine_batches ADD COLUMN mrp DECIMAL(10, 2) NOT NULL DEFAULT 0.00')
-    } catch (e) {}
-
-    const searchQuery = `%${query.trim().toLowerCase()}%`
     const rawQuery = query.trim().toLowerCase()
+    const searchQuery = `%${rawQuery}%`
     
-    // Find medicines matching name, generic_name, or barcode (case-insensitive)
     let sql = `
       SELECT m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at, COALESCE(SUM(b.stock), 0) as stock
       FROM medicines m
       LEFT JOIN medicine_batches b ON m.id = b.medicine_id AND b.stock > 0 AND b.expiry_date >= CURDATE()
       WHERE LOWER(m.name) LIKE ? OR LOWER(m.generic_name) LIKE ? OR LOWER(m.barcode) = ?
       GROUP BY m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at
+      LIMIT 30
     `
     let params: any[] = [searchQuery, searchQuery, rawQuery]
 
@@ -1080,34 +1083,50 @@ export async function searchMedicines(query: string, branchSlug?: string) {
         LEFT JOIN medicine_batches b ON m.id = b.medicine_id AND b.branch_slug = ? AND b.stock > 0 AND b.expiry_date >= CURDATE()
         WHERE LOWER(m.name) LIKE ? OR LOWER(m.generic_name) LIKE ? OR LOWER(m.barcode) = ?
         GROUP BY m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at
+        LIMIT 30
       `
       params = [branchSlug, searchQuery, searchQuery, rawQuery]
     }
 
     const medicines = await queryTiDB(sql, params)
+    if (!medicines || medicines.length === 0) {
+      return { success: true, data: [] }
+    }
 
-    // For each medicine, get its active batches sorted by oldest expiry date (FIFO)
-    for (const medicine of medicines) {
-      let batchSql = `
-        SELECT id, batch_number, expiry_date, price, cost_price, mrp, stock
+    // Fetch all active batches for returned medicines in a single batch query (1 query instead of N queries)
+    const medIds = medicines.map((m: any) => m.id)
+    const placeholders = medIds.map(() => '?').join(',')
+    
+    let batchSql = `
+      SELECT id, medicine_id, batch_number, expiry_date, price, cost_price, mrp, stock
+      FROM medicine_batches
+      WHERE medicine_id IN (${placeholders}) AND stock > 0 AND expiry_date >= CURDATE()
+      ORDER BY expiry_date ASC
+    `
+    let batchParams = [...medIds]
+
+    if (branchSlug) {
+      batchSql = `
+        SELECT id, medicine_id, batch_number, expiry_date, price, cost_price, mrp, stock
         FROM medicine_batches
-        WHERE medicine_id = ? AND stock > 0 AND expiry_date >= CURDATE()
+        WHERE medicine_id IN (${placeholders}) AND stock > 0 AND expiry_date >= CURDATE() AND branch_slug = ?
         ORDER BY expiry_date ASC
       `
-      let batchParams: any[] = [medicine.id]
+      batchParams = [...medIds, branchSlug]
+    }
 
-      if (branchSlug) {
-        batchSql = `
-          SELECT id, batch_number, expiry_date, price, cost_price, mrp, stock
-          FROM medicine_batches
-          WHERE medicine_id = ? AND stock > 0 AND expiry_date >= CURDATE() AND branch_slug = ?
-          ORDER BY expiry_date ASC
-        `
-        batchParams = [medicine.id, branchSlug]
-      }
+    const allBatches = await queryTiDB(batchSql, batchParams)
 
-      const batches = await queryTiDB(batchSql, batchParams)
-      medicine.batches = batches
+    // Map batches to medicines in memory
+    const batchMap = new Map<string, any[]>()
+    for (const b of allBatches) {
+      const list = batchMap.get(b.medicine_id) || []
+      list.push(b)
+      batchMap.set(b.medicine_id, list)
+    }
+
+    for (const med of medicines) {
+      med.batches = batchMap.get(med.id) || []
     }
 
     return { success: true, data: medicines }
@@ -1842,23 +1861,9 @@ export async function getMessageLogsAction() {
   }
 }
 
-// Action: Fetch all inventory items (medicines, supplies, consumables) with complete stock details
+// Action: Fetch all inventory items (medicines, supplies, consumables) with complete stock details (High Speed Optimized)
 export async function getInventoryItems(branchSlug: string = 'hazara') {
   try {
-    // Ensure table columns exist
-    try {
-      await queryTiDB('ALTER TABLE medicines ADD COLUMN tablets_per_patch INT NOT NULL DEFAULT 10')
-    } catch (e) {}
-    try {
-      await queryTiDB('ALTER TABLE medicine_batches ADD COLUMN cost_price DECIMAL(10, 2) NOT NULL DEFAULT 0.00')
-    } catch (e) {}
-    try {
-      await queryTiDB("ALTER TABLE medicine_batches ADD COLUMN branch_slug VARCHAR(50) NOT NULL DEFAULT 'hazara'")
-    } catch (e) {}
-    try {
-      await queryTiDB('ALTER TABLE medicine_batches ADD COLUMN mrp DECIMAL(10, 2) NOT NULL DEFAULT 0.00')
-    } catch (e) {}
-
     const sql = `
       SELECT 
         m.id, 
@@ -1874,30 +1879,42 @@ export async function getInventoryItems(branchSlug: string = 'hazara') {
       ORDER BY stock ASC, m.name ASC
     `
     const medicines = await queryTiDB(sql, [branchSlug])
+    if (!medicines || medicines.length === 0) {
+      return { success: true, data: [] }
+    }
+
+    // Single query for all batches across all medicines instead of N queries in a loop
+    const medIds = medicines.map((m: any) => m.id)
+    const placeholders = medIds.map(() => '?').join(',')
+    const batchSql = `
+      SELECT id, medicine_id, batch_number, expiry_date, price, cost_price, mrp, stock, branch_slug
+      FROM medicine_batches
+      WHERE medicine_id IN (${placeholders}) AND (branch_slug = ? OR branch_slug IS NULL)
+      ORDER BY expiry_date ASC
+    `
+    const allBatches = await queryTiDB(batchSql, [...medIds, branchSlug])
+
+    const batchMap = new Map<string, any[]>()
+    for (const b of allBatches) {
+      const list = batchMap.get(b.medicine_id) || []
+      list.push(b)
+      batchMap.set(b.medicine_id, list)
+    }
 
     const suppliersList = ['Urban Deals', 'DealZone', 'BuyRight Dental', 'DentalCorp', 'Trendline', 'MetroShop', 'MediCare Labs']
     const categoriesList = ['Medicines', 'Surgical & Clinical Supplies', 'Consumables', 'PPE & Safety', 'Equipment', 'Dental Implants']
 
     for (let index = 0; index < medicines.length; index++) {
       const medicine = medicines[index]
-      const batchSql = `
-        SELECT id, batch_number, expiry_date, price, cost_price, mrp, stock, branch_slug
-        FROM medicine_batches
-        WHERE medicine_id = ? AND (branch_slug = ? OR branch_slug IS NULL)
-        ORDER BY expiry_date ASC
-      `
-      const batches = await queryTiDB(batchSql, [medicine.id, branchSlug])
+      const batches = batchMap.get(medicine.id) || []
       medicine.batches = batches
 
       const stockNum = Number(medicine.stock || 0)
-      
-      // Determine Unit Prices from batches (or default fallback)
       const latestBatch = batches[0] || {}
       medicine.unitPrice = Number(latestBatch.price || 15.00)
       medicine.costPrice = Number(latestBatch.cost_price || 10.00)
       medicine.mrp = Number(latestBatch.mrp || 20.00)
 
-      // Derive Supplier & Category deterministically if not explicit
       medicine.category = categoriesList[index % categoriesList.length]
       medicine.supplier = suppliersList[index % suppliersList.length]
       medicine.reorderLevel = 20
@@ -2096,70 +2113,11 @@ export async function getComplaintsAction() {
       .select('*')
       .order('submitted_at', { ascending: false })
 
-    const defaultComplaints = [
-      {
-        id: 'comp_1',
-        ticket_id: 'SUP-2026-894102',
-        request_type: 'access',
-        full_name: 'Priya Sharma',
-        email: 'priya.sharma@example.com',
-        phone: '+91 98765 43210',
-        branch: 'Hazara Branch',
-        category: 'Prescription & X-Ray',
-        details: 'Requesting a digital PDF copy of my dental prescription and digital X-ray report from my consultation on Sep 2nd.',
-        status: 'received',
-        submitted_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-        admin_notes: null
-      },
-      {
-        id: 'comp_2',
-        ticket_id: 'DPDP-2026-402918',
-        request_type: 'erasure',
-        full_name: 'Amit Verma',
-        email: 'amit.verma@example.com',
-        phone: '+91 98123 45678',
-        branch: 'Hazara Branch',
-        category: 'DPDP Privacy',
-        details: 'Exercising Right to Erasure under Section 11 of DPDP Act 2023. Please permanently delete my patient profile credentials.',
-        status: 'in_progress',
-        submitted_at: new Date(Date.now() - 3600000 * 18).toISOString(),
-        admin_notes: 'DPO verified identity. Patient profile queued for permanent database erasure within 24 hours.'
-      },
-      {
-        id: 'comp_3',
-        ticket_id: 'SUP-2026-112349',
-        request_type: 'access',
-        full_name: 'Meena Patel',
-        email: 'meena.patel@example.com',
-        phone: '+91 97654 32109',
-        branch: 'Family Branch',
-        category: 'Appointment Booking',
-        details: 'I need to reschedule my scaling appointment from Friday afternoon to Saturday morning due to a family engagement.',
-        status: 'resolved',
-        submitted_at: new Date(Date.now() - 3600000 * 36).toISOString(),
-        admin_notes: 'Receptionist contacted patient via phone and rescheduled appointment to Saturday 10:30 AM.'
-      },
-      {
-        id: 'comp_4',
-        ticket_id: 'SUP-2026-789123',
-        request_type: 'access',
-        full_name: 'Rajesh Kumar',
-        email: 'rajesh.k@example.com',
-        phone: '+91 99887 76655',
-        branch: 'Family Branch',
-        category: 'Billing & Payment',
-        details: 'Enquiring about the itemized cost breakdown for pediatric white cavity fillings.',
-        status: 'resolved',
-        submitted_at: new Date(Date.now() - 3600000 * 48).toISOString(),
-        admin_notes: 'Sent full price list sheet and consultation package details to patient email.'
-      }
-    ]
-
-    if (error || !data || data.length === 0) {
-      return { success: true, data: defaultComplaints }
+    if (error || !data) {
+      console.error('Error fetching complaints from DB:', error)
+      return { success: true, data: [] }
     }
 
-    // Merge database items with fallback defaults to ensure rich dataset
     const processedDbData = data.map((item: any) => {
       let branch = 'Hazara Branch'
       let category = 'General Support'
@@ -2193,14 +2151,7 @@ export async function getComplaintsAction() {
       }
     })
 
-    // Combine DB records with defaults (avoiding duplicate ticket IDs)
-    const existingTicketIds = new Set(processedDbData.map(d => d.ticket_id))
-    const combined = [
-      ...processedDbData,
-      ...defaultComplaints.filter(def => !existingTicketIds.has(def.ticket_id))
-    ]
-
-    return { success: true, data: combined }
+    return { success: true, data: processedDbData }
   } catch (err: any) {
     console.error('Error fetching complaints:', err)
     return { success: false, error: err.message || 'Failed to fetch complaints.' }

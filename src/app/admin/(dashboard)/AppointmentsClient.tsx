@@ -679,10 +679,14 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                         <div className="flex items-center gap-1.5 justify-center">
                           <button
                             onClick={() => handleOpenReportsModal(appt)}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#4A5D23] hover:bg-[#3D4D1D] text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
+                            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer ${
+                              appt.status === 'completed' || appt.report_sent_at
+                                ? 'bg-[#E4E7D3] text-[#4A5D23] hover:bg-[#d8dcc3]'
+                                : 'bg-[#4A5D23] hover:bg-[#3D4D1D] text-white'
+                            }`}
                           >
                             <FileText className="w-3.5 h-3.5" />
-                            Bill &amp; Rx Console
+                            {appt.status === 'completed' || appt.report_sent_at ? 'View / Send Bill & Rx' : 'Create Bill & Rx'}
                           </button>
                           <button
                             onClick={() => handleOpenPostponeModal(appt)}

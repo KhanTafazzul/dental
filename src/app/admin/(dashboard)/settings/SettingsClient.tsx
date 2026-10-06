@@ -28,32 +28,56 @@ export default function SettingsClient() {
   // Active Category Tab
   const [activeTab, setActiveTab] = useState<'account' | 'security' | 'branches' | 'treatments' | 'medicines' | 'notifications' | 'prescription' | 'billing' | 'preferences' | 'danger'>('account');
 
-  // Prescription Pad Background State
+  // Prescription Pad Background & Branch Customizer State
   const [rxPadBg, setRxPadBg] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('prescription_template_bg') || null;
     }
     return null;
   });
+  const [selectedBranchRx, setSelectedBranchRx] = useState<'hazara' | 'family'>('hazara');
+  const [showRxCustomizerModal, setShowRxCustomizerModal] = useState(false);
+  const [headerMargin, setHeaderMargin] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      return Number(localStorage.getItem('rx_header_margin')) || 160;
+    }
+    return 160;
+  });
 
-  const handleUploadRxPad = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const getBranchPadBg = useCallback((branchId: string) => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(`prescription_template_bg_${branchId}`) || localStorage.getItem('prescription_template_bg') || null;
+    }
+    return null;
+  }, []);
+
+  const handleUploadBranchRxPad = (e: React.ChangeEvent<HTMLInputElement>, branchId: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
-      setRxPadBg(result);
+      localStorage.setItem(`prescription_template_bg_${branchId}`, result);
       localStorage.setItem('prescription_template_bg', result);
-      showToast('Prescription Pad background image/PDF saved successfully!');
+      setRxPadBg(result);
+      showToast(`Rx pad template for ${branchId.toUpperCase()} branch saved successfully!`);
     };
     reader.readAsDataURL(file);
   };
 
-  const handleRemoveRxPad = () => {
+  const handleRemoveBranchRxPad = (branchId: string) => {
+    localStorage.removeItem(`prescription_template_bg_${branchId}`);
     setRxPadBg(null);
-    localStorage.removeItem('prescription_template_bg');
-    showToast('Prescription pad background removed.');
+    showToast(`Prescription pad background for ${branchId.toUpperCase()} branch removed.`);
+  };
+
+  const handleUploadRxPad = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleUploadBranchRxPad(e, selectedBranchRx);
+  };
+
+  const handleRemoveRxPad = () => {
+    handleRemoveBranchRxPad(selectedBranchRx);
   };
 
   // Feedback Toast State
@@ -311,10 +335,10 @@ export default function SettingsClient() {
             <div className="flex items-center justify-between border-b border-[#F4F6F0] pb-4">
               <div>
                 <h2 className="text-lg font-bold text-[#2C3325] flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-[#4A5D23]" /> Prescription Pad Background & Header Layout
+                  <FileText className="w-5 h-5 text-[#4A5D23]" /> Prescription Pad Background & Dual-Branch Customizer
                 </h2>
                 <p className="text-xs text-[#8A9380]">
-                  Upload official clinic letterhead / prescription pad background in JPG, PNG, WEBP, or PDF format.
+                  Configure official clinic letterhead pads for Hazara & Family Dental Clinic branches independently.
                 </p>
               </div>
               <div className="p-3 bg-[#E4E7D3] text-[#4A5D23] rounded-2xl">
@@ -322,48 +346,118 @@ export default function SettingsClient() {
               </div>
             </div>
 
-            <div className="space-y-4 text-xs">
+            {/* Branch Selector Tabs */}
+            <div className="flex items-center gap-3 p-1.5 bg-[#F4F6F0] rounded-2xl border border-[#E4E7D3]">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedBranchRx('hazara');
+                  const bg = getBranchPadBg('hazara');
+                  setRxPadBg(bg);
+                }}
+                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  selectedBranchRx === 'hazara'
+                    ? 'bg-[#4A5D23] text-white shadow-sm'
+                    : 'text-[#2C3325] hover:bg-[#E4E7D3]/60'
+                }`}
+              >
+                🏥 Hazara Dental Clinic Template 1
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedBranchRx('family');
+                  const bg = getBranchPadBg('family');
+                  setRxPadBg(bg);
+                }}
+                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  selectedBranchRx === 'family'
+                    ? 'bg-[#4A5D23] text-white shadow-sm'
+                    : 'text-[#2C3325] hover:bg-[#E4E7D3]/60'
+                }`}
+              >
+                🏥 Family Dental Clinic Template 2
+              </button>
+            </div>
+
+            <div className="space-y-5 text-xs">
               <div className="p-4 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] space-y-3">
                 <label className="block text-xs font-bold text-[#2C3325]">
-                  Select Prescription Pad File (JPG, PNG, WEBP, PDF)
+                  Select Prescription Pad Template for {selectedBranchRx.toUpperCase()} Branch (JPG, PNG, WEBP, PDF)
                 </label>
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp,application/pdf"
-                  onChange={handleUploadRxPad}
+                  onChange={(e) => handleUploadBranchRxPad(e, selectedBranchRx)}
                   className="block w-full text-xs text-[#2C3325] file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#4A5D23] file:text-white hover:file:bg-[#3D4D1D] file:cursor-pointer cursor-pointer"
                 />
                 <p className="text-[11px] text-[#8A9380]">
-                  Supported formats: High-resolution JPG, PNG, WEBP, or official PDF letterhead pad.
+                  Supported formats: High-resolution JPG, PNG, WEBP, or official PDF letterhead pad for {selectedBranchRx.toUpperCase()}.
                 </p>
               </div>
 
+              {/* Header Margin Offset Slider */}
+              <div className="p-4 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold text-[#2C3325]">Top Header Offset / Prescription Text Margin</label>
+                  <span className="font-mono text-xs font-bold text-[#4A5D23] bg-white px-2 py-0.5 rounded-lg border border-[#E4E7D3]">{headerMargin}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="50"
+                  max="350"
+                  step="5"
+                  value={headerMargin}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setHeaderMargin(val);
+                    localStorage.setItem('rx_header_margin', String(val));
+                    localStorage.setItem(`rx_header_margin_${selectedBranchRx}`, String(val));
+                  }}
+                  className="w-full accent-[#4A5D23] cursor-pointer"
+                />
+                <p className="text-[11px] text-[#8A9380]">
+                  Adjust vertical margin to ensure doctor's typed clinical notes align perfectly below the printed letterhead banner.
+                </p>
+              </div>
+
+              {/* Live Background Preview */}
               {rxPadBg ? (
                 <div className="space-y-3 border-t border-[#F4F6F0] pt-4">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-[#4A5D23] flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-[#4A5D23]" /> Active Prescription Pad Loaded
+                      <CheckCircle2 className="w-4 h-4 text-[#4A5D23]" /> Active Template Loaded for {selectedBranchRx.toUpperCase()}
                     </span>
                     <button
-                      onClick={handleRemoveRxPad}
+                      type="button"
+                      onClick={() => handleRemoveBranchRxPad(selectedBranchRx)}
                       className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold border border-rose-200 text-xs transition-colors cursor-pointer"
                     >
                       Remove Background
                     </button>
                   </div>
-                  <div className="p-2 border border-[#E4E7D3] rounded-2xl bg-[#F4F6F0] max-h-72 overflow-hidden flex justify-center">
+                  <div className="p-4 border border-[#E4E7D3] rounded-2xl bg-[#F4F6F0] flex justify-center relative overflow-hidden">
                     {rxPadBg.startsWith('data:application/pdf') ? (
                       <div className="p-8 text-center text-xs font-bold text-[#4A5D23]">
-                        📄 PDF Letterhead Pad Attached & Active
+                        📄 PDF Letterhead Pad Attached & Active for {selectedBranchRx.toUpperCase()}
                       </div>
                     ) : (
-                      <img src={rxPadBg} alt="Prescription Pad Preview" className="max-h-64 object-contain rounded-xl shadow-sm" />
+                      <div className="relative border border-[#E4E7D3] rounded-xl overflow-hidden shadow-md max-w-md w-full bg-white">
+                        <img src={rxPadBg} alt="Prescription Pad Preview" className="w-full max-h-80 object-contain" />
+                        <div 
+                          className="absolute inset-x-4 border-t-2 border-dashed border-[#4A5D23]/60 bg-[#4A5D23]/5 p-3 rounded-lg text-[10px] text-[#2C3325] font-mono"
+                          style={{ top: `${Math.min(headerMargin / 2, 140)}px` }}
+                        >
+                          <span className="font-bold text-[#4A5D23]">Rx Notes Start Line ({headerMargin}px offset)</span>
+                          <p className="mt-1 text-[#8A9380] italic">1. Amoxicillin 500mg - 1 Tab (TDS x 5 days)</p>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
               ) : (
                 <div className="p-8 text-center bg-[#F4F6F0] border border-dashed border-[#E4E7D3] rounded-2xl text-[#8A9380]">
-                  No custom prescription pad background uploaded yet. System default digital header will be used.
+                  No custom prescription pad background uploaded for {selectedBranchRx.toUpperCase()} branch. System default digital header will be used.
                 </div>
               )}
             </div>
@@ -668,6 +762,198 @@ export default function SettingsClient() {
           </div>
         </div>
       )}
+
+      {activeTab === 'prescription' && (
+        <div className="space-y-6 max-w-4xl">
+          <div className="p-6 sm:p-8 rounded-[24px] bg-white border border-[#E4E7D3] shadow-sm space-y-6">
+            <div className="border-b border-[#F4F6F0] pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-[#2C3325] flex items-center gap-2" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>
+                  <FileText className="w-5 h-5 text-[#4A5D23]" /> Multi-Branch Prescription Pad Customizer
+                </h2>
+                <p className="text-xs text-[#8A9380] font-medium mt-1">
+                  Upload letterhead backgrounds (JPG, PNG, PDF) and adjust print layouts individually for each clinic branch.
+                </p>
+              </div>
+            </div>
+
+            {/* Branch Selector Tabs */}
+            <div className="flex items-center gap-2 bg-[#F4F6F0] p-1.5 rounded-2xl border border-[#E4E7D3] w-fit">
+              {['hazara', 'family'].map((bId) => {
+                const bName = bId === 'hazara' ? 'Hazara Branch' : 'Family Branch';
+                const isSelected = selectedBranchRx === bId;
+                return (
+                  <button
+                    key={bId}
+                    type="button"
+                    onClick={() => setSelectedBranchRx(bId as any)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-[#4A5D23] text-white shadow-sm'
+                        : 'text-[#2C3325] hover:bg-[#E4E7D3]'
+                    }`}
+                  >
+                    {bName}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Customizer Box */}
+            <div className="p-6 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-bold text-[#2C3325] text-base">
+                    {selectedBranchRx === 'hazara' ? 'Hazara Dental Clinic' : 'Family Dental Clinic'} Rx Template
+                  </h3>
+                  <p className="text-xs text-[#8A9380] font-medium">
+                    Customize letterhead background pad image, top header spacing, and digital layout.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowRxCustomizerModal(true)}
+                  className="px-5 py-2.5 rounded-xl bg-[#4A5D23] hover:bg-[#3D4D1D] text-white font-bold text-xs shadow-md flex items-center gap-2 transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-white" /> Open Interactive Customizer
+                </button>
+              </div>
+
+              {/* Current Background Display */}
+              <div className="space-y-3">
+                <label className="block text-xs font-bold text-[#2C3325]">
+                  Letterhead Pad Background Image / PDF (PNG, JPG, PDF)
+                </label>
+
+                {getBranchPadBg(selectedBranchRx) ? (
+                  <div className="relative rounded-2xl overflow-hidden border border-[#E4E7D3] bg-white p-4 space-y-3">
+                    <img
+                      src={getBranchPadBg(selectedBranchRx)!}
+                      alt="Prescription Background"
+                      className="max-h-60 w-full object-contain rounded-xl border border-[#F4F6F0]"
+                    />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-[#4A5D23]">Active Background Loaded for {selectedBranchRx.toUpperCase()}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveBranchRxPad(selectedBranchRx)}
+                        className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold border border-rose-200 cursor-pointer"
+                      >
+                        Remove Background
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-[#E4E7D3] rounded-2xl p-8 text-center bg-white space-y-3">
+                    <Upload className="w-8 h-8 text-[#4A5D23] mx-auto opacity-70" />
+                    <div className="text-xs text-[#2C3325] font-semibold">
+                      Upload letterhead background for {selectedBranchRx === 'hazara' ? 'Hazara' : 'Family'} branch (JPG, PNG, PDF)
+                    </div>
+                    <p className="text-[11px] text-[#8A9380]">Recommended: A4 portrait resolution (1240 x 1754 px)</p>
+                    <input
+                      type="file"
+                      accept="image/png, image/jpeg, image/jpg, application/pdf"
+                      onChange={(e) => handleUploadBranchRxPad(e, selectedBranchRx)}
+                      className="hidden"
+                      id={`rx-upload-${selectedBranchRx}`}
+                    />
+                    <label
+                      htmlFor={`rx-upload-${selectedBranchRx}`}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#4A5D23] hover:bg-[#3D4D1D] text-white text-xs font-bold cursor-pointer shadow-sm"
+                    >
+                      <Upload className="w-4 h-4" /> Browse File
+                    </label>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Rx Customizer Modal */}
+      <AnimatePresence>
+        {showRxCustomizerModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl border border-[#E4E7D3] p-6 max-w-2xl w-full space-y-6 shadow-2xl overflow-hidden"
+            >
+              <div className="flex items-center justify-between border-b border-[#F4F6F0] pb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-[#2C3325]">
+                    Rx Customizer — {selectedBranchRx === 'hazara' ? 'Hazara Branch' : 'Family Branch'}
+                  </h3>
+                  <p className="text-xs text-[#8A9380]">Adjust margin padding and preview print output</p>
+                </div>
+                <button
+                  onClick={() => setShowRxCustomizerModal(false)}
+                  className="p-2 rounded-xl text-[#8A9380] hover:bg-[#F4F6F0] hover:text-[#2C3325]"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-xs font-bold text-[#2C3325] mb-2">
+                    Top Margin Padding for Pre-Printed Header (px): {headerMargin}px
+                  </label>
+                  <input
+                    type="range"
+                    min={80}
+                    max={300}
+                    value={headerMargin}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setHeaderMargin(val);
+                      localStorage.setItem('rx_header_margin', String(val));
+                    }}
+                    className="w-full accent-[#4A5D23]"
+                  />
+                  <span className="text-[11px] text-[#8A9380]">Controls how much space is left at the top before prescription content starts printing.</span>
+                </div>
+
+                {/* Preview Box */}
+                <div className="p-4 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] space-y-3">
+                  <div className="text-xs font-bold text-[#4A5D23]">Live Print Preview Box</div>
+                  <div
+                    style={{ paddingTop: `${headerMargin / 2}px` }}
+                    className="bg-white p-4 rounded-xl border border-[#E4E7D3] min-h-[160px]"
+                  >
+                    <div className="border-b border-dashed border-[#E4E7D3] pb-2 text-[11px] font-bold text-[#2C3325]">
+                      Patient Name: John Doe | Age: 32 | Date: 2026-10-06
+                    </div>
+                    <div className="pt-3 text-[11px] text-[#4A5D23] font-semibold">
+                      Rx Medicines Table Will Print Here...
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2 border-t border-[#F4F6F0]">
+                <button
+                  onClick={() => {
+                    showToast('Prescription pad layout preferences saved!');
+                    setShowRxCustomizerModal(false);
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-[#4A5D23] text-white font-bold text-xs shadow-md hover:bg-[#3D4D1D]"
+                >
+                  Save & Close Customizer
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {activeTab === 'billing' && (
         <div className="space-y-6 max-w-4xl">

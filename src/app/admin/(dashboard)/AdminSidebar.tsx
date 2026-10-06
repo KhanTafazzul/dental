@@ -15,11 +15,8 @@ import { useTheme } from '@/components/ThemeContext'
 
 const NAV_ITEMS = [
   { href: '/admin',                     icon: LayoutDashboard, label: 'Dashboard & Appts' },
-  { href: '/admin/capture',             icon: Camera,          label: 'Reception & Capture' },
   { href: '/admin/doctors',             icon: Users,           label: 'Doctor Roster' },
   { href: '/admin/finances',            icon: CircleDollarSign,label: 'Finances & Revenue' },
-  { href: '/admin/billing',             icon: Receipt,         label: 'Billing & Checkout' },
-  { href: '/admin/doctor-chat',         icon: MessageSquare,   label: 'Doctor Chat Portal' },
   { href: '/admin/inventory',           icon: Package,         label: 'Inventory & Stock' },
   { href: '/admin/complaints',          icon: LifeBuoy,        label: 'Complaints & Support' },
   { href: '/admin/messaging',           icon: MessageSquare,   label: 'Patient Messaging' },
