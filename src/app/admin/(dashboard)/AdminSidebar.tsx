@@ -17,13 +17,13 @@ const NAV_ITEMS = [
   { href: '/admin',                     icon: LayoutDashboard, label: 'Dashboard & Appts' },
   { href: '/admin/capture',             icon: Camera,          label: 'Reception & Capture' },
   { href: '/admin/doctors',             icon: Users,           label: 'Doctor Roster' },
-  { href: '/admin/prescription-mapper', icon: FileText,        label: 'Rx Template Mapper' },
   { href: '/admin/finances',            icon: CircleDollarSign,label: 'Finances & Revenue' },
   { href: '/admin/billing',             icon: Receipt,         label: 'Billing & Checkout' },
   { href: '/admin/doctor-chat',         icon: MessageSquare,   label: 'Doctor Chat Portal' },
   { href: '/admin/inventory',           icon: Package,         label: 'Inventory & Stock' },
   { href: '/admin/complaints',          icon: LifeBuoy,        label: 'Complaints & Support' },
   { href: '/admin/messaging',           icon: MessageSquare,   label: 'Patient Messaging' },
+  { href: '/admin/prescription-mapper', icon: FileText,        label: 'Rx Template Mapper' },
   { href: '/admin/settings',            icon: Settings,        label: 'System Settings' },
 ]
 
@@ -138,13 +138,13 @@ export default function AdminSidebar() {
           top: isMobile ? 0 : 16,
           left: 0,
           zIndex: 50,
-          overflow: 'hidden',
+          overflow: 'visible',
           border: '1px solid #E4E7D3',
           boxShadow: '4px 0 28px rgba(74, 93, 35, 0.06)',
           transition: 'width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), border-radius 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}
       >
-        <div style={{ position: 'relative', zIndex: 1 }}>
+        <div style={{ position: 'relative', zIndex: 1, overflowY: 'auto', flex: 1, overflowX: 'hidden' }}>
           {/* Logo & Header */}
           <div
             style={{
@@ -385,26 +385,26 @@ export default function AdminSidebar() {
             onClick={handleToggleCollapse}
             style={{
               position: 'absolute',
-              right: -12,
-              top: 22,
-              width: 24,
-              height: 24,
+              right: -13,
+              top: 24,
+              width: 26,
+              height: 26,
               borderRadius: '50%',
               background: '#4A5D23',
-              border: '2px solid #FFFFFF',
+              border: '2.5px solid #FFFFFF',
               color: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              zIndex: 60,
-              boxShadow: '0 2px 8px rgba(74, 93, 35, 0.3)',
-              transition: 'all 0.15s ease',
+              zIndex: 100,
+              boxShadow: '0 4px 12px rgba(74, 93, 35, 0.35)',
+              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
-            className="hover:scale-110"
+            className="hover:scale-115 active:scale-95"
             title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
-            {isCollapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
+            {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
         )}
       </motion.aside>

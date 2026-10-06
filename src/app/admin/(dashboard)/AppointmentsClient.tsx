@@ -673,29 +673,29 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                       </div>
                     </td>
 
-                    {/* Reports & Postpone Actions column */}
+                    {/* Reports & Bill & Rx Actions column */}
                     <td className="px-6 py-4 text-center">
                       <div className="flex flex-col items-center gap-1.5">
                         <div className="flex items-center gap-1.5 justify-center">
                           <button
                             onClick={() => handleOpenReportsModal(appt)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition shadow-sm"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#4A5D23] hover:bg-[#3D4D1D] text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
                           >
                             <FileText className="w-3.5 h-3.5" />
-                            Reports
+                            Bill &amp; Rx Console
                           </button>
                           <button
                             onClick={() => handleOpenPostponeModal(appt)}
                             title="Postpone / Reschedule Appointment"
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-semibold transition shadow-sm"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-2 bg-[#F4F6F0] hover:bg-[#E4E7D3] text-[#2C3325] border border-[#E4E7D3] rounded-xl text-xs font-semibold transition cursor-pointer"
                           >
-                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                            <Clock className="w-3.5 h-3.5 text-[#4A5D23]" />
                             Postpone
                           </button>
                         </div>
                         {appt.report_sent_at && (
-                          <span className="inline-flex items-center gap-0.5 text-[9px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 font-semibold uppercase">
-                            <Check className="w-2.5 h-2.5" /> Sent
+                          <span className="inline-flex items-center gap-0.5 text-[9px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 font-bold uppercase">
+                            <Check className="w-2.5 h-2.5" /> Sent to Patient
                           </span>
                         )}
                       </div>

@@ -1,16 +1,10 @@
 'use client'
 
+
 import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell, Area, AreaChart
-} from 'recharts'
 import { Calendar, TrendingUp, DollarSign, Activity, Sparkles, ShieldCheck, ArrowUpRight, BarChart3 } from 'lucide-react'
-import DentalLogo from '@/components/DentalLogo'
 import { FinancialAnalyticsResult } from '@/lib/analytics'
-
-const PIE_COLORS = ['#4A5D23', '#6B823E', '#8F9E64', '#C7D1A5', '#E4E7D3']
 
 interface AnalyticsTabProps {
   appointments: any[]
@@ -57,31 +51,6 @@ function getAppointmentFinances(appt: any) {
   }
 }
 
-// Custom Glassmorphic Tooltip Component
-const Custom3DTooltip = ({ active, payload, label, prefix = 'Rs. ' }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="glass-3d-dark p-3.5 rounded-2xl shadow-2xl border border-white/20 text-xs font-sans space-y-1.5 min-w-[160px]">
-        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider border-b border-white/10 pb-1">
-          {label}
-        </p>
-        {payload.map((entry: any, index: number) => (
-          <div key={`tooltip-${index}`} className="flex justify-between items-center gap-3">
-            <span className="flex items-center gap-1.5 text-slate-300 font-medium">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color || entry.fill }} />
-              {entry.name || 'Value'}:
-            </span>
-            <span className="font-mono font-bold text-white">
-              {prefix}{Number(entry.value || 0).toLocaleString()}
-            </span>
-          </div>
-        ))}
-      </div>
-    )
-  }
-  return null
-}
-
 // Utility to count working days in a month
 function getWorkingDaysInMonth(year: number, month: number, includeSundays: boolean) {
   let count = 0
@@ -100,7 +69,7 @@ export default function AnalyticsTab({
   appointments, electricityExpenses, helperBoys, helperAttendance, extraExpenses, doctors, doctorAttendance, selectedBranch, branches, initialAnalytics
 }: AnalyticsTabProps) {
 
-  // Aggregate Data by Month (Uses pre-computed server metrics if available)
+  // Aggregate Data by Month
   const monthlyData = useMemo(() => {
     if (initialAnalytics?.monthlyChartData && selectedBranch === 'all') {
       return initialAnalytics.monthlyChartData.map(d => ({
@@ -149,219 +118,13 @@ export default function AnalyticsTab({
       }
     })
 
-    electricityExpenses.forEach(elec => {
-      if (dataMap[elec.month_year]) {
-        if (selectedBranch === 'all' || (branches.find(b => b.id === elec.branch_id)?.slug === selectedBranch)) {
-          dataMap[elec.month_year].expenses += Math.round(elec.electricity_bill || 0)
-        }
-      }
-    })
-
-    // Load salary reductions inside memo
-    let salaryReductions: any[] = []
-    if (typeof window !== 'undefined') {
-      const savedReductions = localStorage.getItem('dental_salary_reductions')
-      if (savedReductions) {
-        try {
-          salaryReductions = JSON.parse(savedReductions)
-        } catch (e) {}
-      }
-    }
-
-    // Compute helper salaries and doctor payouts for each month key to match totals cards
-    Object.keys(dataMap).forEach(key => {
-      const [yearStr, monthStr] = key.split('-')
-      const year = parseInt(yearStr, 10)
-      const month = parseInt(monthStr, 10)
-
-      // 1. Helper Salaries
-      const branchHelpers = helperBoys.filter(h => {
-        if (selectedBranch === 'all') return true
-        const branchSlug = branches.find(b => b.id === h.branch_id)?.slug
-        return branchSlug === selectedBranch
-      })
-
-      const helperSalariesTotal = branchHelpers.reduce((sum, h) => {
-        const hWorkingDays = getWorkingDaysInMonth(year, month, h.sunday_enabled)
-        const hAbsences = helperAttendance.filter(a => {
-          if (a.helper_boy_id !== h.id || (a.status !== 'absent' && a.status !== 'half_day')) return false
-          const absDate = new Date(a.date)
-          const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
-          return absMonthStr === key
-        })
-        const shift1Abs = hAbsences.filter(a => a.shift === 1).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
-        const shift2Abs = hAbsences.filter(a => a.shift === 2).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
-        const shift1Worked = h.shift_1_enabled ? Math.max(0, hWorkingDays - shift1Abs) : 0
-        const shift2Worked = h.shift_2_enabled ? Math.max(0, hWorkingDays - shift2Abs) : 0
-        const basePay = (shift1Worked * h.shift_1_rate) + (shift2Worked * h.shift_2_rate)
-        const reduction = salaryReductions
-          .filter(r => r.person_id === h.id && r.month_year === key && r.person_type === 'helper')
-          .reduce((acc, curr) => acc + curr.amount, 0)
-        return sum + Math.max(0, basePay - reduction)
-      }, 0)
-
-      // 2. Doctor Payroll
-      const activeDocs = doctors.filter(d => {
-        if (selectedBranch === 'all') return true
-        const branchSlug = branches.find(b => b.id === d.branch_id)?.slug
-        return branchSlug === selectedBranch
-      })
-
-      // Get branch profit before doctor percentage payouts
-      const branchTProfit = dataMap[key].revenue
-      const branchExtras = extraExpenses.filter(ex => {
-        const d = new Date(ex.expense_date)
-        const expMonthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-        if (expMonthStr !== key) return false
-        if (selectedBranch === 'all') return true
-        const branchSlug = branches.find(b => b.id === ex.branch_id)?.slug
-        return branchSlug === selectedBranch
-      }).reduce((sum, ex) => sum + (ex.amount || 0), 0)
-
-      const branchElec = electricityExpenses.filter(e => {
-        if (e.month_year !== key) return false
-        if (selectedBranch === 'all') return true
-        const branchSlug = branches.find(b => b.id === e.branch_id)?.slug
-        return branchSlug === selectedBranch
-      }).reduce((sum, e) => sum + (e.electricity_bill || 0), 0)
-
-      const branchNetProfitBeforeDoctors = branchTProfit - helperSalariesTotal - branchElec - branchExtras
-
-      let doctorFixedSalariesTotal = 0
-      let doctorPercentagePayoutsTotal = 0
-
-      activeDocs.forEach(d => {
-        if (d.compensation_type === 'fixed') {
-          const docWorkingDays = getWorkingDaysInMonth(year, month, false)
-          const absencesCount = doctorAttendance.filter(a => {
-            if (a.doctor_id !== d.id || (a.status !== 'absent' && a.status !== 'half_day')) return false
-            const absDate = new Date(a.date)
-            const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
-            return absMonthStr === key
-          }).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
-          
-          const docWorked = Math.max(0, docWorkingDays - absencesCount)
-          const dailyRate = d.fixed_salary / docWorkingDays
-          const basePay = docWorked * dailyRate
-          const reduction = salaryReductions
-            .filter(r => r.person_id === d.id && r.month_year === key && r.person_type === 'doctor')
-            .reduce((acc, curr) => acc + curr.amount, 0)
-          doctorFixedSalariesTotal += Math.max(0, basePay - reduction)
-        } else {
-          let bProfit = branchNetProfitBeforeDoctors
-          if (selectedBranch === 'all' && d.branch_id) {
-            const docBranchBill = electricityExpenses.find(e => e.branch_id === d.branch_id && e.month_year === key)?.electricity_bill || 0
-            const docBranchHelpers = helperBoys.filter(h => h.branch_id === d.branch_id)
-            const docBranchHelpersPay = docBranchHelpers.reduce((sum, h) => {
-              const hWorkingDays = getWorkingDaysInMonth(year, month, h.sunday_enabled)
-              const hAbsences = helperAttendance.filter(a => {
-                if (a.helper_boy_id !== h.id || (a.status !== 'absent' && a.status !== 'half_day')) return false
-                const absDate = new Date(a.date)
-                const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
-                return absMonthStr === key
-              })
-              const shift1Abs = hAbsences.filter(a => a.shift === 1).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
-              const shift2Abs = hAbsences.filter(a => a.shift === 2).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
-              const shift1Worked = h.shift_1_enabled ? Math.max(0, hWorkingDays - shift1Abs) : 0
-              const shift2Worked = h.shift_2_enabled ? Math.max(0, hWorkingDays - shift2Abs) : 0
-              const basePay = (shift1Worked * h.shift_1_rate) + (shift2Worked * h.shift_2_rate)
-              const reduction = salaryReductions
-                .filter(r => r.person_id === h.id && r.month_year === key && r.person_type === 'helper')
-                .reduce((acc, curr) => acc + curr.amount, 0)
-              return sum + Math.max(0, basePay - reduction)
-            }, 0)
-            const docBranchExtras = extraExpenses.filter(e => {
-              const expDate = new Date(e.expense_date)
-              const expMonthStr = `${expDate.getFullYear()}-${String(expDate.getMonth() + 1).padStart(2, '0')}`
-              return expMonthStr === key && e.branch_id === d.branch_id
-            }).reduce((sum, e) => sum + e.amount, 0)
-            
-            const docBranchAppts = dataMap[key].appts.filter((appt: any) => {
-              return appt.branches?.id === d.branch_id
-            })
-            
-            let docBranchTProfit = 0
-            let docBranchMProfit = 0
-            docBranchAppts.forEach((appt: any) => {
-              const finances = getAppointmentFinances(appt)
-              if (finances) {
-                docBranchTProfit += finances.treatmentProfit
-                docBranchMProfit += finances.medicineProfit
-              }
-            })
-            
-            const target = d.profit_sharing_target || 'both'
-            if (target === 'treatment') {
-              bProfit = docBranchTProfit - docBranchHelpersPay - docBranchBill - docBranchExtras
-            } else if (target === 'medicine') {
-              bProfit = docBranchMProfit - docBranchHelpersPay - docBranchBill - docBranchExtras
-            } else {
-              bProfit = (docBranchTProfit + docBranchMProfit) - docBranchHelpersPay - docBranchBill - docBranchExtras
-            }
-          } else {
-            const target = d.profit_sharing_target || 'both'
-            let filteredTProfit = branchTProfit
-            if (target === 'treatment') {
-              filteredTProfit = dataMap[key].treatmentProfit
-            } else if (target === 'medicine') {
-              filteredTProfit = dataMap[key].medicineProfit
-            }
-            bProfit = filteredTProfit - helperSalariesTotal - branchElec - branchExtras
-          }
-
-          if (bProfit > 0) {
-            const docWorkingDays = getWorkingDaysInMonth(year, month, false)
-            const absencesCount = doctorAttendance.filter(a => {
-              if (a.doctor_id !== d.id || (a.status !== 'absent' && a.status !== 'half_day')) return false
-              const absDate = new Date(a.date)
-              const absMonthStr = `${absDate.getFullYear()}-${String(absDate.getMonth() + 1).padStart(2, '0')}`
-              return absMonthStr === key
-            }).reduce((acc, curr) => acc + (curr.status === 'half_day' ? 0.5 : 1.0), 0)
-            const docWorked = Math.max(0, docWorkingDays - absencesCount)
-            const fullPayout = bProfit * (d.profit_percentage / 100)
-            
-            const docRule = (d.specialty || '').split('||')[1] || 'present_days_only'
-            const docPayout = docRule === 'present_days_only' && docWorkingDays > 0
-              ? fullPayout * (docWorked / docWorkingDays)
-              : fullPayout
-            
-            const reduction = salaryReductions
-              .filter(r => r.person_id === d.id && r.month_year === key && r.person_type === 'doctor')
-              .reduce((acc, curr) => acc + curr.amount, 0)
-            doctorPercentagePayoutsTotal += Math.max(0, docPayout - reduction)
-          }
-        }
-      })
-
-      const totalDoctorPay = doctorFixedSalariesTotal + doctorPercentagePayoutsTotal
-      dataMap[key].expenses += Math.round(helperSalariesTotal + totalDoctorPay)
-    })
-
     Object.keys(dataMap).forEach(key => {
       dataMap[key].netProfit = dataMap[key].revenue - dataMap[key].expenses
     })
 
     const sorted = Object.values(dataMap).sort((a, b) => a.month.localeCompare(b.month))
     return sorted
-  }, [appointments, electricityExpenses, extraExpenses, selectedBranch, doctors, branches, helperBoys, helperAttendance, doctorAttendance])
-
-  // Aggregate Data by Week for Recent Trend
-  const weeklyData = useMemo(() => {
-    const weeks: Record<string, any> = {}
-    appointments.forEach(appt => {
-      if (selectedBranch !== 'all' && appt.branches?.slug !== selectedBranch) return
-      const d = new Date(appt.appointment_date)
-      const firstDayOfYear = new Date(d.getFullYear(), 0, 1)
-      const pastDaysOfYear = (d.getTime() - firstDayOfYear.getTime()) / 86400000
-      const weekNum = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
-      const key = `${d.getFullYear()}-W${weekNum}`
-      
-      if (!weeks[key]) weeks[key] = { week: key, profit: 0 }
-      const fin = getAppointmentFinances(appt)
-      if (fin) weeks[key].profit += Math.round(fin.totalProfit)
-    })
-    return Object.values(weeks).sort((a, b) => a.week.localeCompare(b.week)).slice(-10)
-  }, [appointments, selectedBranch])
+  }, [appointments, electricityExpenses, extraExpenses, selectedBranch, doctors, branches, helperBoys, helperAttendance, doctorAttendance, initialAnalytics])
 
   // Revenue Breakdown (Medicine vs Treatment)
   const revenueBreakdown = useMemo(() => {
@@ -374,255 +137,205 @@ export default function AnalyticsTab({
         m += fin.medicineProfit
       }
     })
-    return [
-      { name: 'Treatment Profit', value: Math.round(t) },
-      { name: 'Medicine Profit', value: Math.round(m) }
-    ]
+    const total = (t + m) || 1
+    return {
+      treatmentProfit: Math.round(t),
+      treatmentPercent: Math.round((t / total) * 100),
+      medicineProfit: Math.round(m),
+      medicinePercent: Math.round((m / total) * 100),
+      totalProfit: Math.round(t + m)
+    }
   }, [appointments, selectedBranch])
+
+  const maxRevenue = useMemo(() => {
+    const max = Math.max(...monthlyData.map(d => Math.max(d.revenue, d.expenses, d.netProfit)), 1)
+    return max
+  }, [monthlyData])
 
   return (
     <div className="perspective-stage space-y-8 font-sans">
       
-      {/* ═══ 3D CHARTS GRID (ROW 1) ═══ */}
+      {/* ═══ FINANCIAL OVERVIEW GRID (ROW 1) ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
+        {/* Monthly Net Profit Trajectory */}
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.12 }}
-          className="clay p-6 md:p-7 border border-slate-200/60 space-y-6 relative overflow-hidden"
+          className="p-6 md:p-7 rounded-[24px] bg-white border border-[#E4E7D3] shadow-sm space-y-6 relative overflow-hidden"
         >
-          <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
+          <div className="flex items-center justify-between border-b border-[#F4F6F0] pb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-500 to-teal-500 text-white flex items-center justify-center shadow-lg shadow-cyan-500/20">
+              <div className="w-10 h-10 rounded-2xl bg-[#E4E7D3] text-[#4A5D23] flex items-center justify-center shadow-sm">
                 <TrendingUp className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-serif font-semibold text-slate-900 leading-tight">
+                <h3 className="text-base font-bold text-[#2C3325] leading-tight" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>
                   Monthly Net Profit Trajectory
                 </h3>
-                <p className="text-[10px] text-slate-400 font-light uppercase tracking-wider">
+                <p className="text-[10px] text-[#8A9380] font-medium uppercase tracking-wider">
                   Live revenue minus operational expenses
                 </p>
               </div>
             </div>
-            <span className="px-3 py-1 bg-cyan-500/10 border border-cyan-400/30 rounded-full text-[10px] font-bold text-cyan-700 uppercase tracking-wider flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-cyan-600 animate-pulse" />
-              Interactive 3D
+            <span className="px-3 py-1 bg-[#E4E7D3] border border-[#4A5D23]/20 rounded-full text-[10px] font-bold text-[#4A5D23] uppercase tracking-wider flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-[#4A5D23] animate-pulse" />
+              Live Audit
             </span>
           </div>
 
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={monthlyData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
-                <defs>
-                  <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0891b2" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#0891b2" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.6} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(val) => `₹${val}`} />
-                <Tooltip content={<Custom3DTooltip />} />
-                <Area 
-                  type="monotone" 
-                  dataKey="netProfit" 
-                  name="Net Profit"
-                  stroke="#0891b2" 
-                  strokeWidth={4} 
-                  fill="url(#profitGrad)"
-                  dot={{ r: 5, fill: '#0891b2', strokeWidth: 3, stroke: '#ffffff' }} 
-                  activeDot={{ r: 8, fill: '#06b6d4', stroke: '#ffffff', strokeWidth: 3 }} 
-                  isAnimationActive={true}
-                  animationDuration={1800}
-                  animationEasing="ease-out"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="space-y-4">
+            {monthlyData.length === 0 ? (
+              <p className="text-xs text-[#8A9380] text-center py-8">No monthly financial records logged.</p>
+            ) : (
+              monthlyData.map((d, i) => {
+                const percent = Math.min(100, Math.max(5, Math.round((d.netProfit / maxRevenue) * 100)))
+                return (
+                  <div key={i} className="space-y-1.5">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-mono font-semibold text-[#2C3325]">{d.month}</span>
+                      <span className="font-mono font-bold text-[#4A5D23]">₹{d.netProfit.toLocaleString()}</span>
+                    </div>
+                    <div className="w-full h-3 bg-[#F4F6F0] rounded-full overflow-hidden border border-[#E4E7D3]">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${percent}%` }}
+                        transition={{ duration: 0.5, delay: i * 0.05 }}
+                        className="h-full bg-gradient-to-r from-[#4A5D23] to-[#6B823E] rounded-full"
+                      />
+                    </div>
+                  </div>
+                )
+              })
+            )}
           </div>
         </motion.div>
 
+        {/* Profit Distribution Split */}
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.12 }}
-          className="clay p-6 md:p-7 border border-slate-200/60 space-y-6 relative overflow-hidden"
+          className="p-6 md:p-7 rounded-[24px] bg-white border border-[#E4E7D3] shadow-sm space-y-6 relative overflow-hidden"
         >
-          <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
+          <div className="flex items-center justify-between border-b border-[#F4F6F0] pb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <div className="w-10 h-10 rounded-2xl bg-[#E4E7D3] text-[#4A5D23] flex items-center justify-center shadow-sm">
                 <Activity className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-serif font-semibold text-slate-900 leading-tight">
+                <h3 className="text-base font-bold text-[#2C3325] leading-tight" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>
                   Profit Distribution Split
                 </h3>
-                <p className="text-[10px] text-slate-400 font-light uppercase tracking-wider">
+                <p className="text-[10px] text-[#8A9380] font-medium uppercase tracking-wider">
                   Medicine Stock vs Clinical Procedure Profit
                 </p>
               </div>
             </div>
-            <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-400/30 rounded-full text-[10px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-              <ArrowUpRight className="w-3 h-3 text-emerald-600" />
-              Share Ratio
+            <span className="px-3 py-1 bg-[#E4E7D3] border border-[#4A5D23]/20 rounded-full text-[10px] font-bold text-[#4A5D23] uppercase tracking-wider flex items-center gap-1">
+              <ArrowUpRight className="w-3 h-3 text-[#4A5D23]" />
+              Ratio Audit
             </span>
           </div>
 
-          <div className="h-72 w-full flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={revenueBreakdown}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={70}
-                  outerRadius={105}
-                  paddingAngle={6}
-                  dataKey="value"
-                  isAnimationActive={true}
-                  animationDuration={1600}
-                  animationBegin={300}
-                >
-                  {revenueBreakdown.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={PIE_COLORS[index % PIE_COLORS.length]} 
-                      stroke="#ffffff" 
-                      strokeWidth={3} 
-                    />
-                  ))}
-                </Pie>
-                <Tooltip content={<Custom3DTooltip />} />
-                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', color: '#475569', fontWeight: 600 }} />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="space-y-6 py-2">
+            {/* Treatment Profit Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-[#2C3325] flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-[#4A5D23]" />
+                  Treatment Procedures ({revenueBreakdown.treatmentPercent}%)
+                </span>
+                <span className="font-mono font-bold text-[#4A5D23]">₹{revenueBreakdown.treatmentProfit.toLocaleString()}</span>
+              </div>
+              <div className="w-full h-4 bg-[#F4F6F0] rounded-full overflow-hidden border border-[#E4E7D3]">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${revenueBreakdown.treatmentPercent}%` }}
+                  transition={{ duration: 0.6 }}
+                  className="h-full bg-[#4A5D23] rounded-full"
+                />
+              </div>
+            </div>
+
+            {/* Medicine Profit Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-[#2C3325] flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-[#6B823E]" />
+                  Medicine Sales ({revenueBreakdown.medicinePercent}%)
+                </span>
+                <span className="font-mono font-bold text-[#6B823E]">₹{revenueBreakdown.medicineProfit.toLocaleString()}</span>
+              </div>
+              <div className="w-full h-4 bg-[#F4F6F0] rounded-full overflow-hidden border border-[#E4E7D3]">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${revenueBreakdown.medicinePercent}%` }}
+                  transition={{ duration: 0.6, delay: 0.1 }}
+                  className="h-full bg-[#6B823E] rounded-full"
+                />
+              </div>
+            </div>
+
+            {/* Total Summary */}
+            <div className="p-4 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] flex items-center justify-between text-xs mt-4">
+              <span className="text-[#8A9380] font-semibold">Total Combined Profit</span>
+              <span className="font-mono text-lg font-bold text-[#2C3325]">₹{revenueBreakdown.totalProfit.toLocaleString()}</span>
+            </div>
           </div>
         </motion.div>
       </div>
 
-      {/* ═══ 3D CHARTS GRID (ROW 2) ═══ */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.12 }}
-          className="clay p-6 md:p-7 border border-slate-200/60 space-y-6 relative overflow-hidden"
-        >
-          <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                <Calendar className="w-5 h-5" />
+      {/* ═══ REVENUE VS EXPENSES COMPARISON ═══ */}
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.12 }}
+        className="p-6 md:p-7 rounded-[24px] bg-white border border-[#E4E7D3] shadow-sm space-y-6"
+      >
+        <div className="flex items-center justify-between border-b border-[#F4F6F0] pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#E4E7D3] text-[#4A5D23] flex items-center justify-center shadow-sm">
+              <DollarSign className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-[#2C3325] leading-tight" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>
+                Revenue vs Expenses Monthly Breakdown
+              </h3>
+              <p className="text-[10px] text-[#8A9380] font-medium uppercase tracking-wider">
+                Gross Income vs Total Operational Costs
+              </p>
+            </div>
+          </div>
+          <span className="px-3 py-1 bg-[#E4E7D3] border border-[#4A5D23]/20 rounded-full text-[10px] font-bold text-[#4A5D23] uppercase tracking-wider">
+            Comparison Matrix
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {monthlyData.map((d, idx) => (
+            <div key={idx} className="p-4 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] space-y-3 text-xs">
+              <div className="flex justify-between items-center border-b border-[#E4E7D3] pb-2 font-bold text-[#2C3325] font-mono">
+                <span>{d.month}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] ${d.netProfit >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                  Net: ₹{d.netProfit.toLocaleString()}
+                </span>
               </div>
-              <div>
-                <h3 className="text-base font-serif font-semibold text-slate-900 leading-tight">
-                  Weekly Profit Trajectory
-                </h3>
-                <p className="text-[10px] text-slate-400 font-light uppercase tracking-wider">
-                  Recent 10-Week Performance Cycles
-                </p>
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-[#8A9380]">
+                  <span>Total Revenue:</span>
+                  <span className="font-mono font-semibold text-[#4A5D23]">₹{d.revenue.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-[#8A9380]">
+                  <span>Total Expenses:</span>
+                  <span className="font-mono font-semibold text-rose-700">₹{d.expenses.toLocaleString()}</span>
+                </div>
               </div>
             </div>
-            <span className="px-3 py-1 bg-indigo-500/10 border border-indigo-400/30 rounded-full text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
-              10 Weeks
-            </span>
-          </div>
-
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
-                <defs>
-                  <linearGradient id="barGradIndigo" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#6366f1" />
-                    <stop offset="100%" stopColor="#4f46e5" />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.6} />
-                <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(val) => `₹${val}`} />
-                <Tooltip content={<Custom3DTooltip />} />
-                <Bar 
-                  dataKey="profit" 
-                  name="Weekly Profit"
-                  fill="url(#barGradIndigo)" 
-                  radius={[8, 8, 0, 0]} 
-                  barSize={32}
-                  isAnimationActive={true}
-                  animationDuration={1800}
-                  animationBegin={500}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </motion.div>
-
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.12 }}
-          className="clay p-6 md:p-7 border border-slate-200/60 space-y-6 relative overflow-hidden"
-        >
-          <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-rose-500 to-amber-500 text-white flex items-center justify-center shadow-lg shadow-rose-500/20">
-                <DollarSign className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-serif font-semibold text-slate-900 leading-tight">
-                  Revenue vs Expenses Monthly
-                </h3>
-                <p className="text-[10px] text-slate-400 font-light uppercase tracking-wider">
-                  Gross Income vs Total Operational Costs
-                </p>
-              </div>
-            </div>
-            <span className="px-3 py-1 bg-rose-500/10 border border-rose-400/30 rounded-full text-[10px] font-bold text-rose-700 uppercase tracking-wider">
-              Comparison
-            </span>
-          </div>
-
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
-                <defs>
-                  <linearGradient id="barGradRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10b981" />
-                    <stop offset="100%" stopColor="#059669" />
-                  </linearGradient>
-                  <linearGradient id="barGradExpenses" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f43f5e" />
-                    <stop offset="100%" stopColor="#e11d48" />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.6} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(val) => `₹${val}`} />
-                <Tooltip content={<Custom3DTooltip />} />
-                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', color: '#475569', fontWeight: 600 }} />
-                <Bar 
-                  dataKey="revenue" 
-                  name="Total Revenue" 
-                  fill="url(#barGradRevenue)" 
-                  radius={[8, 8, 0, 0]} 
-                  isAnimationActive={true}
-                  animationDuration={2000}
-                  animationBegin={600}
-                />
-                <Bar 
-                  dataKey="expenses" 
-                  name="Total Expenses" 
-                  fill="url(#barGradExpenses)" 
-                  radius={[8, 8, 0, 0]} 
-                  isAnimationActive={true}
-                  animationDuration={2000}
-                  animationBegin={700}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </motion.div>
-      </div>
+          ))}
+        </div>
+      </motion.div>
 
     </div>
   )

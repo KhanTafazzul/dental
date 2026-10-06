@@ -19,14 +19,42 @@ import {
   Trash2, Plus, Camera, Activity, DollarSign, Barcode, Inbox,
   Shield, Building2, Stethoscope, Pill, Download, Upload, Video, MessageSquare, Send,
   User, Bell, CreditCard, Globe, AlertTriangle, CheckCircle2, Lock, Eye, EyeOff, Save,
-  Sun, Moon, Sparkles, ExternalLink, ChevronRight, Laptop
+  Sun, Moon, Sparkles, ExternalLink, ChevronRight, Laptop, FileText
 } from 'lucide-react';
 
 export default function SettingsClient() {
   const { theme, toggleTheme } = useTheme();
 
   // Active Category Tab
-  const [activeTab, setActiveTab] = useState<'account' | 'security' | 'branches' | 'treatments' | 'medicines' | 'notifications' | 'billing' | 'preferences' | 'danger'>('account');
+  const [activeTab, setActiveTab] = useState<'account' | 'security' | 'branches' | 'treatments' | 'medicines' | 'notifications' | 'prescription' | 'billing' | 'preferences' | 'danger'>('account');
+
+  // Prescription Pad Background State
+  const [rxPadBg, setRxPadBg] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('prescription_template_bg') || null;
+    }
+    return null;
+  });
+
+  const handleUploadRxPad = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      setRxPadBg(result);
+      localStorage.setItem('prescription_template_bg', result);
+      showToast('Prescription Pad background image/PDF saved successfully!');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveRxPad = () => {
+    setRxPadBg(null);
+    localStorage.removeItem('prescription_template_bg');
+    showToast('Prescription pad background removed.');
+  };
 
   // Feedback Toast State
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -240,7 +268,7 @@ export default function SettingsClient() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-white/10 pb-3 overflow-x-auto">
+      <div className="flex items-center gap-2 border-b border-[#E4E7D3] pb-3 overflow-x-auto">
         {[
           { id: 'account', label: '1. Account Details', icon: User },
           { id: 'security', label: '2. Security & 2FA', icon: Shield },
@@ -248,9 +276,10 @@ export default function SettingsClient() {
           { id: 'treatments', label: '4. Treatments & Pricing', icon: Stethoscope },
           { id: 'medicines', label: '5. Medicines & Stock', icon: Pill },
           { id: 'notifications', label: '6. Notifications', icon: Bell },
-          { id: 'billing', label: '7. Billing & Plan', icon: CreditCard },
-          { id: 'preferences', label: '8. Preferences', icon: Globe },
-          { id: 'danger', label: '9. Danger Zone', icon: AlertTriangle, danger: true },
+          { id: 'prescription', label: '7. Prescription Pad BG', icon: FileText },
+          { id: 'billing', label: '8. Billing & Plan', icon: CreditCard },
+          { id: 'preferences', label: '9. Preferences', icon: Globe },
+          { id: 'danger', label: '10. Danger Zone', icon: AlertTriangle, danger: true },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -258,10 +287,14 @@ export default function SettingsClient() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 ${
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 cursor-pointer ${
                 isActive
-                  ? tab.danger ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : 'bg-teal-500 text-slate-950 shadow-lg shadow-teal-500/20'
-                  : tab.danger ? 'text-rose-400 hover:bg-rose-500/10' : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  ? tab.danger
+                    ? 'bg-rose-600 text-white shadow-md'
+                    : 'bg-[#4A5D23] text-white shadow-md'
+                  : tab.danger
+                    ? 'text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200'
+                    : 'text-[#2C3325] bg-[#F4F6F0] hover:bg-[#E4E7D3] border border-[#E4E7D3]'
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -272,17 +305,83 @@ export default function SettingsClient() {
       </div>
 
       {/* ═══ CONDITIONAL TAB RENDERER (ONLY RENDERS ACTIVE TAB DOM) ═══ */}
+      {activeTab === 'prescription' && (
+        <div className="space-y-6 max-w-4xl">
+          <div className="p-6 sm:p-8 rounded-[24px] bg-white border border-[#E4E7D3] shadow-sm space-y-6">
+            <div className="flex items-center justify-between border-b border-[#F4F6F0] pb-4">
+              <div>
+                <h2 className="text-lg font-bold text-[#2C3325] flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-[#4A5D23]" /> Prescription Pad Background & Header Layout
+                </h2>
+                <p className="text-xs text-[#8A9380]">
+                  Upload official clinic letterhead / prescription pad background in JPG, PNG, WEBP, or PDF format.
+                </p>
+              </div>
+              <div className="p-3 bg-[#E4E7D3] text-[#4A5D23] rounded-2xl">
+                <FileText className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-4 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] space-y-3">
+                <label className="block text-xs font-bold text-[#2C3325]">
+                  Select Prescription Pad File (JPG, PNG, WEBP, PDF)
+                </label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  onChange={handleUploadRxPad}
+                  className="block w-full text-xs text-[#2C3325] file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#4A5D23] file:text-white hover:file:bg-[#3D4D1D] file:cursor-pointer cursor-pointer"
+                />
+                <p className="text-[11px] text-[#8A9380]">
+                  Supported formats: High-resolution JPG, PNG, WEBP, or official PDF letterhead pad.
+                </p>
+              </div>
+
+              {rxPadBg ? (
+                <div className="space-y-3 border-t border-[#F4F6F0] pt-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[#4A5D23] flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#4A5D23]" /> Active Prescription Pad Loaded
+                    </span>
+                    <button
+                      onClick={handleRemoveRxPad}
+                      className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold border border-rose-200 text-xs transition-colors cursor-pointer"
+                    >
+                      Remove Background
+                    </button>
+                  </div>
+                  <div className="p-2 border border-[#E4E7D3] rounded-2xl bg-[#F4F6F0] max-h-72 overflow-hidden flex justify-center">
+                    {rxPadBg.startsWith('data:application/pdf') ? (
+                      <div className="p-8 text-center text-xs font-bold text-[#4A5D23]">
+                        📄 PDF Letterhead Pad Attached & Active
+                      </div>
+                    ) : (
+                      <img src={rxPadBg} alt="Prescription Pad Preview" className="max-h-64 object-contain rounded-xl shadow-sm" />
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-8 text-center bg-[#F4F6F0] border border-dashed border-[#E4E7D3] rounded-2xl text-[#8A9380]">
+                  No custom prescription pad background uploaded yet. System default digital header will be used.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'account' && (
         <div className="space-y-6 max-w-4xl">
-          <div className="p-6 sm:p-8 rounded-3xl bg-slate-900 border border-white/10 shadow-xl space-y-6">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+          <div className="p-6 sm:p-8 rounded-[24px] bg-white border border-[#E4E7D3] shadow-sm space-y-6">
+            <div className="flex items-center justify-between border-b border-[#F4F6F0] pb-4">
               <div>
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <User className="w-5 h-5 text-teal-400" /> Administrator Profile & Account Details
+                <h2 className="text-lg font-bold text-[#2C3325] flex items-center gap-2">
+                  <User className="w-5 h-5 text-[#4A5D23]" /> Administrator Profile & Account Details
                 </h2>
-                <p className="text-xs text-slate-400">Update your account name, contact email, and primary clinic branch</p>
+                <p className="text-xs text-[#8A9380]">Update your account name, contact email, and primary clinic branch</p>
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center font-bold text-slate-950 text-lg shadow-lg shadow-teal-500/20">
+              <div className="w-12 h-12 rounded-2xl bg-[#E4E7D3] flex items-center justify-center font-bold text-[#4A5D23] text-lg border border-[#4A5D23]/20">
                 {fullName.substring(0, 2).toUpperCase()}
               </div>
             </div>
@@ -290,52 +389,52 @@ export default function SettingsClient() {
             <form onSubmit={handleSaveAccount} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1.5">Full Name</label>
+                  <label className="block text-[#2C3325] font-semibold mb-1.5">Full Name</label>
                   <input
                     type="text"
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-400"
+                    className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] placeholder-[#8A9380] focus:outline-none focus:border-[#4A5D23]"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1.5">Admin Email Address</label>
+                  <label className="block text-[#2C3325] font-semibold mb-1.5">Admin Email Address</label>
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-400 font-mono"
+                    className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] placeholder-[#8A9380] focus:outline-none focus:border-[#4A5D23] font-mono"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1.5">Mobile Phone Hotline</label>
+                  <label className="block text-[#2C3325] font-semibold mb-1.5">Mobile Phone Hotline</label>
                   <input
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-teal-400 font-mono"
+                    className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] focus:outline-none focus:border-[#4A5D23] font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1.5">Designation / Role</label>
+                  <label className="block text-[#2C3325] font-semibold mb-1.5">Designation / Role</label>
                   <input
                     type="text"
                     value={designation}
                     onChange={(e) => setDesignation(e.target.value)}
-                    className="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-teal-400"
+                    className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] focus:outline-none focus:border-[#4A5D23]"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1.5">Primary Branch</label>
+                  <label className="block text-[#2C3325] font-semibold mb-1.5">Primary Branch</label>
                   <select
                     value={primaryBranch}
                     onChange={(e) => setPrimaryBranch(e.target.value)}
-                    className="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-teal-400"
+                    className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] focus:outline-none focus:border-[#4A5D23]"
                   >
                     <option value="Hazara Dental Clinic">Hazara Dental Clinic</option>
                     <option value="Family Dental Clinic">Family Dental Clinic</option>
@@ -344,11 +443,11 @@ export default function SettingsClient() {
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-white/10 flex justify-end">
+              <div className="pt-4 border-t border-[#F4F6F0] flex justify-end">
                 <button
                   type="submit"
                   disabled={savingAccount}
-                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-slate-950 font-bold text-xs flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 shadow-lg shadow-teal-500/20"
+                  className="px-6 py-3 rounded-xl bg-[#4A5D23] hover:bg-[#3D4D1D] text-white font-bold text-xs flex items-center gap-2 transition-colors disabled:opacity-50 shadow-md cursor-pointer"
                 >
                   {savingAccount ? <Loader2 className="w-4 h-4 animate-spin text-slate-950" /> : <Save className="w-4 h-4" />}
                   Save Profile Changes

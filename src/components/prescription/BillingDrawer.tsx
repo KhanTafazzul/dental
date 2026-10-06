@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   X,
   Printer,
@@ -14,6 +15,8 @@ import {
   FileText,
   UserCheck,
   RotateCcw,
+  Sparkles,
+  CheckCircle2
 } from 'lucide-react'
 import type { PatientBillingData, MedicineEntry, TemplateConfig } from './types'
 import { printPrescriptionPdf, downloadPrescriptionPdf } from './pdfGenerator'
@@ -41,7 +44,7 @@ export default function BillingDrawer({
   const [medDuration, setMedDuration] = useState('5 days')
   const [isGenerating, setIsGenerating] = useState(false)
 
-  // Add Medicine Chip
+  // Add Medicine Chip (Prescription Medicine)
   function handleAddMedicine() {
     if (!medName.trim()) return
 
@@ -106,78 +109,69 @@ export default function BillingDrawer({
   }
 
   return (
-    <>
-      {/* Backdrop overlay */}
+    <AnimatePresence>
       {isOpen && (
-        <div
-          onClick={onClose}
+        <motion.div
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          transition={{ type: 'spring', damping: 25, stiffness: 220 }}
           style={{
             position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.4)',
-            backdropFilter: 'blur(3px)',
-            zIndex: 40,
-            transition: 'opacity 0.3s ease',
-          }}
-        />
-      )}
-
-      {/* 400px Sliding Drawer Container */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: 400,
-          maxWidth: '100vw',
-          background: 'var(--card, #ffffff)',
-          boxShadow: '-10px 0 40px rgba(0, 0, 0, 0.15)',
-          zIndex: 50,
-          transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
-          transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-          display: 'flex',
-          flexDirection: 'column',
-          borderLeft: '1px solid var(--border, #e2e8f0)',
-          fontFamily: 'Inter, system-ui, sans-serif',
-        }}
-      >
-        {/* Drawer Header */}
-        <div
-          style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid var(--border, #e2e8f0)',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: 500,
+            maxWidth: '100vw',
+            background: '#ffffff',
+            boxShadow: '-10px 0 40px rgba(74, 93, 35, 0.18)',
+            zIndex: 100,
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)',
-            color: '#ffffff',
+            flexDirection: 'column',
+            borderLeft: '1px solid #E4E7D3',
+            borderRadius: '24px 0 0 24px',
+            overflow: 'hidden',
+            fontFamily: 'var(--font-plus-jakarta), "Plus Jakarta Sans", sans-serif',
           }}
         >
-          <div>
-            <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, fontFamily: 'Outfit, sans-serif' }}>
-              Patient Billing &amp; Rx Entry
-            </h2>
-            <p style={{ fontSize: 12, margin: '2px 0 0', opacity: 0.85 }}>
-              Fill details for live print and PDF export
-            </p>
-          </div>
-          <button
-            onClick={onClose}
+          {/* Drawer Header */}
+          <div
             style={{
-              background: 'rgba(255,255,255,0.15)',
-              border: 'none',
-              borderRadius: 8,
-              padding: 6,
-              color: '#fff',
-              cursor: 'pointer',
+              padding: '20px 24px',
+              borderBottom: '1px solid #E4E7D3',
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'space-between',
+              background: '#4A5D23',
+              color: '#ffffff',
+              borderRadius: '24px 0 0 0',
             }}
           >
-            <X size={18} />
-          </button>
-        </div>
+            <div>
+              <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>
+                Patient Billing &amp; Rx Entry
+              </h2>
+              <p style={{ fontSize: 11, margin: '2px 0 0', opacity: 0.9 }}>
+                Auto-synced with bill &amp; prescription PDF exporter
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                borderRadius: 10,
+                padding: 6,
+                color: '#fff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+              title="Close Drawer"
+            >
+              <X size={18} />
+            </button>
+          </div>
 
         {/* Drawer Body Scroll Area */}
         <div
@@ -571,7 +565,8 @@ export default function BillingDrawer({
             Reset Patient Form
           </button>
         </div>
-      </div>
-    </>
+      </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
