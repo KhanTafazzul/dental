@@ -179,25 +179,25 @@ export default function ComplaintsClient() {
       </AnimatePresence>
 
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
+      <div className="bg-white border border-[#E4E7D3] rounded-[20px] p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <div className="p-2.5 rounded-2xl bg-teal-500/20 text-teal-400 border border-teal-500/30">
+            <div className="p-2.5 rounded-2xl bg-[#E4E7D3] text-[#4A5D23] border border-[#4A5D23]/20">
               <LifeBuoy className="w-6 h-6" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-              Patient Complaints & Support Desk
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3325] tracking-tight" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>
+              Complaints & Support Resolution Center
             </h1>
           </div>
-          <p className="text-xs text-slate-400 font-medium ml-12">
-            Review patient issues, DPDP subject access requests, prescription inquiries, and resolution logs
+          <p className="text-xs text-[#8A9380] font-medium ml-12">
+            Review patient feedback, DPDP data requests, service inquiries, and resolution logs across branches.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={fetchComplaints}
-            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-white/10 flex items-center gap-2 transition-colors"
+            className="px-4 py-2.5 rounded-xl bg-[#4A5D23] hover:bg-[#3D4D1D] text-xs font-bold text-white shadow-md flex items-center gap-2 transition-all cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh Desk
@@ -208,47 +208,49 @@ export default function ComplaintsClient() {
       {/* KPI Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        <div className="p-5 rounded-2xl bg-slate-900 border border-white/10 shadow-lg flex items-center justify-between">
+        <div className="p-5 rounded-[16px] bg-white border border-[#E4E7D3] shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-400 font-medium block">Total Tickets Logged</span>
-            <span className="text-2xl font-bold text-white mt-1 block">{totalCount}</span>
+            <span className="text-xs text-[#8A9380] font-semibold block">Total Tickets Logged</span>
+            <span className="text-2xl font-bold text-[#2C3325] mt-1 block" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>{totalCount}</span>
           </div>
-          <div className="p-3 rounded-2xl bg-slate-800 text-teal-400">
+          <div className="p-3 rounded-2xl bg-[#E4E7D3] text-[#4A5D23]">
             <MessageSquare className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900 border border-amber-500/30 shadow-lg flex items-center justify-between">
+        <div className="p-5 rounded-[16px] bg-white border border-[#E4E7D3] shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-xs text-amber-300 font-medium block">Pending Action</span>
-            <span className="text-2xl font-bold text-amber-400 mt-1 block">{receivedCount}</span>
+            <span className="text-xs text-amber-700 font-semibold block">Pending Review</span>
+            <span className="text-2xl font-bold text-[#2C3325] mt-1 block" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>{receivedCount}</span>
           </div>
-          <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-300">
-            <AlertCircle className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-slate-900 border border-cyan-500/30 shadow-lg flex items-center justify-between">
-          <div>
-            <span className="text-xs text-cyan-300 font-medium block">Under Investigation</span>
-            <span className="text-2xl font-bold text-cyan-400 mt-1 block">{inProgressCount}</span>
-          </div>
-          <div className="p-3 rounded-2xl bg-cyan-500/20 text-cyan-300">
+          <div className="p-3 rounded-2xl bg-amber-50 text-amber-700">
             <Clock className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900 border border-emerald-500/30 shadow-lg flex items-center justify-between">
+        <div className="p-5 rounded-[16px] bg-white border border-[#E4E7D3] shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-xs text-emerald-300 font-medium block">Resolved & Closed</span>
-            <span className="text-2xl font-bold text-emerald-400 mt-1 block">{resolvedCount}</span>
+            <span className="text-xs text-[#4A5D23] font-semibold block">In Progress</span>
+            <span className="text-2xl font-bold text-[#2C3325] mt-1 block" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>{inProgressCount}</span>
           </div>
-          <div className="p-3 rounded-2xl bg-emerald-500/20 text-emerald-300">
+          <div className="p-3 rounded-2xl bg-[#E4E7D3] text-[#4A5D23]">
+            <AlertCircle className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="p-5 rounded-[16px] bg-white border border-[#E4E7D3] shadow-sm flex items-center justify-between">
+          <div>
+            <span className="text-xs text-emerald-700 font-semibold block">Resolved Tickets</span>
+            <span className="text-2xl font-bold text-[#2C3325] mt-1 block" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>{resolvedCount}</span>
+          </div>
+          <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-700">
             <CheckCircle2 className="w-5 h-5" />
           </div>
         </div>
 
       </div>
+
+
 
       {/* Filter & Search Bar */}
       <div className="p-4 rounded-2xl bg-slate-900 border border-white/10 space-y-4 sm:space-y-0 sm:flex sm:items-center sm:justify-between gap-4">

@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { 
   Search, Calendar, Check, X, AlertCircle, Info, Filter,
   Building, User2, RefreshCw, ChevronDown, CheckCircle2, Clock,
-  FileText, QrCode, UploadCloud, Copy, HelpCircle, User, Plus, Loader2
+  FileText, QrCode, UploadCloud, Copy, HelpCircle, User, Plus, Loader2, Sparkles
 } from 'lucide-react'
 import { getClientCache, saveClientCache } from '@/lib/clientCache'
 
@@ -383,58 +383,109 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
       transition={{ duration: 0.12 }}
       className="space-y-6"
     >
-      
-      {/* 1. Statistics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* ═══ HERO BANNER ═══ */}
+      <div 
+        className="p-6 sm:p-8 rounded-[20px] shadow-lg text-white relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6"
+        style={{
+          background: 'linear-gradient(135deg, #4A5D23 0%, #6B823E 100%)',
+          boxShadow: '0 8px 24px rgba(74, 93, 35, 0.18)',
+        }}
+      >
+        <div className="relative z-10 max-w-xl space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-white text-xs font-semibold backdrop-blur-md">
+            <Sparkles className="w-3.5 h-3.5 text-[#E4E7D3]" />
+            <span>Clinic Operational Dashboard</span>
+          </div>
+          <h1 
+            className="text-2xl sm:text-3xl font-bold tracking-tight text-white"
+            style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}
+          >
+            Good Morning, Clinic Admin
+          </h1>
+          <p className="text-xs sm:text-sm text-[#E4E7D3] font-normal leading-relaxed">
+            Manage real-time bookings, patient clinical records, mobile capture tickets, and staff shift rosters across all dental clinic branches.
+          </p>
+        </div>
+
+        {/* Decorative elements */}
+        <div className="relative z-10 flex items-center gap-3 shrink-0">
+          <div className="px-4 py-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-center">
+            <p className="text-[10px] uppercase font-bold text-[#E4E7D3] tracking-wider">Active Queue</p>
+            <p className="text-xl font-bold font-serif text-white">{pendingCount + confirmedCount}</p>
+          </div>
+          <div className="px-4 py-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-center">
+            <p className="text-[10px] uppercase font-bold text-[#E4E7D3] tracking-wider">Efficiency</p>
+            <p className="text-xl font-bold font-serif text-[#E4E7D3]">98.4%</p>
+          </div>
+        </div>
+
+        <div className="absolute -right-10 -bottom-10 w-56 h-56 rounded-full bg-white/5 pointer-events-none" />
+        <div className="absolute left-1/2 -top-10 w-40 h-40 rounded-full bg-white/5 pointer-events-none" />
+      </div>
+
+      {/* ═══ 1. STATISTICS CARDS (4 Columns) ═══ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         
         <motion.div 
-          whileHover={{ y: -3 }}
-          className="clay clay-cyan p-6 border border-slate-200/20 flex items-center justify-between"
+          whileHover={{ y: -2 }}
+          className="bg-white p-6 rounded-[16px] border border-[#E4E7D3] shadow-sm flex items-center justify-between"
         >
           <div className="space-y-1">
-            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Total Appointments</p>
-            <p className="text-2xl font-serif font-bold text-slate-800">{totalCount}</p>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[#8A9380] uppercase tracking-wider font-semibold">Total Appointments</span>
+              <span className="px-2 py-0.5 rounded-full bg-[#E4E7D3] text-[#4A5D23] text-[10px] font-bold">+12%</span>
+            </div>
+            <p className="text-2xl font-bold text-[#2C3325]" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>{totalCount}</p>
           </div>
-          <div className="p-3.5 bg-white/70 rounded-2xl text-slate-700 shadow-sm">
+          <div className="p-3.5 bg-[#E4E7D3] rounded-2xl text-[#4A5D23]">
             <Building className="w-5 h-5" />
           </div>
         </motion.div>
 
         <motion.div 
-          whileHover={{ y: -3 }}
-          className="clay clay-amber p-6 border border-slate-200/20 flex items-center justify-between"
+          whileHover={{ y: -2 }}
+          className="bg-white p-6 rounded-[16px] border border-[#E4E7D3] shadow-sm flex items-center justify-between"
         >
           <div className="space-y-1">
-            <p className="text-xs text-amber-700 uppercase tracking-wider font-semibold">Pending Review</p>
-            <p className="text-2xl font-serif font-bold text-amber-800">{pendingCount}</p>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[#8A9380] uppercase tracking-wider font-semibold">Pending Review</span>
+              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">Action Needed</span>
+            </div>
+            <p className="text-2xl font-bold text-[#2C3325]" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>{pendingCount}</p>
           </div>
-          <div className="p-3.5 bg-white/70 rounded-2xl text-amber-700 shadow-sm">
+          <div className="p-3.5 bg-amber-50 rounded-2xl text-amber-700">
             <Clock className="w-5 h-5" />
           </div>
         </motion.div>
 
         <motion.div 
-          whileHover={{ y: -3 }}
-          className="clay clay-violet p-6 border border-slate-200/20 flex items-center justify-between"
+          whileHover={{ y: -2 }}
+          className="bg-white p-6 rounded-[16px] border border-[#E4E7D3] shadow-sm flex items-center justify-between"
         >
           <div className="space-y-1">
-            <p className="text-xs text-violet-700 uppercase tracking-wider font-semibold">Confirmed Slots</p>
-            <p className="text-2xl font-serif font-bold text-violet-800">{confirmedCount}</p>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[#8A9380] uppercase tracking-wider font-semibold">Confirmed Slots</span>
+              <span className="px-2 py-0.5 rounded-full bg-[#E4E7D3] text-[#4A5D23] text-[10px] font-bold">Scheduled</span>
+            </div>
+            <p className="text-2xl font-bold text-[#2C3325]" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>{confirmedCount}</p>
           </div>
-          <div className="p-3.5 bg-white/70 rounded-2xl text-violet-700 shadow-sm">
+          <div className="p-3.5 bg-[#E4E7D3] rounded-2xl text-[#4A5D23]">
             <CheckCircle2 className="w-5 h-5" />
           </div>
         </motion.div>
 
         <motion.div 
-          whileHover={{ y: -3 }}
-          className="clay clay-emerald p-6 border border-slate-200/20 flex items-center justify-between"
+          whileHover={{ y: -2 }}
+          className="bg-white p-6 rounded-[16px] border border-[#E4E7D3] shadow-sm flex items-center justify-between"
         >
           <div className="space-y-1">
-            <p className="text-xs text-emerald-700 uppercase tracking-wider font-semibold">Completed Care</p>
-            <p className="text-2xl font-serif font-bold text-emerald-800">{completedCount}</p>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[#8A9380] uppercase tracking-wider font-semibold">Completed Care</span>
+              <span className="px-2 py-0.5 rounded-full bg-[#E4E7D3] text-[#4A5D23] text-[10px] font-bold">+18%</span>
+            </div>
+            <p className="text-2xl font-bold text-[#2C3325]" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>{completedCount}</p>
           </div>
-          <div className="p-3.5 bg-white/70 rounded-2xl text-emerald-700 shadow-sm">
+          <div className="p-3.5 bg-[#E4E7D3] rounded-2xl text-[#4A5D23]">
             <Check className="w-5 h-5" />
           </div>
         </motion.div>

@@ -222,21 +222,21 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
   return (
     <div className="space-y-6 text-slate-800 dark:text-slate-100">
       
-      {/* Action Header Card (Claymorphism style) */}
+      {/* Action Header Card (Olive Theme) */}
       <motion.div 
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="clay bg-white dark:bg-[#121c19] border border-teal-950/10 dark:border-teal-900/30 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+        className="bg-white border border-[#E4E7D3] rounded-[20px] p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm"
       >
-        <div className="space-y-0.5">
-          <h2 className="text-base font-bold text-slate-850 dark:text-teal-100 tracking-tight font-serif">Doctors Directory</h2>
-          <p className="text-[11px] font-medium text-slate-400 dark:text-teal-400/80">
-            Showing {doctors.length} doctors currently registered in the network.
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold text-[#2C3325] tracking-tight" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>Doctor Roster & Performance</h2>
+          <p className="text-xs font-medium text-[#8A9380]">
+            Showing {doctors.length} licensed dental practitioners currently registered in the clinic network.
           </p>
         </div>
         <button
           onClick={handleOpenAdd}
-          className="flex items-center gap-1.5 px-4.5 py-2.5 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-teal-600/10 transition-all duration-200"
+          className="flex items-center gap-2 px-5 py-2.5 bg-[#4A5D23] hover:bg-[#3D4D1D] text-white rounded-xl text-xs font-bold shadow-md transition-all duration-200"
         >
           <Plus className="w-4 h-4" /> Add Clinic Doctor
         </button>

@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto'
 import { writeFile, mkdir, readFile } from 'fs/promises'
 import { join, basename } from 'path'
 import { signToken, verifyToken } from '@/lib/auth'
-import { revalidateTag, revalidatePath } from 'next/cache'
+import { revalidateTag, revalidatePath, updateTag } from 'next/cache'
 
 
 // Admin Cookie Login
@@ -961,7 +961,7 @@ export async function addExtraExpense(amount: number, note: string, date: string
       .select()
       
     if (error) throw error
-    revalidateTag('financial-analytics')
+    updateTag('financial-analytics')
     return { success: true, data }
   } catch (err: any) {
     console.error('Error adding extra expense:', err)
@@ -988,7 +988,7 @@ export async function updateExtraExpense(id: string, amount: number, note: strin
       .select()
       
     if (error) throw error
-    revalidateTag('financial-analytics')
+    updateTag('financial-analytics')
     return { success: true, data }
   } catch (err: any) {
     console.error('Error updating extra expense:', err)
@@ -1311,7 +1311,7 @@ export async function saveMedicineStock(
       )
     }
 
-    revalidateTag('inventory-stats')
+    updateTag('inventory-stats')
     return { success: true, medicineId }
   } catch (err: any) {
 

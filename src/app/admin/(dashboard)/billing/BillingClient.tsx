@@ -488,49 +488,44 @@ export default function BillingClient({ initialAppointments, initialTreatments }
         className="space-y-8 w-full"
       >
         
-        {/* ═══ CLAYMORPHISM HEADER DECK ═══ */}
-        <div className="clay dark:clay-dark rounded-3xl p-6 md:p-8 relative overflow-hidden preserve-3d border border-slate-200/50 dark:border-slate-800/40">
-          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-teal-500/5 to-transparent pointer-events-none" />
-          
+        {/* ═══ OLIVE HEADER DECK ═══ */}
+        <div className="bg-white rounded-[20px] p-6 md:p-8 border border-[#E4E7D3] shadow-sm relative overflow-hidden">
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <DentalLogo size={34} />
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-500/10 border border-cyan-450/30 rounded-full text-cyan-705 dark:text-cyan-400 text-xs font-semibold uppercase tracking-widest">
-                  <Sparkles className="w-3.5 h-3.5 animate-pulse text-cyan-600" />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#E4E7D3] rounded-full text-[#4A5D23] text-xs font-bold uppercase tracking-widest">
+                  <Sparkles className="w-3.5 h-3.5 text-[#4A5D23]" />
                   Billing & Invoicing Terminal
                 </span>
               </div>
-              <h1 className="text-3xl md:text-4xl font-serif text-slate-900 dark:text-white font-normal tracking-tight leading-tight">
-                Unified Checkout & Invoicing
+              <h1 className="text-2xl md:text-3xl font-bold text-[#2C3325] tracking-tight leading-tight" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>
+                Unified Patient Checkout & Billing Engine
               </h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400 font-light leading-relaxed max-w-xl">
-                Seamlessly compile medicine inventory and clinical procedure fees into a clean invoice record.
+              <p className="text-xs sm:text-sm text-[#8A9380] font-medium leading-relaxed max-w-xl">
+                Seamlessly compile medicine inventory items and clinical treatment procedure fees into an invoice record.
               </p>
             </div>
 
             {/* Metric Badges */}
-            <div className="grid grid-cols-3 gap-4">
-              {/* Badge 1 */}
-              <div className="clay dark:clay-dark rounded-2xl p-4 text-center border border-slate-200/50 dark:border-slate-800/40 shadow-sm min-w-[110px] hover:scale-[1.02] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]">
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block mb-1">Active Patient</span>
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-250 truncate block max-w-[120px] mx-auto">
-                  {selectedAppt ? selectedAppt.patients?.name : 'None'}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-[#F4F6F0] rounded-2xl p-4 text-center border border-[#E4E7D3] min-w-[110px]">
+                <span className="text-[10px] text-[#8A9380] font-bold uppercase tracking-wider block mb-1">Active Patient</span>
+                <span className="text-xs font-bold text-[#2C3325] truncate block max-w-[120px] mx-auto">
+                  {selectedAppt ? selectedAppt.patients?.name : 'None Selected'}
                 </span>
               </div>
 
-              {/* Badge 2 */}
-              <div className="clay dark:clay-dark rounded-2xl p-4 text-center border border-slate-200/50 dark:border-slate-800/40 shadow-sm min-w-[110px] hover:scale-[1.02] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]">
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block mb-1">Cart Items</span>
-                <span className="text-sm font-bold text-cyan-700 dark:text-cyan-400 block tabular-nums">
+              <div className="bg-[#F4F6F0] rounded-2xl p-4 text-center border border-[#E4E7D3] min-w-[110px]">
+                <span className="text-[10px] text-[#8A9380] font-bold uppercase tracking-wider block mb-1">Cart Items</span>
+                <span className="text-sm font-bold text-[#4A5D23] block tabular-nums">
                   {billingItems.length}
                 </span>
               </div>
 
-              {/* Badge 3 */}
-              <div className="clay dark:clay-dark rounded-2xl p-4 text-center border border-cyan-200/50 bg-gradient-to-br from-cyan-50/50 to-teal-50/50 dark:from-cyan-950/20 dark:to-teal-950/20 shadow-sm min-w-[110px] hover:scale-[1.02] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]">
-                <span className="text-[10px] text-cyan-700 dark:text-cyan-400 font-semibold uppercase tracking-wider block mb-1">Grand Total</span>
-                <span className="text-sm font-mono font-bold text-cyan-850 dark:text-cyan-300 block tabular-nums">
+              <div className="bg-[#E4E7D3]/80 rounded-2xl p-4 text-center border border-[#4A5D23]/30 min-w-[110px]">
+                <span className="text-[10px] text-[#4A5D23] font-bold uppercase tracking-wider block mb-1">Grand Total</span>
+                <span className="text-sm font-mono font-extrabold text-[#4A5D23] block tabular-nums">
                   Rs. {grandTotal.toFixed(0)}
                 </span>
               </div>

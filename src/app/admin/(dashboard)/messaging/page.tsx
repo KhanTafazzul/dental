@@ -194,28 +194,28 @@ export default function MessagingCampaignPage() {
     >
       
       {/* ══ HEADER ══ */}
-      <div className="clay p-6 border border-slate-200/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-6 rounded-[20px] border border-[#E4E7D3] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="p-3 bg-gradient-to-br from-emerald-900 to-teal-800 rounded-2xl text-emerald-400 shadow-md">
+          <div className="p-3 bg-[#E4E7D3] rounded-2xl text-[#4A5D23]">
             <MessageSquare className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-serif font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              WhatsApp Engine & Messaging Terminal
+            <h1 className="text-2xl font-bold text-[#2C3325] tracking-tight flex items-center gap-2" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>
+              Patient Messaging & Broadcast Terminal
             </h1>
-            <p className="text-xs text-slate-500 font-medium">
-              WAHA GOWS engine (Render hosted), automated doctor morning appointment digests & patient broadcasts.
+            <p className="text-xs text-[#8A9380] font-medium">
+              WAHA GOWS engine (Render hosted), automated doctor morning digests & SMS/WhatsApp patient campaigns.
             </p>
           </div>
         </div>
 
         {/* WAHA Engine Status Badge */}
-        <div className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-md">
-          <Server className="w-4 h-4 text-emerald-400 shrink-0" />
+        <div className="flex items-center gap-2 bg-[#2C3325] text-white px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-md">
+          <Server className="w-4 h-4 text-[#E4E7D3] shrink-0" />
           <div className="text-left">
-            <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">WAHA Render Engine</p>
-            <p className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <p className="text-[10px] text-[#8A9380] font-mono uppercase tracking-wider">WAHA Render Engine</p>
+            <p className="text-xs font-bold text-[#E4E7D3] flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#E4E7D3] animate-pulse"></span>
               GOWS Engine Active
             </p>
           </div>

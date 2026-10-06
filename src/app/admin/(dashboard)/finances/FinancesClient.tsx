@@ -117,6 +117,7 @@ interface FinancesClientProps {
   initialElectricityExpenses: ElectricityExpense[]
   initialExtraExpenses: ExtraExpense[]
   initialAppointments: Appointment[]
+  initialAnalytics?: any
 }
 
 // Utility to count working days in a month for a specific helper (excluding/including Sundays)

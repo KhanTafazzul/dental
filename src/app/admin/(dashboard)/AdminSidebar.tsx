@@ -6,25 +6,26 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, Settings, ShieldAlert,
-  Sparkles, CircleDollarSign, Receipt, MessageSquare, Package,
-  ChevronRight, ChevronLeft, Sun, Moon, Menu, LifeBuoy
+  CircleDollarSign, Receipt, MessageSquare, Package,
+  ChevronRight, ChevronLeft, Sun, Moon, Menu, LifeBuoy, FileText, Camera
 } from 'lucide-react'
 import LogoutButton from './LogoutButton'
 import DentalLogo from '@/components/DentalLogo'
 import { useTheme } from '@/components/ThemeContext'
 
 const NAV_ITEMS = [
-  { href: '/admin',           icon: LayoutDashboard, label: 'Appointments',         color: '#0891b2', bg: '#ecfeff' },
-  { href: '/admin/doctors',   icon: Users,           label: 'Manage Doctors',       color: '#7c3aed', bg: '#f5f3ff' },
-  { href: '/admin/doctor-chat',icon: MessageSquare,  label: 'Doctor-Doctor Chat',   color: '#0ea5e9', bg: '#f0f9ff' },
-  { href: '/admin/billing',   icon: Receipt,         label: 'Billing & Checkout',   color: '#059669', bg: '#ecfdf5' },
-  { href: '/admin/inventory', icon: Package,         label: 'Inventory & Stock',   color: '#ea580c', bg: '#fff7ed' },
-  { href: '/admin/finances',  icon: CircleDollarSign,label: 'Finances & Profits',   color: '#d97706', bg: '#fffbeb' },
-  { href: '/admin/complaints',icon: LifeBuoy,        label: 'Complaints & Tickets', color: '#10b981', bg: '#ecfdf5' },
-  { href: '/admin/messaging', icon: MessageSquare,   label: 'Messaging & Campaigns',color: '#e11d48', bg: '#fff1f2' },
-  { href: '/admin/settings',  icon: Settings,        label: 'Settings',             color: '#475569', bg: '#f8fafc' },
+  { href: '/admin',                     icon: LayoutDashboard, label: 'Dashboard & Appts' },
+  { href: '/admin/capture',             icon: Camera,          label: 'Reception & Capture' },
+  { href: '/admin/doctors',             icon: Users,           label: 'Doctor Roster' },
+  { href: '/admin/prescription-mapper', icon: FileText,        label: 'Rx Template Mapper' },
+  { href: '/admin/finances',            icon: CircleDollarSign,label: 'Finances & Revenue' },
+  { href: '/admin/billing',             icon: Receipt,         label: 'Billing & Checkout' },
+  { href: '/admin/doctor-chat',         icon: MessageSquare,   label: 'Doctor Chat Portal' },
+  { href: '/admin/inventory',           icon: Package,         label: 'Inventory & Stock' },
+  { href: '/admin/complaints',          icon: LifeBuoy,        label: 'Complaints & Support' },
+  { href: '/admin/messaging',           icon: MessageSquare,   label: 'Patient Messaging' },
+  { href: '/admin/settings',            icon: Settings,        label: 'System Settings' },
 ]
-
 
 export default function AdminSidebar() {
   const pathname = usePathname()
@@ -79,23 +80,23 @@ export default function AdminSidebar() {
             zIndex: 49,
             width: 44,
             height: 44,
-            borderRadius: 12,
-            background: '#0c1a17',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: 14,
+            background: '#4A5D23',
             color: '#ffffff',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+            boxShadow: '0 4px 16px rgba(74, 93, 35, 0.3)',
             cursor: 'pointer',
+            border: 'none'
           }}
-          className="hover:bg-[#122723] active:scale-95 transition-all"
+          className="hover:scale-105 active:scale-95 transition-all"
         >
           <Menu size={20} />
         </button>
       )}
 
-      {/* Claymorphism Translucent Mobile Backdrop */}
+      {/* Backdrop for Mobile */}
       <AnimatePresence>
         {isMobile && isMobileOpen && (
           <motion.div
@@ -106,80 +107,68 @@ export default function AdminSidebar() {
             style={{
               position: 'fixed',
               inset: 0,
-              background: 'rgba(9, 15, 13, 0.6)',
+              background: 'rgba(44, 51, 37, 0.5)',
+              backdropFilter: 'blur(4px)',
               zIndex: 48,
-              willChange: 'opacity',
             }}
           />
         )}
       </AnimatePresence>
 
+      {/* Dynamic Capsule Sidebar */}
       <motion.aside
-        initial={isMobile ? { x: -256 } : false}
+        initial={isMobile ? { x: -260 } : false}
         animate={
           isMobile
-            ? { x: isMobileOpen ? 0 : -256, width: 256 }
-            : { x: 0, width: isCollapsed ? 80 : 256 }
+            ? { x: isMobileOpen ? 0 : -260, width: 260 }
+            : { x: 0, width: isCollapsed ? 80 : 260 }
         }
-        transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+        transition={{ duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
+        className="admin-sidebar"
         style={{
-          background: 'rgba(12, 26, 23, 0.90)',
-          backdropFilter: 'blur(24px) saturate(190%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(190%)',
+          backgroundColor: '#FFFFFF',
+          borderRadius: isCollapsed ? '60px' : '24px',
+          margin: isMobile ? 0 : 16,
+          height: isMobile ? '100vh' : 'calc(100vh - 32px)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
           flexShrink: 0,
           position: isMobile ? 'fixed' : 'sticky',
-          top: 0,
+          top: isMobile ? 0 : 16,
           left: 0,
-          bottom: 0,
-          height: '100vh',
           zIndex: 50,
-          overflow: 'visible',
-          borderRight: '1px solid rgba(255, 255, 255, 0.12)',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.4)',
+          overflow: 'hidden',
+          border: '1px solid #E4E7D3',
+          boxShadow: '4px 0 28px rgba(74, 93, 35, 0.06)',
+          transition: 'width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), border-radius 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}
       >
-        {/* Background decoration */}
-        <div
-          style={{
-            position: 'absolute',
-            top: -60,
-            right: -60,
-            width: 180,
-            height: 180,
-            background: 'radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 70%)',
-            borderRadius: '50%',
-            pointerEvents: 'none',
-          }}
-        />
-
         <div style={{ position: 'relative', zIndex: 1 }}>
-          {/* Logo */}
+          {/* Logo & Header */}
           <div
             style={{
               height: 68,
-              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              borderBottom: '1px solid #F4F6F0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'flex-start',
               overflow: 'hidden',
-              paddingLeft: 20,
+              paddingLeft: isCollapsed ? 18 : 20,
               paddingRight: 20,
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
               <div
                 style={{
-                  width: 38,
-                  height: 38,
-                  background: 'linear-gradient(135deg, #10b981, #0d9488)',
-                  borderRadius: 12,
+                  width: 40,
+                  height: 40,
+                  background: 'linear-gradient(135deg, #4A5D23 0%, #6B823E 100%)',
+                  borderRadius: 14,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 4px 14px rgba(16,185,129,0.4)',
+                  boxShadow: '0 4px 14px rgba(74, 93, 35, 0.2)',
                   flexShrink: 0,
                 }}
               >
@@ -194,18 +183,19 @@ export default function AdminSidebar() {
                     transition={{ duration: 0.2 }}
                     style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}
                   >
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', lineHeight: 1.2 }}>
-                      Clinic Admin
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#2C3325', lineHeight: 1.2, fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>
+                      Dental Admin
                     </div>
-                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                      Control Panel
+                    <div style={{ fontSize: 9, color: '#8A9380', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                      Clinical Console
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
           </div>
-          {/* Navigation */}
+
+          {/* Navigation Items */}
           <nav style={{ padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
             {NAV_ITEMS.map((item) => {
               const active = isActive(item.href)
@@ -225,69 +215,31 @@ export default function AdminSidebar() {
                       paddingRight: 12,
                       borderRadius: 14,
                       cursor: 'pointer',
-                      background: active ? item.bg : 'transparent',
-                      transition: 'background 0.12s ease',
+                      background: active ? '#E4E7D3' : 'transparent',
+                      transition: 'background 0.2s ease',
                       overflow: 'hidden',
                     }}
                     title={isCollapsed ? item.label : undefined}
                   >
-                    {/* Active sliding background */}
-                    {active && (
-                      <motion.div
-                        layoutId="nav-active-bg"
-                        initial={false}
-                        transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-                        style={{
-                          position: 'absolute',
-                          inset: 0,
-                          background: item.bg,
-                          borderRadius: 14,
-                          opacity: 0.15,
-                        }}
-                      />
-                    )}
-
-                    {/* Active left accent */}
-                    <AnimatePresence>
-                      {active && (
-                        <motion.div
-                          key={`accent-${item.href}`}
-                          initial={{ scaleY: 0, opacity: 0 }}
-                          animate={{ scaleY: 1, opacity: 1 }}
-                          exit={{ scaleY: 0, opacity: 0 }}
-                          transition={{ duration: 0.15, ease: 'easeOut' }}
-                          style={{
-                            position: 'absolute',
-                            left: 0,
-                            top: '20%',
-                            bottom: '20%',
-                            width: 3,
-                            background: item.color,
-                            borderRadius: '0 4px 4px 0',
-                          }}
-                        />
-                      )}
-                    </AnimatePresence>
-
                     {/* Icon container */}
                     <div
                       style={{
                         width: 32,
                         height: 32,
                         borderRadius: 10,
-                        background: active ? item.color : 'rgba(255,255,255,0.05)',
+                        background: active ? '#4A5D23' : '#F4F6F0',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         flexShrink: 0,
-                        transition: 'all 0.12s ease',
-                        boxShadow: active ? `0 4px 12px ${item.color}40` : 'none',
+                        transition: 'all 0.2s ease',
+                        boxShadow: active ? '0 4px 10px rgba(74, 93, 35, 0.25)' : 'none',
                         zIndex: 1,
                       }}
                     >
                       <item.icon
-                        size={15}
-                        style={{ color: active ? '#ffffff' : 'rgba(255,255,255,0.35)' }}
+                        size={16}
+                        style={{ color: active ? '#FFFFFF' : '#4A5D23' }}
                       />
                     </div>
 
@@ -299,15 +251,16 @@ export default function AdminSidebar() {
                           exit={{ opacity: 0, x: -8 }}
                           transition={{ duration: 0.2 }}
                           style={{
-                            fontSize: 12.5,
+                            fontSize: 13,
                             fontWeight: active ? 700 : 500,
-                            color: active ? '#0f172a' : 'rgba(255,255,255,0.45)',
+                            color: active ? '#4A5D23' : '#2C3325',
                             flex: 1,
                             zIndex: 1,
                             letterSpacing: active ? '-0.01em' : '0',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             marginLeft: 10,
+                            fontFamily: 'var(--font-plus-jakarta), "Plus Jakarta Sans", sans-serif'
                           }}
                         >
                           {item.label}
@@ -319,12 +272,12 @@ export default function AdminSidebar() {
                       {!isCollapsed && active && (
                         <motion.div
                           initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{ opacity: 0.7, scale: 1 }}
+                          animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.8 }}
                           transition={{ duration: 0.15 }}
                           style={{ zIndex: 1 }}
                         >
-                          <ChevronRight size={12} style={{ color: item.color }} />
+                          <ChevronRight size={14} style={{ color: '#4A5D23' }} />
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -335,21 +288,22 @@ export default function AdminSidebar() {
           </nav>
         </div>
 
+        {/* Footer & Controls */}
         <div>
-          {/* Theme Toggle Button */}
+          {/* Theme Switcher Button */}
           <div style={{ padding: '0 10px', marginBottom: 8 }}>
             <motion.button
               onClick={toggleTheme}
               style={{
                 width: '100%',
-                background: 'rgba(255,255,255,0.05)',
+                background: '#F4F6F0',
                 border: 'none',
-                color: 'rgba(255,255,255,0.7)',
+                color: '#2C3325',
                 borderRadius: 14,
-                paddingTop: 10,
-                paddingBottom: 10,
-                paddingLeft: isCollapsed ? 0 : 12,
-                paddingRight: isCollapsed ? 0 : 12,
+                paddingTop: 8,
+                paddingBottom: 8,
+                paddingLeft: isCollapsed ? 0 : 10,
+                paddingRight: isCollapsed ? 0 : 10,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: isCollapsed ? 'center' : 'flex-start',
@@ -358,14 +312,14 @@ export default function AdminSidebar() {
                 fontWeight: 600,
                 overflow: 'hidden',
               }}
-              className="hover:bg-white/10 hover:text-white"
+              className="hover:bg-[#E4E7D3] transition-colors"
               title={isCollapsed ? 'Toggle Theme' : undefined}
             >
               <div style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {theme === 'dark' ? (
-                  <Sun size={15} style={{ color: '#fbbf24' }} />
+                  <Sun size={16} style={{ color: '#4A5D23' }} />
                 ) : (
-                  <Moon size={15} style={{ color: '#a5f3fc' }} />
+                  <Moon size={16} style={{ color: '#4A5D23' }} />
                 )}
               </div>
               
@@ -378,20 +332,20 @@ export default function AdminSidebar() {
                     transition={{ duration: 0.2 }}
                     style={{ whiteSpace: 'nowrap', overflow: 'hidden', marginLeft: 10 }}
                   >
-                    {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                    {theme === 'dark' ? 'Light Theme' : 'Olive Mode'}
                   </motion.span>
                 )}
               </AnimatePresence>
             </motion.button>
           </div>
 
-          {/* Footer */}
+          {/* Session & Logout Footer */}
           <div
             style={{
               position: 'relative',
               zIndex: 1,
               padding: isCollapsed ? '12px 0 16px' : '12px 10px 16px',
-              borderTop: '1px solid rgba(255,255,255,0.06)',
+              borderTop: '1px solid #F4F6F0',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -406,9 +360,7 @@ export default function AdminSidebar() {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.15 }}
                   style={{
-                    marginTop: 12,
-                    paddingTop: 12,
-                    borderTop: '1px solid rgba(255,255,255,0.04)',
+                    marginTop: 10,
                     display: 'flex',
                     alignItems: 'center',
                     gap: 6,
@@ -417,9 +369,9 @@ export default function AdminSidebar() {
                     overflow: 'hidden',
                   }}
                 >
-                  <ShieldAlert size={12} style={{ color: 'rgba(255,255,255,0.2)' }} />
-                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                    Secure Admin Session
+                  <ShieldAlert size={12} style={{ color: '#8A9380' }} />
+                  <span style={{ fontSize: 10, color: '#8A9380', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    Secure Staff Session
                   </span>
                 </motion.div>
               )}
@@ -427,6 +379,7 @@ export default function AdminSidebar() {
           </div>
         </div>
 
+        {/* Toggle Collapse Button on Desktop */}
         {!isMobile && (
           <button
             onClick={handleToggleCollapse}
@@ -437,18 +390,18 @@ export default function AdminSidebar() {
               width: 24,
               height: 24,
               borderRadius: '50%',
-              background: '#152d28',
-              border: '1px solid rgba(255,255,255,0.15)',
-              color: 'rgba(255,255,255,0.7)',
+              background: '#4A5D23',
+              border: '2px solid #FFFFFF',
+              color: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
               zIndex: 60,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+              boxShadow: '0 2px 8px rgba(74, 93, 35, 0.3)',
               transition: 'all 0.15s ease',
             }}
-            className="hover:scale-110 hover:text-white hover:border-teal-400"
+            className="hover:scale-110"
             title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
             {isCollapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}

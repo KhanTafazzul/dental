@@ -89,7 +89,17 @@ async function computeServerFinancialAnalytics(
   const helperAttendance = helperAttRes.data || []
   const electricityExpenses = elecRes.data || []
   const extraExpenses = extraRes.data || []
-  const appointments = apptRes.data || []
+  type AppointmentRow = {
+    id: string
+    appointment_date: string | null
+    status: string | null
+    doctor_id: string | null
+    branch_id: string | null
+    doctors: { id: string; name: string; branch_id: string } | { id: string; name: string; branch_id: string }[] | null
+    branches: { id: string; name: string; slug: string } | { id: string; name: string; slug: string }[] | null
+    invoices: { id: string; total: number; subtotal: number } | { id: string; total: number; subtotal: number }[] | null
+  }
+  const appointments = (apptRes.data || []) as AppointmentRow[]
 
   // Filter branches if selectedBranch !== 'all'
   const activeBranchIds = selectedBranch === 'all'

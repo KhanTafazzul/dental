@@ -97,7 +97,7 @@ function DpdpPageClientContent() {
         <div className="text-center max-w-3xl mx-auto space-y-3">
           <TelemetryBadge label="Digital Personal Data Protection Act 2023" code="RULE 4 VERIFIED" variant="sage" />
           <h1 className="text-3xl sm:text-4xl font-bold text-[#1C2618] dark:text-[#F5F7F3]">{t.consentNoticeTitle}</h1>
-          <p className="text-sm text-[#556B4B]">{t.consentNoticeDesc || "Protecting patient clinical privacy, data subject rights, and medical records under Indian law."}</p>
+          <p className="text-sm text-[#556B4B]">{t.consentNoticeText || "Protecting patient clinical privacy, data subject rights, and medical records under Indian law."}</p>
 
           <div className="mt-4 inline-flex items-center gap-3 p-2 bg-[#E2E8DC]/80 dark:bg-[#1C2618]/80 border border-[#A3B799]/40 rounded-2xl">
             <Globe className="w-4 h-4 text-[#556B4B]" />
@@ -143,9 +143,9 @@ function DpdpPageClientContent() {
           <AppleLiquidCard variant="light" className="p-8 space-y-6 text-xs leading-relaxed">
             <div className="space-y-2">
               <h2 className="text-sm font-bold text-[#1C2618] dark:text-[#F5F7F3] flex items-center gap-2">
-                <FileText className="w-4 h-4 text-[#556B4B]" /> {t.noticeHeading || "1. Data Collection & Purpose"}
+                <FileText className="w-4 h-4 text-[#556B4B]" /> {"1. Data Collection & Purpose"}
               </h2>
-              <p className="text-[#556B4B]">{t.noticeBody || "Personal and health data (Name, DOB, Phone, Dental History, X-Rays) are processed exclusively for appointment scheduling, diagnosis, treatment, and billing."}</p>
+              <p className="text-[#556B4B]">{t.consentNoticeText || "Personal and health data (Name, DOB, Phone, Dental History, X-Rays) are processed exclusively for appointment scheduling, diagnosis, treatment, and billing."}</p>
             </div>
 
             <div className="space-y-2">

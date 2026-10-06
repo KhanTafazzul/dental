@@ -414,22 +414,22 @@ export default function InventoryClient({ initialItems, initialStats, branches }
   }
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 dark:bg-[#091210] font-sans text-slate-800 dark:text-slate-100 p-4 sm:p-6 lg:p-8 space-y-6">
+    <div className="w-full space-y-6">
 
-      {/* ════ SECTION 1: TOP BREADCRUMB & HEADER BAR ════ */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      {/* ════ SECTION 1: TOP HEADER BAR ════ */}
+      <div className="bg-white border border-[#E4E7D3] rounded-[20px] p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-sm">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-            <span>Admin</span>
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#8A9380]">
+            <span>Admin Portal</span>
             <span>/</span>
-            <span className="text-cyan-600 dark:text-cyan-400 font-bold">Inventory & Stock</span>
+            <span className="text-[#4A5D23] font-bold">Inventory & Stock</span>
           </div>
           <div className="flex items-center gap-3 mt-1">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-              Inventory
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#2C3325]" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>
+              Clinic Stock & Inventory Console
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800/40">
-              {totalProducts} Products
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#E4E7D3] text-[#4A5D23] border border-[#4A5D23]/20">
+              {totalProducts} Items Tracked
             </span>
           </div>
         </div>
@@ -438,11 +438,11 @@ export default function InventoryClient({ initialItems, initialStats, branches }
         <div className="flex items-center flex-wrap gap-2.5">
           {/* Branch Switcher */}
           <div className="relative">
-            <Building2 className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+            <Building2 className="absolute left-3 top-2.5 w-4 h-4 text-[#8A9380]" />
             <select
               value={selectedBranch}
               onChange={e => setSelectedBranch(e.target.value)}
-              className="pl-9 pr-8 py-2 bg-white dark:bg-[#12221e] border border-slate-200 dark:border-teal-900/40 rounded-2xl text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-cyan-500 shadow-sm cursor-pointer"
+              className="pl-9 pr-8 py-2 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs font-bold text-[#2C3325] focus:outline-none focus:border-[#4A5D23] cursor-pointer"
             >
               {branches.map(b => (
                 <option key={b.id} value={b.slug}>

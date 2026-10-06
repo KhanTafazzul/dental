@@ -115,7 +115,7 @@ function AuthPortalForm({ initialMode = "login" }: { initialMode?: "login" | "re
 
       setLoading(true);
       try {
-        const res = await registerWithEmail(email, password, fullName);
+        const res = await registerWithEmail(email, password);
         if (res.error) {
           setError(res.error);
         } else {

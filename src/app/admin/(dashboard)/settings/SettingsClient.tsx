@@ -115,18 +115,20 @@ export default function SettingsClient() {
   useEffect(() => {
     if (activeTab === 'branches' && branches.length === 0) {
       setLoadingBranches(true);
-      supabase.from('branches').select('*').order('name')
+      Promise.resolve(supabase.from('branches').select('*').order('name'))
         .then(({ data }) => setBranches(data || []))
         .finally(() => setLoadingBranches(false));
     } else if (activeTab === 'treatments' && treatments.length === 0) {
       setLoadingTreatments(true);
-      supabase.from('treatments').select('*').order('name', { ascending: true })
+      Promise.resolve(supabase.from('treatments').select('*').order('name', { ascending: true }))
         .then(({ data }) => setTreatments(data || []))
         .finally(() => setLoadingTreatments(false));
     } else if (activeTab === 'medicines' && medicines.length === 0) {
       setLoadingMeds(true);
-      getAllMedicines('hazara')
-        .then(res => res.success && res.data && setMedicines(res.data))
+      Promise.resolve(getAllMedicines('hazara'))
+        .then(res => {
+          if (res.success && res.data) setMedicines(res.data);
+        })
         .finally(() => setLoadingMeds(false));
     }
   }, [activeTab, branches.length, treatments.length, medicines.length]);
@@ -213,26 +215,26 @@ export default function SettingsClient() {
       </AnimatePresence>
 
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
+      <div className="bg-white border border-[#E4E7D3] rounded-[20px] p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight flex items-center gap-3">
-            <span className="p-2.5 rounded-2xl bg-teal-500/20 text-teal-400 border border-teal-500/30">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3325] tracking-tight flex items-center gap-3" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>
+            <span className="p-2.5 rounded-2xl bg-[#E4E7D3] text-[#4A5D23] border border-[#4A5D23]/20">
               <Settings className="w-6 h-6" />
             </span>
-            Admin Control Panel & Clinic Settings
+            System & Clinic Settings Console
           </h1>
-          <p className="text-xs text-slate-400 font-medium mt-1 ml-12">
-            Instant settings control across account profile, security, branch hours, treatments, medicines, notifications, and billing
+          <p className="text-xs text-[#8A9380] font-medium mt-1 ml-12">
+            Configure clinic operating hours, staff RBAC permissions, notification templates, tax configurations, and system UI settings.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={toggleTheme}
-            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-white/10 flex items-center gap-2 transition-colors"
+            className="px-4 py-2.5 rounded-xl bg-[#E4E7D3] hover:bg-[#D4D9BE] text-xs font-bold text-[#4A5D23] flex items-center gap-2 transition-colors cursor-pointer"
           >
-            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-cyan-400" />}
-            <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+            {theme === 'dark' ? <Sun className="w-4 h-4 text-[#4A5D23]" /> : <Moon className="w-4 h-4 text-[#4A5D23]" />}
+            <span>{theme === 'dark' ? 'Light Theme' : 'Olive Theme'}</span>
           </button>
         </div>
       </div>

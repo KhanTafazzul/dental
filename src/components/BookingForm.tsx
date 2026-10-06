@@ -199,15 +199,7 @@ function BookingFormContent({ branchSlug }: BookingFormProps) {
 
       if (patientEmail.trim() && data) {
         try {
-          await sendAppointmentEmail({
-            appointmentId: data.id,
-            patientName: patientName.trim(),
-            patientEmail: patientEmail.trim(),
-            doctorName: selectedDoc?.name || "Clinic Specialist",
-            branchName: branch?.name || (isHazara ? "Hazara Branch" : "Family Branch"),
-            appointmentDate: selectedDate,
-            appointmentTime: selectedTimeSlot,
-          });
+          await sendAppointmentEmail(data.id);
         } catch (mailErr) {
           console.error("Email send notice:", mailErr);
         }
