@@ -154,19 +154,6 @@ export async function sendWahaTextMessage({
     if (!response.ok) {
       const errMsg = (resData.message as string) || (resData.error as string) || `WAHA HTTP Error ${status}: ${response.statusText}`
       console.error(`[WAHA Error] Status ${status}:`, resData)
-
-      // Automatic Fallback Retry if custom session name does not exist
-      if (session !== 'default' && (errMsg.includes('Session') || errMsg.includes('does not exist'))) {
-        console.warn(`[WAHA Fallback] Custom session "${session}" failed. Retrying with default session...`)
-        return sendWahaTextMessage({
-          phone,
-          text,
-          session: 'default',
-          endpoint,
-          apiKey,
-        })
-      }
-
       return {
         success: false,
         status,
