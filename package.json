@@ -41,6 +41,9 @@
   },
   "overrides": {
     "brace-expansion": "^2.0.1",
+    "braces": "^3.0.3",
+    "@grpc/grpc-js": "^1.13.6",
+    "source-map-js": "^1.2.2",
     "glob": "^11.0.0",
     "protobufjs": "^7.4.0",
     "@grpc/proto-loader": "^0.7.13"

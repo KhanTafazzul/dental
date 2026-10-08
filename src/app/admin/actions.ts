@@ -1849,7 +1849,7 @@ export async function getInvoiceDetails(invoiceId: string) {
 // Action: Trigger delivering the reports via edge function and running Supabase auto-cleanup
 export async function triggerDeliverAndCleanup(appointmentId: string, invoiceId: string) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jmifnlqtcfdctvldukdw.supabase.co'
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!serviceRoleKey) {

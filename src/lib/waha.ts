@@ -53,8 +53,8 @@ export interface WahaBranchRecord {
 }
 
 // Default Configuration matching WAHA Render Deployment (Configurable via ENV)
-export const DEFAULT_WAHA_ENDPOINT = process.env.WAHA_ENDPOINT || 'https://waha-latest-7jqm.onrender.com/api/sendText'
-export const DEFAULT_WAHA_API_KEY = process.env.WAHA_API_KEY || 'key_oQDECaeadKV0p98LhnmocNKz2QwGnSSs'
+export const DEFAULT_WAHA_ENDPOINT = process.env.WAHA_ENDPOINT || ''
+export const DEFAULT_WAHA_API_KEY = process.env.WAHA_API_KEY || ''
 export const DEFAULT_WAHA_SESSION = process.env.WAHA_SESSION || 'default'
 export const DEFAULT_TARGET_TEST_NUMBER = process.env.WAHA_TARGET_NUMBER || '918418878491@c.us'
 
