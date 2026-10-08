@@ -55,7 +55,7 @@ export interface WahaBranchRecord {
 // Default Configuration matching WAHA Render Deployment (Configurable via ENV)
 export const DEFAULT_WAHA_ENDPOINT = process.env.WAHA_ENDPOINT || ''
 export const DEFAULT_WAHA_API_KEY = process.env.WAHA_API_KEY || ''
-export const DEFAULT_WAHA_SESSION = process.env.WAHA_SESSION || 'default'
+export const DEFAULT_WAHA_SESSION = process.env.WAHA_SESSION || 'whatsappp-api-dental'
 export const DEFAULT_TARGET_TEST_NUMBER = process.env.WAHA_TARGET_NUMBER || '918418878491@c.us'
 
 /**
@@ -154,6 +154,19 @@ export async function sendWahaTextMessage({
     if (!response.ok) {
       const errMsg = (resData.message as string) || (resData.error as string) || `WAHA HTTP Error ${status}: ${response.statusText}`
       console.error(`[WAHA Error] Status ${status}:`, resData)
+
+      // Automatic Fallback Retry if custom session name does not exist
+      if (session !== 'default' && (errMsg.includes('Session') || errMsg.includes('does not exist'))) {
+        console.warn(`[WAHA Fallback] Custom session "${session}" failed. Retrying with default session...`)
+        return sendWahaTextMessage({
+          phone,
+          text,
+          session: 'default',
+          endpoint,
+          apiKey,
+        })
+      }
+
       return {
         success: false,
         status,
