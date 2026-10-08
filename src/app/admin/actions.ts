@@ -1325,6 +1325,26 @@ export async function updateTreatmentPrice(id: string, price: number, cost: numb
   }
 }
 
+// Action: Delete treatment procedure
+export async function deleteTreatment(id: string) {
+  const adminDb = getAdminSupabase()
+  try {
+    if (!id) {
+      return { success: false, error: 'Treatment ID is required.' }
+    }
+    const { error } = await adminDb
+      .from('treatments')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+    return { success: true }
+  } catch (err: any) {
+    console.error('Error deleting treatment:', err)
+    return { success: false, error: err.message || 'Failed to delete treatment.' }
+  }
+}
+
 // Action: Scan / Receive stock for medicine in TiDB Cloud
 export async function saveMedicineStock(
   barcode: string,

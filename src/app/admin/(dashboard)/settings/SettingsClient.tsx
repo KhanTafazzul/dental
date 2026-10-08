@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   changeAdminPassword, updateBranchHours, addTimeSlot, 
   deleteTimeSlot, updateCameraPasscode, addTreatment, 
-  updateTreatmentPrice, getAllMedicines, saveMedicineStock,
+  updateTreatmentPrice, deleteTreatment, getAllMedicines, saveMedicineStock,
   updateBranchCaptureMedicine, updateAdminProfile, updateAdminSecurityPassword,
   resetClinicSettingsAction
 } from '@/app/admin/actions';
@@ -163,6 +163,86 @@ export default function SettingsClient() {
   const [medicines, setMedicines] = useState<any[]>([]);
   const [loadingMeds, setLoadingMeds] = useState(false);
 
+  // Treatment Management State & Handlers
+  const [showAddTreatmentModal, setShowAddTreatmentModal] = useState(false);
+  const [newTreatmentName, setNewTreatmentName] = useState('');
+  const [newTreatmentPrice, setNewTreatmentPrice] = useState('');
+  const [newTreatmentCost, setNewTreatmentCost] = useState('');
+  const [addingTreatment, setAddingTreatment] = useState(false);
+
+  const [editingTreatment, setEditingTreatment] = useState<any>(null);
+  const [editPrice, setEditPrice] = useState('');
+  const [editCost, setEditCost] = useState('');
+  const [updatingTreatment, setUpdatingTreatment] = useState(false);
+
+  const reloadTreatments = useCallback(async () => {
+    setLoadingTreatments(true);
+    const { data } = await supabase.from('treatments').select('*').order('name', { ascending: true });
+    setTreatments(data || []);
+    setLoadingTreatments(false);
+  }, []);
+
+  const handleCreateTreatment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTreatmentName.trim()) {
+      showToast('Please enter procedure name.', 'error');
+      return;
+    }
+    setAddingTreatment(true);
+    try {
+      const res = await addTreatment(newTreatmentName, Number(newTreatmentPrice || 0), Number(newTreatmentCost || 0));
+      if (res.success) {
+        showToast('Treatment procedure added successfully!');
+        setShowAddTreatmentModal(false);
+        setNewTreatmentName('');
+        setNewTreatmentPrice('');
+        setNewTreatmentCost('');
+        await reloadTreatments();
+      } else {
+        showToast(res.error || 'Failed to add procedure', 'error');
+      }
+    } catch (err) {
+      showToast('Error creating treatment', 'error');
+    } finally {
+      setAddingTreatment(false);
+    }
+  };
+
+  const handleUpdateTreatment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTreatment) return;
+    setUpdatingTreatment(true);
+    try {
+      const res = await updateTreatmentPrice(editingTreatment.id, Number(editPrice || 0), Number(editCost || 0));
+      if (res.success) {
+        showToast('Treatment pricing updated successfully!');
+        setEditingTreatment(null);
+        await reloadTreatments();
+      } else {
+        showToast(res.error || 'Failed to update treatment', 'error');
+      }
+    } catch (err) {
+      showToast('Error updating treatment', 'error');
+    } finally {
+      setUpdatingTreatment(false);
+    }
+  };
+
+  const handleDeleteTreatment = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete procedure "${name}"?`)) return;
+    try {
+      const res = await deleteTreatment(id);
+      if (res.success) {
+        showToast(`Treatment "${name}" deleted.`);
+        await reloadTreatments();
+      } else {
+        showToast(res.error || 'Failed to delete treatment', 'error');
+      }
+    } catch (err) {
+      showToast('Error deleting treatment', 'error');
+    }
+  };
+
   // Lazy Data Loaders
   useEffect(() => {
     if (activeTab === 'branches' && branches.length === 0) {
@@ -171,10 +251,7 @@ export default function SettingsClient() {
         .then(({ data }) => setBranches(data || []))
         .finally(() => setLoadingBranches(false));
     } else if (activeTab === 'treatments' && treatments.length === 0) {
-      setLoadingTreatments(true);
-      Promise.resolve(supabase.from('treatments').select('*').order('name', { ascending: true }))
-        .then(({ data }) => setTreatments(data || []))
-        .finally(() => setLoadingTreatments(false));
+      reloadTreatments();
     } else if (activeTab === 'medicines' && medicines.length === 0) {
       setLoadingMeds(true);
       Promise.resolve(getAllMedicines('hazara'))
@@ -183,7 +260,7 @@ export default function SettingsClient() {
         })
         .finally(() => setLoadingMeds(false));
     }
-  }, [activeTab, branches.length, treatments.length, medicines.length]);
+  }, [activeTab, branches.length, treatments.length, medicines.length, reloadTreatments]);
 
   // 4. Notification Preferences Matrix
   const [notificationConfig, setNotificationConfig] = useState({
@@ -694,34 +771,244 @@ export default function SettingsClient() {
       {activeTab === 'treatments' && (
         <div className="space-y-6 max-w-4xl">
           <div className="p-6 sm:p-8 rounded-[24px] bg-white border border-[#E4E7D3] shadow-sm space-y-6">
-            <div className="border-b border-[#F4F6F0] pb-4">
-              <h2 className="text-lg font-bold text-[#2C3325] flex items-center gap-2">
-                <Stethoscope className="w-5 h-5 text-[#4A5D23]" /> Treatments & Standard Pricing Catalog
-              </h2>
-              <p className="text-xs text-[#8A9380]">Configure clinic dental procedures, consultation fees, and cost margins</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#F4F6F0] pb-4 gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-[#2C3325] flex items-center gap-2">
+                  <Stethoscope className="w-5 h-5 text-[#4A5D23]" /> Treatments & Standard Pricing Catalog
+                </h2>
+                <p className="text-xs text-[#8A9380] mt-0.5">Configure clinic dental procedures, patient charges, base costs, and profit margins</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowAddTreatmentModal(true)}
+                className="px-4 py-2.5 rounded-xl bg-[#4A5D23] hover:bg-[#3D4D1D] text-white font-bold text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer shrink-0 self-start sm:self-auto"
+              >
+                <Plus className="w-4 h-4" /> Add New Treatment
+              </button>
             </div>
 
             {loadingTreatments ? (
-              <div className="text-center py-10 text-xs text-[#8A9380]">Loading treatment catalog...</div>
+              <div className="text-center py-12 text-xs text-[#8A9380] flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-[#4A5D23]" /> Loading treatment catalog...
+              </div>
+            ) : treatments.length === 0 ? (
+              <div className="text-center py-12 bg-[#F4F6F0] border border-dashed border-[#E4E7D3] rounded-2xl text-xs text-[#8A9380]">
+                No dental treatment procedures defined. Click &quot;Add New Treatment&quot; above to add one.
+              </div>
             ) : (
               <div className="space-y-3">
-                {treatments.map((t) => (
-                  <div key={t.id} className="p-4 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] flex items-center justify-between text-xs">
-                    <div>
-                      <h3 className="font-bold text-[#2C3325]">{t.name}</h3>
-                      <span className="text-[#8A9380] text-[11px]">Base Cost: ₹{t.cost_price || 0}</span>
-                    </div>
+                {treatments.map((t) => {
+                  const patientPrice = Number(t.price || 0);
+                  const costPrice = Number(t.cost || t.cost_price || 0);
+                  const margin = patientPrice - costPrice;
 
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold text-[#4A5D23] text-sm bg-white px-3 py-1 rounded-xl border border-[#E4E7D3]">₹{t.price || 0}</span>
+                  return (
+                    <div key={t.id} className="p-4 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs transition-all hover:border-[#4A5D23]/30">
+                      <div>
+                        <h3 className="font-bold text-[#2C3325] text-sm flex items-center gap-2">
+                          {t.name}
+                        </h3>
+                        <div className="flex items-center gap-3 text-[11px] text-[#8A9380] mt-1">
+                          <span>Base Cost: <strong className="text-[#2C3325]">₹{costPrice}</strong></span>
+                          <span>•</span>
+                          <span>Est. Profit Margin: <strong className="text-emerald-700">₹{margin > 0 ? margin : 0}</strong></span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 self-end sm:self-auto">
+                        <span className="font-bold text-[#4A5D23] text-sm bg-white px-3.5 py-1.5 rounded-xl border border-[#E4E7D3] shadow-sm">
+                          ₹{patientPrice}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingTreatment(t);
+                            setEditPrice(String(patientPrice));
+                            setEditCost(String(costPrice));
+                          }}
+                          className="p-2 rounded-xl bg-white hover:bg-[#E4E7D3] text-[#2C3325] border border-[#E4E7D3] font-bold text-xs transition-colors cursor-pointer"
+                          title="Edit Price & Cost"
+                        >
+                          <Edit2 className="w-4 h-4 text-[#4A5D23]" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTreatment(t.id, t.name)}
+                          className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition-colors cursor-pointer"
+                          title="Delete Treatment"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
       )}
+
+      {/* Add New Treatment Modal */}
+      <AnimatePresence>
+        {showAddTreatmentModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl border border-[#E4E7D3] p-6 max-w-md w-full space-y-5 shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-[#F4F6F0] pb-3">
+                <h3 className="text-base font-bold text-[#2C3325] flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-[#4A5D23]" /> Add New Dental Treatment
+                </h3>
+                <button onClick={() => setShowAddTreatmentModal(false)} className="text-[#8A9380] hover:text-[#2C3325]">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateTreatment} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-[#2C3325] font-semibold mb-1">Treatment Procedure Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newTreatmentName}
+                    onChange={(e) => setNewTreatmentName(e.target.value)}
+                    placeholder="e.g. Root Canal Treatment (RCT)"
+                    className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] focus:outline-none focus:border-[#4A5D23]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[#2C3325] font-semibold mb-1">Patient Price (₹)</label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      value={newTreatmentPrice}
+                      onChange={(e) => setNewTreatmentPrice(e.target.value)}
+                      placeholder="e.g. 4500"
+                      className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] font-mono focus:outline-none focus:border-[#4A5D23]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[#2C3325] font-semibold mb-1">Clinic Cost Price (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={newTreatmentCost}
+                      onChange={(e) => setNewTreatmentCost(e.target.value)}
+                      placeholder="e.g. 1200"
+                      className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] font-mono focus:outline-none focus:border-[#4A5D23]"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end gap-3 border-t border-[#F4F6F0]">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddTreatmentModal(false)}
+                    className="px-4 py-2.5 rounded-xl bg-[#F4F6F0] text-[#2C3325] font-bold text-xs hover:bg-[#E4E7D3]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={addingTreatment}
+                    className="px-5 py-2.5 rounded-xl bg-[#4A5D23] hover:bg-[#3D4D1D] text-white font-bold text-xs flex items-center gap-2 shadow-md disabled:opacity-50"
+                  >
+                    {addingTreatment ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Save className="w-4 h-4" />}
+                    Save Procedure
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Treatment Pricing Modal */}
+      <AnimatePresence>
+        {editingTreatment && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl border border-[#E4E7D3] p-6 max-w-md w-full space-y-5 shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-[#F4F6F0] pb-3">
+                <h3 className="text-base font-bold text-[#2C3325] flex items-center gap-2">
+                  <Edit2 className="w-4 h-4 text-[#4A5D23]" /> Edit Pricing: {editingTreatment.name}
+                </h3>
+                <button onClick={() => setEditingTreatment(null)} className="text-[#8A9380] hover:text-[#2C3325]">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateTreatment} className="space-y-4 text-xs">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[#2C3325] font-semibold mb-1">Standard Patient Price (₹)</label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      value={editPrice}
+                      onChange={(e) => setEditPrice(e.target.value)}
+                      className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] font-mono focus:outline-none focus:border-[#4A5D23]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[#2C3325] font-semibold mb-1">Clinic Cost Price (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editCost}
+                      onChange={(e) => setEditCost(e.target.value)}
+                      className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] font-mono focus:outline-none focus:border-[#4A5D23]"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end gap-3 border-t border-[#F4F6F0]">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTreatment(null)}
+                    className="px-4 py-2.5 rounded-xl bg-[#F4F6F0] text-[#2C3325] font-bold text-xs hover:bg-[#E4E7D3]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updatingTreatment}
+                    className="px-5 py-2.5 rounded-xl bg-[#4A5D23] hover:bg-[#3D4D1D] text-white font-bold text-xs flex items-center gap-2 shadow-md disabled:opacity-50"
+                  >
+                    {updatingTreatment ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Save className="w-4 h-4" />}
+                    Update Pricing
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {activeTab === 'medicines' && (
         <div className="space-y-6 max-w-4xl">
@@ -773,19 +1060,7 @@ export default function SettingsClient() {
               </div>
             </div>
 
-            {/* Anti-Ban Protection Alert Box */}
-            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 flex items-start gap-3">
-              <Shield className="w-5 h-5 text-emerald-700 dark:text-emerald-400 shrink-0 mt-0.5" />
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-xs font-bold text-emerald-900 dark:text-emerald-300">Anti-Ban Protection Engine Active</h4>
-                  <span className="text-[10px] bg-emerald-200 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 px-2 py-0.5 rounded font-mono font-bold">2.5s - 5.0s Jitter Delay</span>
-                </div>
-                <p className="text-[11px] text-emerald-700 dark:text-emerald-400/90 mt-0.5 leading-normal">
-                  Bulk WhatsApp transmissions (morning doctor digests, 24h appointment alerts, and birthday wishes) automatically inject a <strong>randomized delay of 2.5 to 5.0 seconds</strong> between messages to emulate human behavior and prevent Meta account bans.
-                </p>
-              </div>
-            </div>
+
 
             {/* Notification Matrix List */}
             <div className="space-y-3">
@@ -954,20 +1229,22 @@ export default function SettingsClient() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md overflow-y-auto"
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl border border-[#E4E7D3] p-6 max-w-2xl w-full space-y-6 shadow-2xl overflow-hidden"
+              className="bg-white rounded-3xl border border-[#E4E7D3] p-6 max-w-4xl w-full space-y-6 shadow-2xl my-8"
             >
               <div className="flex items-center justify-between border-b border-[#F4F6F0] pb-4">
                 <div>
-                  <h3 className="text-lg font-bold text-[#2C3325]">
-                    Rx Customizer — {selectedBranchRx === 'hazara' ? 'Hazara Branch' : 'Family Branch'}
+                  <h3 className="text-lg font-bold text-[#2C3325] flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-[#4A5D23]" /> Interactive Prescription Pad Placement Customizer
                   </h3>
-                  <p className="text-xs text-[#8A9380]">Adjust margin padding and preview print output</p>
+                  <p className="text-xs text-[#8A9380]">
+                    Push and adjust data block positions over the official {selectedBranchRx.toUpperCase()} clinic letterhead pad
+                  </p>
                 </div>
                 <button
                   onClick={() => setShowRxCustomizerModal(false)}
@@ -977,52 +1254,173 @@ export default function SettingsClient() {
                 </button>
               </div>
 
-              <div className="space-y-4 text-xs">
-                <div>
-                  <label className="block text-xs font-bold text-[#2C3325] mb-2">
-                    Top Margin Padding for Pre-Printed Header (px): {headerMargin}px
-                  </label>
-                  <input
-                    type="range"
-                    min={80}
-                    max={300}
-                    value={headerMargin}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      setHeaderMargin(val);
-                      localStorage.setItem('rx_header_margin', String(val));
-                    }}
-                    className="w-full accent-[#4A5D23]"
-                  />
-                  <span className="text-[11px] text-[#8A9380]">Controls how much space is left at the top before prescription content starts printing.</span>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                
+                {/* Control Panel: Position Push Sliders */}
+                <div className="space-y-4 bg-[#F4F6F0] p-5 rounded-2xl border border-[#E4E7D3]">
+                  <h4 className="font-bold text-[#2C3325] text-xs uppercase tracking-wider flex items-center gap-1.5 border-b border-[#E4E7D3] pb-2">
+                    <Sparkles className="w-4 h-4 text-[#4A5D23]" /> Data Block Placement Controls
+                  </h4>
 
-                {/* Preview Box */}
-                <div className="p-4 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] space-y-3">
-                  <div className="text-xs font-bold text-[#4A5D23]">Live Print Preview Box</div>
-                  <div
-                    style={{ paddingTop: `${headerMargin / 2}px` }}
-                    className="bg-white p-4 rounded-xl border border-[#E4E7D3] min-h-[160px]"
-                  >
-                    <div className="border-b border-dashed border-[#E4E7D3] pb-2 text-[11px] font-bold text-[#2C3325]">
-                      Patient Name: John Doe | Age: 32 | Date: 2026-10-06
+                  {/* 1. Header Offset */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between font-bold text-[#2C3325]">
+                      <span>Doctor Header / Banner Top Margin</span>
+                      <span className="font-mono text-[#4A5D23]">{headerMargin}px</span>
                     </div>
-                    <div className="pt-3 text-[11px] text-[#4A5D23] font-semibold">
-                      Rx Medicines Table Will Print Here...
+                    <input
+                      type="range"
+                      min={40}
+                      max={350}
+                      step={5}
+                      value={headerMargin}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setHeaderMargin(val);
+                        localStorage.setItem('rx_header_margin', String(val));
+                        localStorage.setItem(`rx_header_margin_${selectedBranchRx}`, String(val));
+                      }}
+                      className="w-full accent-[#4A5D23] cursor-pointer"
+                    />
+                    <p className="text-[10px] text-[#8A9380]">Pushes patient info & prescription list below the letterhead header.</p>
+                  </div>
+
+                  {/* Quick Preset Push Buttons */}
+                  <div className="pt-2 border-t border-[#E4E7D3] space-y-2">
+                    <label className="font-bold text-[#2C3325] block">Quick Position Presets</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHeaderMargin(120);
+                          localStorage.setItem('rx_header_margin', '120');
+                        }}
+                        className="p-2 rounded-xl bg-white border border-[#E4E7D3] text-[11px] font-bold text-[#2C3325] hover:bg-[#E4E7D3]/60 cursor-pointer"
+                      >
+                        Compact Header (120px)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHeaderMargin(180);
+                          localStorage.setItem('rx_header_margin', '180');
+                        }}
+                        className="p-2 rounded-xl bg-white border border-[#E4E7D3] text-[11px] font-bold text-[#2C3325] hover:bg-[#E4E7D3]/60 cursor-pointer"
+                      >
+                        Standard Header (180px)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHeaderMargin(240);
+                          localStorage.setItem('rx_header_margin', '240');
+                        }}
+                        className="p-2 rounded-xl bg-white border border-[#E4E7D3] text-[11px] font-bold text-[#2C3325] hover:bg-[#E4E7D3]/60 cursor-pointer"
+                      >
+                        Large Letterhead (240px)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHeaderMargin(300);
+                          localStorage.setItem('rx_header_margin', '300');
+                        }}
+                        className="p-2 rounded-xl bg-white border border-[#E4E7D3] text-[11px] font-bold text-[#2C3325] hover:bg-[#E4E7D3]/60 cursor-pointer"
+                      >
+                        Full Pad Banner (300px)
+                      </button>
                     </div>
                   </div>
+
+                  <div className="p-3 bg-white rounded-xl border border-[#E4E7D3] text-[11px] text-[#8A9380] leading-relaxed">
+                    💡 <strong>Tip:</strong> The live preview on the right shows exactly where your doctor notes, patient details, and Rx table will print over your pre-printed prescription pad background.
+                  </div>
                 </div>
+
+                {/* Live Visual Canvas Preview */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-[#2C3325] text-xs">A4 Visual Pad Canvas Preview</span>
+                    <span className="text-[10px] font-mono text-[#8A9380]">Target: {selectedBranchRx.toUpperCase()} Branch</span>
+                  </div>
+
+                  <div className="relative border-2 border-[#4A5D23]/30 rounded-2xl overflow-hidden bg-white shadow-lg min-h-[380px] p-4 flex flex-col justify-between">
+                    
+                    {/* Uploaded Background Image Overlay */}
+                    {getBranchPadBg(selectedBranchRx) ? (
+                      <img
+                        src={getBranchPadBg(selectedBranchRx)!}
+                        alt="Prescription Background Pad"
+                        className="absolute inset-0 w-full h-full object-fill opacity-20 pointer-events-none"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center text-[11px] text-[#8A9380] font-mono border-2 border-dashed border-[#E4E7D3] m-4 rounded-xl">
+                        [ Pre-printed Letterhead Pad Preview Background ]
+                      </div>
+                    )}
+
+                    {/* Position Overlay Data Boxes */}
+                    <div className="relative z-10 space-y-4">
+                      
+                      {/* Doctor & Clinic Header Box */}
+                      <div className="border-2 border-dashed border-[#4A5D23] bg-[#4A5D23]/10 p-2.5 rounded-xl text-[11px] text-[#2C3325] font-semibold flex items-center justify-between">
+                        <span>🏥 HAZARA & FAMILY DENTAL CLINIC BANNER</span>
+                        <span className="text-[9px] font-mono text-[#4A5D23] font-bold">PRE-PRINTED HEADER</span>
+                      </div>
+
+                      {/* Dynamic Offset Margin Spacer */}
+                      <div
+                        style={{ height: `${Math.max(headerMargin - 80, 20)}px` }}
+                        className="w-full border-l-2 border-dashed border-amber-500/60 bg-amber-500/5 transition-all flex items-center justify-center text-[10px] font-mono text-amber-700 font-bold"
+                      >
+                        ↕ Vertical Margin Offset ({headerMargin}px)
+                      </div>
+
+                      {/* Patient Details Box */}
+                      <div className="border border-slate-300 bg-white/90 p-2.5 rounded-xl text-[11px] font-semibold space-y-1 shadow-sm">
+                        <div className="text-[10px] font-bold text-[#4A5D23] uppercase tracking-wider border-b pb-0.5">
+                          Patient Information Bar
+                        </div>
+                        <div className="flex justify-between text-[#2C3325]">
+                          <span>Patient: Rahul Verma (28/M)</span>
+                          <span>Date: 2026-10-08</span>
+                        </div>
+                      </div>
+
+                      {/* Rx Medicines & Diagnosis List Box */}
+                      <div className="border border-slate-300 bg-white/90 p-3 rounded-xl text-[11px] space-y-1.5 shadow-sm min-h-[120px]">
+                        <div className="text-[10px] font-bold text-[#4A5D23] uppercase tracking-wider border-b pb-1">
+                          Rx Prescriptions & Clinical Notes Table
+                        </div>
+                        <p className="text-[#8A9380] italic text-[10px]">1. Cap. Amoxicillin 500mg - 1 Tab (TDS x 5 days)</p>
+                        <p className="text-[#8A9380] italic text-[10px]">2. Tab. Zero-P (Paracetamol) - 1 Tab (BD x 3 days)</p>
+                      </div>
+
+                    </div>
+
+                    {/* Doctor Signature & Stamp Box */}
+                    <div className="relative z-10 pt-4 border-t border-slate-200 flex justify-end">
+                      <div className="border border-dashed border-[#4A5D23] p-2 rounded-xl text-center bg-white/80 text-[10px]">
+                        <p className="font-bold text-[#2C3325]">Dr. Nadeem (B.D.S., M.D.S.)</p>
+                        <p className="text-[#8A9380]">Authorized Signature & Stamp</p>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
               </div>
 
-              <div className="flex justify-end gap-3 pt-2 border-t border-[#F4F6F0]">
+              <div className="flex justify-end gap-3 pt-4 border-t border-[#F4F6F0]">
                 <button
+                  type="button"
                   onClick={() => {
-                    showToast('Prescription pad layout preferences saved!');
+                    showToast('Prescription template layout preferences saved successfully!');
                     setShowRxCustomizerModal(false);
                   }}
-                  className="px-5 py-2.5 rounded-xl bg-[#4A5D23] text-white font-bold text-xs shadow-md hover:bg-[#3D4D1D]"
+                  className="px-6 py-3 rounded-xl bg-[#4A5D23] hover:bg-[#3D4D1D] text-white font-bold text-xs shadow-md cursor-pointer transition-colors"
                 >
-                  Save & Close Customizer
+                  Save & Apply Placement Settings
                 </button>
               </div>
             </motion.div>

@@ -451,6 +451,10 @@ export default function BillingClient({ initialAppointments, initialTreatments }
       }
 
       const invoiceId = invoiceRes.invoiceId
+      const treatmentDiscountVal = treatmentDiscountAmount
+      const medicineDiscountVal = medicineDiscountAmount
+      const totalDiscountSaved = discountAmount
+      const overallDiscountPercent = subtotal > 0 ? (totalDiscountSaved / subtotal) * 100 : 0
 
       const invoiceData: InvoiceData = {
         invoiceId,
