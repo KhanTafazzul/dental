@@ -14,7 +14,8 @@ import {
   searchMedicines,
   createInvoice,
   triggerDeliverAndCleanup,
-  postponeAppointmentAction
+  postponeAppointmentAction,
+  scheduleReappointment
 } from '@/app/admin/actions'
 import { supabase } from '@/lib/supabase'
 import { 
@@ -216,6 +217,53 @@ export default function DoctorClient({
       alert(err.message || 'An error occurred.')
     } finally {
       setPostponing(false)
+    }
+  }
+
+  // Reappointment State
+  const [showReappointmentModal, setShowReappointmentModal] = useState(false)
+  const [reappointmentAppt, setReappointmentAppt] = useState<any | null>(null)
+  const [targetTeethVal, setTargetTeethVal] = useState('Tooth #14')
+  const [followUpDaysVal, setFollowUpDaysVal] = useState(5)
+  const [reappointmentNotesVal, setReappointmentNotesVal] = useState('5-Day Follow-Up: Permanent Crown Fitting')
+  const [schedulingReappointment, setSchedulingReappointment] = useState(false)
+
+  const handleOpenReappointmentModal = (appt: any) => {
+    setReappointmentAppt(appt)
+    setTargetTeethVal('Tooth #14')
+    setFollowUpDaysVal(5)
+    setReappointmentNotesVal('5-Day Follow-Up: Permanent Crown Fitting')
+    setShowReappointmentModal(true)
+  }
+
+  const handleConfirmReappointment = async () => {
+    if (!reappointmentAppt) return
+    setSchedulingReappointment(true)
+    try {
+      const res = await scheduleReappointment({
+        patientName: reappointmentAppt.patients?.name || reappointmentAppt.patient_name || 'Patient',
+        patientPhone: reappointmentAppt.patients?.mobile || reappointmentAppt.phone || '',
+        patientEmail: reappointmentAppt.patients?.email || reappointmentAppt.email || '',
+        doctorId: doctor.id,
+        doctorName: doctor.name,
+        branchId: doctor.branch_id,
+        branchSlug: doctor.branches?.slug,
+        followUpDays: followUpDaysVal,
+        targetTeeth: targetTeethVal,
+        treatmentNotes: reappointmentNotesVal,
+      })
+
+      if (res.success) {
+        alert(`Reappointment scheduled for ${res.date}! Patient notified via WhatsApp & Email.`)
+        setShowReappointmentModal(false)
+        router.refresh()
+      } else {
+        alert(res.error || 'Failed to schedule reappointment.')
+      }
+    } catch (err: any) {
+      alert(err.message || 'An error occurred.')
+    } finally {
+      setSchedulingReappointment(false)
     }
   }
 
@@ -1129,6 +1177,14 @@ export default function DoctorClient({
                                 <Clock className="w-3.5 h-3.5 text-amber-600" />
                                 Postpone
                               </button>
+                              <button
+                                onClick={() => handleOpenReappointmentModal(appt)}
+                                title="Schedule 5-Day Tooth Reappointment"
+                                className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs rounded-lg font-semibold shadow-sm transition-all flex items-center gap-1 cursor-pointer"
+                              >
+                                <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                Reappoint
+                              </button>
                             </div>
                           </td>
                         </motion.tr>
@@ -1920,6 +1976,112 @@ export default function DoctorClient({
                 >
                   {postponing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />}
                   Confirm Reschedule
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* REAPPOINTMENT MODAL FOR DOCTOR */}
+      {showReappointmentModal && reappointmentAppt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+            
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-emerald-50/60">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-emerald-100 text-emerald-800 rounded-2xl">
+                  <PlusCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Schedule Multi-Visit Reappointment</h3>
+                  <p className="text-xs text-slate-500 font-medium">Patient: {reappointmentAppt.patients?.name || reappointmentAppt.patient_name || 'Patient'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowReappointmentModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={e => { e.preventDefault(); handleConfirmReappointment() }} className="p-6 space-y-4 text-xs">
+              
+              {/* Target Tooth Selector */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Target Tooth Number / Arch</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Tooth #14, Tooth #46, Upper Molar"
+                  value={targetTeethVal}
+                  onChange={e => setTargetTeethVal(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-emerald-500 shadow-sm"
+                />
+              </div>
+
+              {/* Follow-up Days Preset */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Follow-up Timeline</label>
+                <div className="flex items-center gap-2">
+                  {[
+                    { days: 5, label: '+5 Days (Default)' },
+                    { days: 7, label: '+7 Days (1 Wk)' },
+                    { days: 14, label: '+14 Days (2 Wks)' },
+                  ].map(preset => (
+                    <button
+                      key={preset.days}
+                      type="button"
+                      onClick={() => setFollowUpDaysVal(preset.days)}
+                      className={`flex-1 py-2 px-2.5 rounded-xl font-bold transition-all border text-center cursor-pointer ${
+                        followUpDaysVal === preset.days
+                          ? 'bg-[#4A5D23] text-white border-[#4A5D23] shadow-sm'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Next Treatment Phase Notes */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Next Phase Treatment Notes</label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="e.g. Root Canal Step 2: Permanent Crown Fitting & Occlusion Check"
+                  value={reappointmentNotesVal}
+                  onChange={e => setReappointmentNotesVal(e.target.value)}
+                  className="w-full p-3 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-emerald-500 shadow-sm"
+                />
+              </div>
+
+              {/* Info Note */}
+              <div className="p-3 bg-emerald-50/70 border border-emerald-200/60 rounded-2xl text-[11px] text-emerald-900 font-medium leading-relaxed flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Auto-schedules visit in <strong>{followUpDaysVal} days</strong> & sends <strong>WhatsApp + Email confirmation</strong>.</span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowReappointmentModal(false)}
+                  className="px-4 py-2.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={schedulingReappointment}
+                  className="px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-[#4A5D23] to-[#748c56] hover:opacity-95 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {schedulingReappointment ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PlusCircle className="w-3.5 h-3.5" />}
+                  Confirm Reappointment
                 </button>
               </div>
             </form>

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { searchMedicines, createInvoice, saveMedicineStock } from '@/app/admin/actions'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
+import OliveInvoiceView, { InvoiceData } from '@/components/billing/OliveInvoiceView'
 import { 
   Receipt, User, Search, PlusCircle, Trash2, Loader2, 
   CheckCircle, Percent, AlertCircle, ShoppingCart, Activity, ShieldAlert, Sparkles, Send, Barcode,
@@ -451,11 +452,34 @@ export default function BillingClient({ initialAppointments, initialTreatments }
 
       const invoiceId = invoiceRes.invoiceId
 
+      const invoiceData: InvoiceData = {
+        invoiceId,
+        date: new Date().toLocaleDateString('en-US'),
+        branchName: selectedAppt?.branches?.name || 'Family Dental Clinic',
+        doctorName: selectedAppt?.doctors?.name || 'Dr. Nadeem',
+        patientName: selectedAppt?.patients?.name || 'Patient',
+        patientAge: '18',
+        patientMobile: selectedAppt?.patients?.mobile || 'N/A',
+        patientEmail: selectedAppt?.patients?.email || 'N/A',
+        items: payloadItems,
+        subtotal,
+        treatmentSubtotal,
+        treatmentDiscountPercent,
+        treatmentDiscountVal,
+        medicineSubtotal,
+        medicineDiscountPercent,
+        medicineDiscountVal,
+        totalDiscountSaved,
+        overallDiscountPercent,
+        grandTotal,
+      }
+
       setSuccessInfo({
         invoiceId,
         patientName: selectedAppt?.patients?.name,
         total: grandTotal,
-        logs: 'Invoice saved locally. Email delivery deferred until report submission.'
+        invoiceData,
+        logs: 'Invoice saved locally.'
       })
       setTargetApptId(selectedApptId)
       setRedirectCountdown(3)
@@ -534,74 +558,53 @@ export default function BillingClient({ initialAppointments, initialTreatments }
         </div>
 
         {checkoutSuccess ? (
-          /* ═══ 3D SUCCESS RECEIPT STAGE ═══ */
+          /* ═══ OLIVE THEME DENTAL INVOICE RECEIPT STAGE ═══ */
           <motion.div 
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.15 }}
-            className="max-w-xl mx-auto clay dark:clay-dark rounded-3xl p-8 shadow-2xl space-y-6 text-center border border-emerald-400/20"
+            transition={{ duration: 0.2 }}
+            className="max-w-4xl mx-auto space-y-6"
           >
-            <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-teal-500 text-white rounded-3xl flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/20 floating-3d">
-              <CheckCircle className="w-10 h-10" />
-            </div>
+            {/* Top Action Bar */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white rounded-2xl border border-[#dfe6d8] shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#5c7244] text-white rounded-xl flex items-center justify-center font-bold shadow-md">
+                  <CheckCircle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-[#313d24] text-sm">Invoice Created & Recorded</h3>
+                  <p className="text-xs text-[#5c7244]">Official Olive Theme Receipt #{(successInfo?.invoiceId || '').substring(0, 10).toUpperCase()}</p>
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <h3 className="text-2xl font-serif text-slate-900 dark:text-white">Invoice Created & Attached!</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-md mx-auto">
-                The bill has been compiled and safely recorded in the patient file.
-              </p>
-            </div>
-
-            <div className="p-4 bg-amber-500/10 border border-amber-400/20 text-amber-900 dark:text-amber-300 text-xs rounded-2xl text-left flex items-start gap-3">
-              <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <strong className="font-semibold block">Email Dispatch Deferred:</strong>
-                <span className="text-[11px] text-amber-800 dark:text-amber-400 leading-normal block">
-                  To send this invoice alongside the digital prescription & X-Ray in a unified PDF package, open the <strong>Reports Modal</strong> on the <strong>Appointments Dashboard</strong>.
-                </span>
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button
+                  onClick={() => setCheckoutSuccess(false)}
+                  className="px-4 py-2.5 bg-[#eef2e8] hover:bg-[#dfe6d8] text-[#313d24] rounded-xl font-bold text-xs transition cursor-pointer border border-[#dfe6d8]"
+                >
+                  + Create Another Bill
+                </button>
+                <button
+                  onClick={() => {
+                    const invoiceParam = successInfo?.invoiceId ? `&openInvoiceId=${successInfo.invoiceId}` : ''
+                    router.push(`/admin?openReportsApptId=${targetApptId}${invoiceParam}`)
+                  }}
+                  className="px-5 py-2.5 bg-[#5c7244] hover:bg-[#465733] text-white rounded-xl font-bold text-xs shadow-md transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>Go to Appointments</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
 
-            {/* Digital Receipt Card */}
-            <div className="clay dark:clay-dark rounded-2xl p-5 text-left text-xs font-mono space-y-2 text-slate-800 dark:text-slate-200 shadow-2xl border border-slate-250/30 dark:border-slate-800/40">
-              <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/50 pb-2 mb-2 font-sans text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-wider font-semibold">
-                <span>Invoice Verification</span>
-                <span className="text-emerald-500 dark:text-emerald-400 font-bold">ACTIVE RECORD</span>
+            {/* Dynamic Olive Theme Invoice Card */}
+            {successInfo?.invoiceData ? (
+              <OliveInvoiceView data={successInfo.invoiceData} showPrintButton={true} />
+            ) : (
+              <div className="p-8 text-center bg-white rounded-2xl border border-[#dfe6d8] text-xs font-bold text-[#313d24]">
+                Invoice Generated: #{successInfo?.invoiceId} | Total: Rs. {successInfo?.total?.toFixed(2)}
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400 dark:text-slate-500">Patient Name:</span>
-                <span className="font-semibold text-slate-900 dark:text-white">{successInfo?.patientName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400 dark:text-slate-500">Invoice Code:</span>
-                <span className="font-bold text-cyan-600 dark:text-cyan-400">{successInfo?.invoiceId?.substring(0, 10).toUpperCase()}</span>
-              </div>
-              <div className="flex justify-between pt-1 border-t border-slate-100 dark:border-slate-800/50 text-sm">
-                <span className="text-slate-500 dark:text-slate-450">Total Billed:</span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">Rs. {successInfo?.total?.toFixed(2)}</span>
-              </div>
-            </div>
-
-            {/* Countdown bar */}
-            <div className="p-4 bg-cyan-500/10 border border-cyan-400/20 text-cyan-800 dark:text-cyan-300 text-xs rounded-2xl flex items-center justify-between">
-              <span className="font-medium text-slate-700 dark:text-slate-300">Auto-redirecting to Appointments in <strong className="tabular-nums">{redirectCountdown}s</strong>...</span>
-              <button
-                onClick={() => {
-                  const invoiceParam = successInfo?.invoiceId ? `&openInvoiceId=${successInfo.invoiceId}` : ''
-                  router.push(`/admin?openReportsApptId=${targetApptId}${invoiceParam}`)
-                }}
-                className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white rounded-xl font-bold text-xs shadow-md transition transform hover:scale-105 shrink-0 ml-4 h-10 flex items-center justify-center cursor-pointer"
-              >
-                Go to Reports Now →
-              </button>
-            </div>
-
-            <button
-              onClick={() => setCheckoutSuccess(false)}
-              className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200 dark:border-slate-800/50 text-slate-700 dark:text-slate-300 font-semibold text-xs rounded-2xl transition shadow-sm h-11 flex items-center justify-center cursor-pointer"
-            >
-              + Create Another Invoice
-            </button>
+            )}
           </motion.div>
         ) : (
           /* ═══ MAIN BILLING STAGE ═══ */

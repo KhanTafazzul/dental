@@ -185,24 +185,44 @@ export default function SettingsClient() {
     }
   }, [activeTab, branches.length, treatments.length, medicines.length]);
 
-  // 4. Notification Preferences
-  const [notifications, setNotifications] = useState({
-    appointments: { email: true, whatsapp: true, inapp: true },
-    reminders: { whatsapp: true, sms: false, inapp: true },
-    doctorDispatches: { email: true, whatsapp: true, inapp: true },
-    billingStock: { email: true, whatsapp: false, inapp: true },
-  });
+  // 4. Notification Preferences Matrix
+  const [notificationConfig, setNotificationConfig] = useState({
+    invoice: { email: true, whatsapp: true, title: '📄 Invoices & Payment Bills', desc: 'Send digital invoice receipts to patients upon billing checkout' },
+    birthday: { email: false, whatsapp: true, title: '🎂 Patient Birthday Wishes', desc: 'Automated daily birthday greetings with warm wishes' },
+    reminder_24h: { email: true, whatsapp: true, title: '⏰ 24-Hour Pre-Appointment Alert', desc: 'Send tomorrow slot details, token number & clinic location' },
+    reschedule: { email: true, whatsapp: true, title: '📅 Rescheduled Appointment Alert', desc: 'Notify patient instantly when appointment slot is changed' },
+    morning_digest: { email: true, whatsapp: true, title: '🌅 Doctor Morning Briefing Digest', desc: 'Daily morning patient schedule list sent to doctors' },
+    reappointment: { email: true, whatsapp: true, title: '🔁 5-Day Tooth Reappointment Reminder', desc: 'Follow-up reminders for multi-visit procedures' },
+    post_treatment: { email: false, whatsapp: true, title: '💊 Post-Treatment Care & Reviews', desc: 'Post-procedure dental instructions and review feedback' },
+  })
 
-  const toggleNotif = useCallback((category: keyof typeof notifications, channel: 'email' | 'whatsapp' | 'sms' | 'inapp') => {
-    setNotifications(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [channel]: !(prev[category] as any)[channel]
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dental_channel_notification_matrix')
+      if (saved) {
+        try {
+          setNotificationConfig(JSON.parse(saved))
+        } catch (e) {}
       }
-    }));
-    showToast('Notification preference saved!');
-  }, [notifications, showToast]);
+    }
+  }, [])
+
+  const toggleChannel = useCallback((key: keyof typeof notificationConfig, channel: 'email' | 'whatsapp') => {
+    setNotificationConfig((prev) => {
+      const updated = {
+        ...prev,
+        [key]: {
+          ...prev[key],
+          [channel]: !prev[key][channel],
+        },
+      }
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('dental_channel_notification_matrix', JSON.stringify(updated))
+      }
+      showToast('Notification preference saved!')
+      return updated
+    })
+  }, [showToast])
 
   // 5. Additional Preferences State
   const [language, setLanguage] = useState('en');
@@ -245,7 +265,7 @@ export default function SettingsClient() {
   }, [confirmInput, dangerActionType, showToast]);
 
   return (
-    <div className="p-4 sm:p-8 space-y-8 text-slate-100 max-w-7xl mx-auto selection:bg-teal-500 selection:text-slate-950 font-sans transform-gpu">
+    <div className="p-4 sm:p-8 space-y-8 text-[#2C3325] max-w-7xl mx-auto selection:bg-[#E4E7D3] selection:text-[#4A5D23] font-sans transform-gpu">
       
       {/* Toast Feedback Banner */}
       <AnimatePresence>
@@ -554,19 +574,19 @@ export default function SettingsClient() {
 
       {activeTab === 'security' && (
         <div className="space-y-6 max-w-4xl">
-          <div className="p-6 sm:p-8 rounded-3xl bg-slate-900 border border-white/10 shadow-xl space-y-6">
-            <div className="border-b border-white/10 pb-4">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Shield className="w-5 h-5 text-teal-400" /> Admin Security Credentials
+          <div className="p-6 sm:p-8 rounded-[24px] bg-white border border-[#E4E7D3] shadow-sm space-y-6">
+            <div className="border-b border-[#F4F6F0] pb-4">
+              <h2 className="text-lg font-bold text-[#2C3325] flex items-center gap-2">
+                <Shield className="w-5 h-5 text-[#4A5D23]" /> Admin Security Credentials
               </h2>
-              <p className="text-xs text-amber-300 flex items-center gap-1.5 mt-1 font-semibold">
+              <p className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 flex items-center gap-1.5 mt-2 font-semibold">
                 <Lock className="w-3.5 h-3.5" /> Re-authentication with current password is required before saving password changes.
               </p>
             </div>
 
             <form onSubmit={handlePasswordChange} className="space-y-4 text-xs max-w-md">
               <div>
-                <label className="block text-slate-300 font-semibold mb-1.5">Current Admin Password (Re-Auth Required)</label>
+                <label className="block text-[#2C3325] font-semibold mb-1.5">Current Admin Password (Re-Auth Required)</label>
                 <div className="relative">
                   <input
                     type={showCurrentPw ? 'text' : 'password'}
@@ -574,12 +594,12 @@ export default function SettingsClient() {
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     placeholder="Enter current admin password"
-                    className="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-400 font-mono"
+                    className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] placeholder-[#8A9380] focus:outline-none focus:border-[#4A5D23] font-mono"
                   />
                   <button
                     type="button"
                     onClick={() => setShowCurrentPw(!showCurrentPw)}
-                    className="absolute right-3 top-3 text-slate-400 hover:text-white"
+                    className="absolute right-3 top-3 text-[#8A9380] hover:text-[#2C3325]"
                   >
                     {showCurrentPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -587,7 +607,7 @@ export default function SettingsClient() {
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1.5">New Security Password</label>
+                <label className="block text-[#2C3325] font-semibold mb-1.5">New Security Password</label>
                 <div className="relative">
                   <input
                     type={showNewPw ? 'text' : 'password'}
@@ -595,12 +615,12 @@ export default function SettingsClient() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="At least 6 characters"
-                    className="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-400 font-mono"
+                    className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] placeholder-[#8A9380] focus:outline-none focus:border-[#4A5D23] font-mono"
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPw(!showNewPw)}
-                    className="absolute right-3 top-3 text-slate-400 hover:text-white"
+                    className="absolute right-3 top-3 text-[#8A9380] hover:text-[#2C3325]"
                   >
                     {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -608,23 +628,23 @@ export default function SettingsClient() {
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1.5">Confirm New Password</label>
+                <label className="block text-[#2C3325] font-semibold mb-1.5">Confirm New Password</label>
                 <input
                   type="password"
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Repeat new password"
-                  className="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-400 font-mono"
+                  className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] placeholder-[#8A9380] focus:outline-none focus:border-[#4A5D23] font-mono"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={changingPassword}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 shadow-lg shadow-teal-500/20"
+                className="w-full py-3 rounded-xl bg-[#4A5D23] hover:bg-[#3D4D1D] text-white font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-50 shadow-md cursor-pointer transition-colors"
               >
-                {changingPassword ? <Loader2 className="w-4 h-4 animate-spin text-slate-950" /> : <Key className="w-4 h-4" />}
+                {changingPassword ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Key className="w-4 h-4" />}
                 Re-Authenticate & Update Password
               </button>
             </form>
@@ -634,30 +654,32 @@ export default function SettingsClient() {
 
       {activeTab === 'branches' && (
         <div className="space-y-6 max-w-4xl">
-          <div className="p-6 sm:p-8 rounded-3xl bg-slate-900 border border-white/10 shadow-xl space-y-6">
-            <div className="border-b border-white/10 pb-4">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-teal-400" /> Branch Operational Hours & Camera Setup
+          <div className="p-6 sm:p-8 rounded-[24px] bg-white border border-[#E4E7D3] shadow-sm space-y-6">
+            <div className="border-b border-[#F4F6F0] pb-4">
+              <h2 className="text-lg font-bold text-[#2C3325] flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-[#4A5D23]" /> Branch Operational Hours & Camera Setup
               </h2>
-              <p className="text-xs text-slate-400">Configure clinic branch working hours, camera passcodes, and capture modes</p>
+              <p className="text-xs text-[#8A9380]">Configure clinic branch working hours, camera passcodes, and capture modes</p>
             </div>
 
             {loadingBranches ? (
-              <div className="text-center py-10 text-xs text-slate-400">Loading branch configurations...</div>
+              <div className="text-center py-10 text-xs text-[#8A9380]">Loading branch configurations...</div>
             ) : (
               <div className="space-y-4">
                 {branches.map((b) => (
-                  <div key={b.id} className="p-5 rounded-2xl bg-slate-950 border border-white/10 space-y-4">
+                  <div key={b.id} className="p-5 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] space-y-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-5 h-5 text-teal-400" />
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-white text-[#4A5D23] border border-[#E4E7D3]">
+                          <Building2 className="w-5 h-5" />
+                        </div>
                         <div>
-                          <h3 className="font-bold text-white text-sm">{b.name}</h3>
-                          <span className="text-[11px] text-slate-400 font-mono">Slug: {b.slug}</span>
+                          <h3 className="font-bold text-[#2C3325] text-sm">{b.name}</h3>
+                          <span className="text-[11px] text-[#8A9380] font-mono">Slug: {b.slug}</span>
                         </div>
                       </div>
 
-                      <span className="px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 text-xs font-semibold">
+                      <span className="px-3 py-1 rounded-full bg-[#E4E7D3] text-[#4A5D23] text-xs font-bold border border-[#4A5D23]/20">
                         Hours: {b.operating_hours || '10:00 AM - 08:00 PM'}
                       </span>
                     </div>
@@ -671,27 +693,27 @@ export default function SettingsClient() {
 
       {activeTab === 'treatments' && (
         <div className="space-y-6 max-w-4xl">
-          <div className="p-6 sm:p-8 rounded-3xl bg-slate-900 border border-white/10 shadow-xl space-y-6">
-            <div className="border-b border-white/10 pb-4">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Stethoscope className="w-5 h-5 text-teal-400" /> Treatments & Standard Pricing Catalog
+          <div className="p-6 sm:p-8 rounded-[24px] bg-white border border-[#E4E7D3] shadow-sm space-y-6">
+            <div className="border-b border-[#F4F6F0] pb-4">
+              <h2 className="text-lg font-bold text-[#2C3325] flex items-center gap-2">
+                <Stethoscope className="w-5 h-5 text-[#4A5D23]" /> Treatments & Standard Pricing Catalog
               </h2>
-              <p className="text-xs text-slate-400">Configure clinic dental procedures, consultation fees, and cost margins</p>
+              <p className="text-xs text-[#8A9380]">Configure clinic dental procedures, consultation fees, and cost margins</p>
             </div>
 
             {loadingTreatments ? (
-              <div className="text-center py-10 text-xs text-slate-400">Loading treatment catalog...</div>
+              <div className="text-center py-10 text-xs text-[#8A9380]">Loading treatment catalog...</div>
             ) : (
               <div className="space-y-3">
                 {treatments.map((t) => (
-                  <div key={t.id} className="p-4 rounded-2xl bg-slate-950 border border-white/10 flex items-center justify-between text-xs">
+                  <div key={t.id} className="p-4 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] flex items-center justify-between text-xs">
                     <div>
-                      <h3 className="font-bold text-white">{t.name}</h3>
-                      <span className="text-slate-400 text-[11px]">Base Cost: ₹{t.cost_price || 0}</span>
+                      <h3 className="font-bold text-[#2C3325]">{t.name}</h3>
+                      <span className="text-[#8A9380] text-[11px]">Base Cost: ₹{t.cost_price || 0}</span>
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <span className="font-bold text-teal-400 text-sm">₹{t.price || 0}</span>
+                      <span className="font-bold text-[#4A5D23] text-sm bg-white px-3 py-1 rounded-xl border border-[#E4E7D3]">₹{t.price || 0}</span>
                     </div>
                   </div>
                 ))}
@@ -703,28 +725,28 @@ export default function SettingsClient() {
 
       {activeTab === 'medicines' && (
         <div className="space-y-6 max-w-4xl">
-          <div className="p-6 sm:p-8 rounded-3xl bg-slate-900 border border-white/10 shadow-xl space-y-6">
-            <div className="border-b border-white/10 pb-4">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Pill className="w-5 h-5 text-teal-400" /> Medicine Stock & Barcode Inventory
+          <div className="p-6 sm:p-8 rounded-[24px] bg-white border border-[#E4E7D3] shadow-sm space-y-6">
+            <div className="border-b border-[#F4F6F0] pb-4">
+              <h2 className="text-lg font-bold text-[#2C3325] flex items-center gap-2">
+                <Pill className="w-5 h-5 text-[#4A5D23]" /> Medicine Stock & Barcode Inventory
               </h2>
-              <p className="text-xs text-slate-400">Manage pharmaceutical inventory, barcode scanning, and patch pricing</p>
+              <p className="text-xs text-[#8A9380]">Manage pharmaceutical inventory, barcode scanning, and patch pricing</p>
             </div>
 
             {loadingMeds ? (
-              <div className="text-center py-10 text-xs text-slate-400">Loading medicines inventory...</div>
+              <div className="text-center py-10 text-xs text-[#8A9380]">Loading medicines inventory...</div>
             ) : (
               <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
                 {medicines.map((m) => (
-                  <div key={m.id} className="p-4 rounded-2xl bg-slate-950 border border-white/10 flex items-center justify-between text-xs">
+                  <div key={m.id} className="p-4 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] flex items-center justify-between text-xs">
                     <div>
-                      <h3 className="font-bold text-white">{m.name}</h3>
-                      <span className="text-slate-400 text-[11px]">Generic: {m.generic_name || 'N/A'} • Barcode: {m.barcode || 'N/A'}</span>
+                      <h3 className="font-bold text-[#2C3325]">{m.name}</h3>
+                      <span className="text-[#8A9380] text-[11px]">Generic: {m.generic_name || 'N/A'} • Barcode: {m.barcode || 'N/A'}</span>
                     </div>
 
                     <div className="text-right">
-                      <span className="font-bold text-teal-400 text-xs block">Stock: {m.stock || 0} Units</span>
-                      <span className="text-[10px] text-slate-400">₹{m.unitPrice || 0} / Patch</span>
+                      <span className="font-bold text-[#4A5D23] text-xs block">Stock: {m.stock || 0} Units</span>
+                      <span className="text-[10px] text-[#8A9380]">₹{m.unitPrice || 0} / Patch</span>
                     </div>
                   </div>
                 ))}
@@ -736,28 +758,81 @@ export default function SettingsClient() {
 
       {activeTab === 'notifications' && (
         <div className="space-y-6 max-w-4xl">
-          <div className="p-6 sm:p-8 rounded-3xl bg-slate-900 border border-white/10 shadow-xl space-y-6">
-            <div className="border-b border-white/10 pb-4">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Bell className="w-5 h-5 text-teal-400" /> Notification Preferences & WhatsApp Gateway
-              </h2>
-              <p className="text-xs text-slate-400">Controls for automated SMS, WhatsApp broadcasts, and appointment reminder triggers</p>
+          {/* Main Card Container */}
+          <div className="p-6 sm:p-8 rounded-[24px] bg-white dark:bg-[#121c19] border border-[#E4E7D3] dark:border-teal-900/40 shadow-sm space-y-6">
+            
+            {/* Header */}
+            <div className="border-b border-[#F4F6F0] dark:border-teal-900/30 pb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-[#2C3325] dark:text-slate-100 flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-[#4A5D23] dark:text-emerald-400" /> Granular Channel Notification Matrix & WAHA Gateway
+                </h2>
+                <p className="text-xs text-[#8A9380] dark:text-slate-400 mt-1">
+                  Customize exactly which alerts are dispatched via Email and WhatsApp for patients and doctors.
+                </p>
+              </div>
             </div>
 
-            <div className="space-y-4 text-xs">
-              <div className="p-4 rounded-2xl bg-slate-950 border border-white/10 space-y-3">
-                <h3 className="font-bold text-white">WhatsApp & Email Dispatch Policy</h3>
-                <div className="flex items-center gap-4 pt-2">
-                  <label className="flex items-center gap-2 cursor-pointer text-slate-300">
-                    <input type="checkbox" defaultChecked className="accent-teal-400 w-4 h-4 rounded" />
-                    <span>Email Dispatch Alerts</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-slate-300">
-                    <input type="checkbox" defaultChecked className="accent-teal-400 w-4 h-4 rounded" />
-                    <span>WhatsApp Gateway</span>
-                  </label>
+            {/* Anti-Ban Protection Alert Box */}
+            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 flex items-start gap-3">
+              <Shield className="w-5 h-5 text-emerald-700 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-emerald-900 dark:text-emerald-300">Anti-Ban Protection Engine Active</h4>
+                  <span className="text-[10px] bg-emerald-200 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 px-2 py-0.5 rounded font-mono font-bold">2.5s - 5.0s Jitter Delay</span>
                 </div>
+                <p className="text-[11px] text-emerald-700 dark:text-emerald-400/90 mt-0.5 leading-normal">
+                  Bulk WhatsApp transmissions (morning doctor digests, 24h appointment alerts, and birthday wishes) automatically inject a <strong>randomized delay of 2.5 to 5.0 seconds</strong> between messages to emulate human behavior and prevent Meta account bans.
+                </p>
               </div>
+            </div>
+
+            {/* Notification Matrix List */}
+            <div className="space-y-3">
+              {Object.entries(notificationConfig).map(([key, config]) => (
+                <div 
+                  key={key} 
+                  className="p-4 rounded-2xl bg-[#F4F6F0] dark:bg-[#182622] border border-[#E4E7D3] dark:border-teal-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all"
+                >
+                  <div className="space-y-0.5">
+                    <h3 className="font-bold text-[#2C3325] dark:text-slate-100 text-xs flex items-center gap-2">
+                      <span>{config.title}</span>
+                    </h3>
+                    <p className="text-[11px] text-[#8A9380] dark:text-slate-400">{config.desc}</p>
+                  </div>
+
+                  {/* Channel Switch Badges */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    {/* Email Toggle */}
+                    <button
+                      type="button"
+                      onClick={() => toggleChannel(key as any, 'email')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                        config.email
+                          ? 'bg-blue-500 text-white border-blue-600 shadow-sm'
+                          : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700'
+                      }`}
+                    >
+                      <span>✉️ Email</span>
+                      <span className="text-[10px] uppercase font-mono">{config.email ? 'ON' : 'OFF'}</span>
+                    </button>
+
+                    {/* WhatsApp Toggle */}
+                    <button
+                      type="button"
+                      onClick={() => toggleChannel(key as any, 'whatsapp')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                        config.whatsapp
+                          ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
+                          : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700'
+                      }`}
+                    >
+                      <span>💬 WhatsApp</span>
+                      <span className="text-[10px] uppercase font-mono">{config.whatsapp ? 'ON' : 'OFF'}</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -957,18 +1032,18 @@ export default function SettingsClient() {
 
       {activeTab === 'billing' && (
         <div className="space-y-6 max-w-4xl">
-          <div className="p-6 sm:p-8 rounded-3xl bg-slate-900 border border-white/10 shadow-xl space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div className="p-6 sm:p-8 rounded-[24px] bg-white border border-[#E4E7D3] shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#F4F6F0] pb-4">
               <div>
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-teal-400" /> Subscription Plan & Invoicing
+                <h2 className="text-lg font-bold text-[#2C3325] flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-[#4A5D23]" /> Subscription Plan & Invoicing
                 </h2>
-                <p className="text-xs text-slate-400">Manage clinic plan tier, payment methods, and billing contact</p>
+                <p className="text-xs text-[#8A9380]">Manage clinic plan tier, payment methods, and billing contact</p>
               </div>
 
               <Link
                 href="/admin/billing"
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-slate-950 text-xs font-bold flex items-center gap-1.5 hover:opacity-90 transition-opacity"
+                className="px-4 py-2.5 rounded-xl bg-[#4A5D23] hover:bg-[#3D4D1D] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
               >
                 <span>Full Billing Center</span>
                 <ExternalLink className="w-4 h-4" />
@@ -976,15 +1051,15 @@ export default function SettingsClient() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-5 rounded-2xl bg-slate-950 border border-teal-500/30 space-y-3">
-                <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">Active License</span>
-                <h3 className="text-xl font-bold text-white">Pro Dental Enterprise</h3>
-                <p className="text-xs text-teal-400 font-medium">₹0.00 / Lifetime Free License</p>
+              <div className="p-5 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] space-y-3">
+                <span className="px-3 py-1 rounded-full bg-[#E4E7D3] text-[#4A5D23] text-[10px] font-bold border border-[#4A5D23]/20">Active License</span>
+                <h3 className="text-xl font-bold text-[#2C3325]">Pro Dental Enterprise</h3>
+                <p className="text-xs text-[#4A5D23] font-bold">₹0.00 / Lifetime Free License</p>
               </div>
 
-              <div className="p-5 rounded-2xl bg-slate-950 border border-white/10 space-y-3">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Billing Contact</span>
-                <p className="text-sm font-bold text-white">admin@dentalclinic.in</p>
+              <div className="p-5 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] space-y-3">
+                <span className="text-xs font-bold text-[#8A9380] uppercase tracking-wider block">Billing Contact</span>
+                <p className="text-sm font-bold text-[#2C3325]">admin@dentalclinic.in</p>
               </div>
             </div>
           </div>
@@ -993,21 +1068,21 @@ export default function SettingsClient() {
 
       {activeTab === 'preferences' && (
         <div className="space-y-6 max-w-4xl">
-          <div className="p-6 sm:p-8 rounded-3xl bg-slate-900 border border-white/10 shadow-xl space-y-6">
-            <div className="border-b border-white/10 pb-4">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Globe className="w-5 h-5 text-teal-400" /> Regional & System Preferences
+          <div className="p-6 sm:p-8 rounded-[24px] bg-white border border-[#E4E7D3] shadow-sm space-y-6">
+            <div className="border-b border-[#F4F6F0] pb-4">
+              <h2 className="text-lg font-bold text-[#2C3325] flex items-center gap-2">
+                <Globe className="w-5 h-5 text-[#4A5D23]" /> Regional & System Preferences
               </h2>
-              <p className="text-xs text-slate-400">Configure clinic language, timezone, date display format, and UI theme</p>
+              <p className="text-xs text-[#8A9380]">Configure clinic language, timezone, date display format, and UI theme</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
               <div>
-                <label className="block text-slate-300 font-semibold mb-1.5">Language</label>
+                <label className="block text-[#2C3325] font-semibold mb-1.5">Language</label>
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-teal-400"
+                  className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] focus:outline-none focus:border-[#4A5D23]"
                 >
                   <option value="en">English (EN)</option>
                   <option value="hi">Hindi (हिंदी)</option>
@@ -1022,11 +1097,11 @@ export default function SettingsClient() {
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1.5">Timezone</label>
+                <label className="block text-[#2C3325] font-semibold mb-1.5">Timezone</label>
                 <select
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
-                  className="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-teal-400"
+                  className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] focus:outline-none focus:border-[#4A5D23]"
                 >
                   <option value="Asia/Kolkata">Asia/Kolkata (IST - UTC+05:30)</option>
                   <option value="UTC">UTC (Coordinated Universal Time)</option>
@@ -1034,11 +1109,11 @@ export default function SettingsClient() {
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1.5">Date Display Format</label>
+                <label className="block text-[#2C3325] font-semibold mb-1.5">Date Display Format</label>
                 <select
                   value={dateFormat}
                   onChange={(e) => setDateFormat(e.target.value)}
-                  className="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-teal-400 font-mono"
+                  className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] focus:outline-none focus:border-[#4A5D23] font-mono"
                 >
                   <option value="DD/MM/YYYY">DD/MM/YYYY (e.g. 06/09/2026)</option>
                   <option value="MM/DD/YYYY">MM/DD/YYYY (e.g. 09/06/2026)</option>
@@ -1052,25 +1127,25 @@ export default function SettingsClient() {
 
       {activeTab === 'danger' && (
         <div className="space-y-6 max-w-4xl">
-          <div className="p-6 sm:p-8 rounded-3xl bg-rose-950/30 border border-rose-500/40 shadow-2xl space-y-6">
-            <div className="border-b border-rose-500/30 pb-4">
-              <h2 className="text-lg font-bold text-rose-300 flex items-center gap-2">
-                <AlertTriangle className="w-6 h-6 text-rose-400" /> Danger Zone (Destructive Actions)
+          <div className="p-6 sm:p-8 rounded-[24px] bg-rose-50/50 border border-rose-200 shadow-sm space-y-6">
+            <div className="border-b border-rose-200 pb-4">
+              <h2 className="text-lg font-bold text-rose-800 flex items-center gap-2">
+                <AlertTriangle className="w-6 h-6 text-rose-600" /> Danger Zone (Destructive Actions)
               </h2>
             </div>
 
             <div className="space-y-4 text-xs">
-              <div className="p-5 rounded-2xl bg-slate-950 border border-rose-500/30 flex items-center justify-between">
+              <div className="p-5 rounded-2xl bg-white border border-rose-200 flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-white text-xs">Reset All Clinic Settings to Default</h3>
-                  <p className="text-[11px] text-slate-400 mt-1">Restores notification rules and language preferences.</p>
+                  <h3 className="font-bold text-[#2C3325] text-xs">Reset All Clinic Settings to Default</h3>
+                  <p className="text-[11px] text-[#8A9380] mt-1">Restores notification rules and language preferences.</p>
                 </div>
                 <button
                   onClick={() => {
                     setDangerActionType('reset');
                     setShowDangerModal(true);
                   }}
-                  className="px-4 py-2.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold hover:bg-rose-500/30"
+                  className="px-4 py-2.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 font-bold hover:bg-rose-100 transition-colors"
                 >
                   Reset Preferences
                 </button>
@@ -1083,16 +1158,16 @@ export default function SettingsClient() {
       {/* Confirmation Step Modal */}
       <AnimatePresence>
         {showDangerModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-md bg-slate-900 border border-rose-500/50 rounded-3xl p-6 text-slate-100 shadow-2xl space-y-5"
+              className="relative w-full max-w-md bg-white border border-rose-200 rounded-3xl p-6 text-[#2C3325] shadow-2xl space-y-5"
             >
-              <div className="flex items-center gap-3 border-b border-rose-500/30 pb-3">
-                <AlertTriangle className="w-6 h-6 text-rose-400" />
-                <h3 className="text-base font-bold text-white">Confirm Destructive Action</h3>
+              <div className="flex items-center gap-3 border-b border-rose-100 pb-3">
+                <AlertTriangle className="w-6 h-6 text-rose-600" />
+                <h3 className="text-base font-bold text-[#2C3325]">Confirm Destructive Action</h3>
               </div>
 
               <input
@@ -1100,14 +1175,14 @@ export default function SettingsClient() {
                 value={confirmInput}
                 onChange={(e) => setConfirmInput(e.target.value)}
                 placeholder="Type RESET"
-                className="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-rose-400 font-mono"
+                className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] focus:outline-none focus:border-rose-500 font-mono"
               />
 
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowDangerModal(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-semibold text-xs"
+                  className="px-4 py-2.5 rounded-xl bg-[#F4F6F0] text-[#2C3325] border border-[#E4E7D3] font-semibold text-xs hover:bg-[#E4E7D3]"
                 >
                   Cancel
                 </button>
@@ -1116,7 +1191,7 @@ export default function SettingsClient() {
                   type="button"
                   onClick={handleExecuteDangerAction}
                   disabled={processingDanger}
-                  className="px-5 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-xs"
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-xs hover:bg-rose-700 shadow-md"
                 >
                   Confirm Execution
                 </button>

@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   CircleDollarSign, TrendingUp, CheckCircle, AlertCircle, Calendar, Plus, Trash2, 
-  User2, PlusCircle, HelpCircle, Save, Info, RefreshCw, Layers, Zap, Clock, X, Loader2, Edit
+  User2, PlusCircle, HelpCircle, Save, Info, RefreshCw, Layers, Zap, Clock, X, Loader2, Edit,
+  ChevronLeft, ChevronRight, Sparkles, CheckCircle2, XCircle, UserCheck
 } from 'lucide-react'
 import { 
   updateAppointmentFinances, 
@@ -276,6 +277,159 @@ export default function FinancesClient({
     
     setPendingAttendance(initial)
   }, [attendanceDate, helperAttendance, doctorAttendance, selectedBranch])
+
+  // Big Interactive Calendar Attendance State
+  const [selectedStaffType, setSelectedStaffType] = useState<'helper' | 'doctor'>('helper')
+  const [selectedStaffId, setSelectedStaffId] = useState<string>('')
+  const [calMonth, setCalMonth] = useState<number>(() => new Date().getMonth()) // 0 - 11
+  const [calYear, setCalYear] = useState<number>(() => new Date().getFullYear()) // e.g. 2026
+
+  // Mass Auto-Present / Absent Picker Modal
+  const [showMassFillModal, setShowMassFillModal] = useState(false)
+  const [massAbsentDaysText, setMassAbsentDaysText] = useState('')
+  const [massHalfDaysText, setMassHalfDaysText] = useState('')
+  const [isProcessingMassFill, setIsProcessingMassFill] = useState(false)
+
+  // Auto-select first person if none selected
+  useEffect(() => {
+    if (!selectedStaffId) {
+      if (selectedStaffType === 'helper') {
+        const helpers = getBranchFilteredHelpers()
+        if (helpers.length > 0) setSelectedStaffId(helpers[0].id)
+      } else {
+        const docs = getBranchFilteredDoctors()
+        if (docs.length > 0) setSelectedStaffId(docs[0].id)
+      }
+    }
+  }, [selectedStaffType, helperBoysList, doctors, selectedBranch])
+
+  // Interactive Day Click Handler for Big Calendar
+  const handleCalendarDayClick = async (dateStr: string, staffType: 'helper' | 'doctor', staffId: string, shift = 1) => {
+    if (!staffId) return
+
+    let currentStatus: 'present' | 'absent' | 'half_day' | 'unmarked' = 'unmarked'
+
+    if (staffType === 'helper') {
+      const rec = helperAttendance.find(a => a.helper_boy_id === staffId && a.date === dateStr && a.shift === shift)
+      if (rec) currentStatus = rec.status as any
+    } else {
+      const rec = doctorAttendance.find(a => a.doctor_id === staffId && a.date === dateStr)
+      if (rec) currentStatus = rec.status as any
+    }
+
+    // Cycle order: unmarked -> present (1st click) -> half_day (2nd click) -> absent (3rd click) -> unmarked
+    let nextStatus: 'present' | 'absent' | 'half_day' | 'unmarked' = 'present'
+    if (currentStatus === 'unmarked') nextStatus = 'present'
+    else if (currentStatus === 'present') nextStatus = 'half_day'
+    else if (currentStatus === 'half_day') nextStatus = 'absent'
+    else nextStatus = 'unmarked'
+
+    if (staffType === 'helper') {
+      setHelperAttendance(prev => {
+        const filtered = prev.filter(a => !(a.helper_boy_id === staffId && a.date === dateStr && a.shift === shift))
+        if (nextStatus !== 'unmarked') {
+          filtered.push({ helper_boy_id: staffId, date: dateStr, shift, status: nextStatus })
+        }
+        return filtered
+      })
+      if (nextStatus !== 'unmarked') {
+        await updateHelperAttendance(staffId, dateStr, shift, nextStatus)
+      }
+    } else {
+      setDoctorAttendance(prev => {
+        const filtered = prev.filter(a => !(a.doctor_id === staffId && a.date === dateStr))
+        if (nextStatus !== 'unmarked') {
+          filtered.push({ doctor_id: staffId, date: dateStr, status: nextStatus })
+        }
+        return filtered
+      })
+      if (nextStatus !== 'unmarked') {
+        await updateDoctorAttendance(staffId, dateStr, nextStatus)
+      }
+    }
+  }
+
+  // Mass Auto-Present & Fill Unmarked Days Handler
+  const handleMassAutoPresentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedStaffId) {
+      alert('Please select a staff member from the drop box first!')
+      return
+    }
+
+    setIsProcessingMassFill(true)
+    try {
+      const absentDays = massAbsentDaysText
+        .split(',')
+        .map(s => parseInt(s.trim(), 10))
+        .filter(n => !isNaN(n) && n >= 1 && n <= 31)
+
+      const halfDays = massHalfDaysText
+        .split(',')
+        .map(s => parseInt(s.trim(), 10))
+        .filter(n => !isNaN(n) && n >= 1 && n <= 31)
+
+      const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate()
+      const today = new Date()
+
+      let updatedCount = 0
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateObj = new Date(calYear, calMonth, day)
+        if (dateObj > today) continue
+
+        const monthStr = String(calMonth + 1).padStart(2, '0')
+        const dayStr = String(day).padStart(2, '0')
+        const dateStr = `${calYear}-${monthStr}-${dayStr}`
+
+        let targetStatus: 'present' | 'absent' | 'half_day' = 'present'
+        if (absentDays.includes(day)) targetStatus = 'absent'
+        else if (halfDays.includes(day)) targetStatus = 'half_day'
+
+        if (selectedStaffType === 'helper') {
+          const helper = helperBoysList.find(h => h.id === selectedStaffId)
+          if (helper) {
+            if (helper.shift_1_enabled) {
+              await updateHelperAttendance(selectedStaffId, dateStr, 1, targetStatus)
+              setHelperAttendance(prev => {
+                const filtered = prev.filter(a => !(a.helper_boy_id === selectedStaffId && a.date === dateStr && a.shift === 1))
+                filtered.push({ helper_boy_id: selectedStaffId, date: dateStr, shift: 1, status: targetStatus })
+                return filtered
+              })
+              updatedCount++
+            }
+            if (helper.shift_2_enabled) {
+              await updateHelperAttendance(selectedStaffId, dateStr, 2, targetStatus)
+              setHelperAttendance(prev => {
+                const filtered = prev.filter(a => !(a.helper_boy_id === selectedStaffId && a.date === dateStr && a.shift === 2))
+                filtered.push({ helper_boy_id: selectedStaffId, date: dateStr, shift: 2, status: targetStatus })
+                return filtered
+              })
+              updatedCount++
+            }
+          }
+        } else if (selectedStaffType === 'doctor') {
+          await updateDoctorAttendance(selectedStaffId, dateStr, targetStatus)
+          setDoctorAttendance(prev => {
+            const filtered = prev.filter(a => !(a.doctor_id === selectedStaffId && a.date === dateStr))
+            filtered.push({ doctor_id: selectedStaffId, date: dateStr, status: targetStatus })
+            return filtered
+          })
+          updatedCount++
+        }
+      }
+
+      alert(`Successfully filled attendance for ${updatedCount} records! Marked specified absent/half-day dates and auto-filled remaining days as PRESENT.`)
+      setShowMassFillModal(false)
+      setMassAbsentDaysText('')
+      setMassHalfDaysText('')
+    } catch (err: any) {
+      console.error(err)
+      alert(err.message || 'An error occurred during mass attendance generation.')
+    } finally {
+      setIsProcessingMassFill(false)
+    }
+  }
 
   // Inputs for saving closing charges
   const [tempCharges, setTempCharges] = useState<{ [apptId: string]: { charged: string; cost: string } }>({})
@@ -1591,397 +1745,441 @@ export default function FinancesClient({
             <div>
               <h3 className="text-base font-serif font-semibold text-slate-900 flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-cyan-600" />
-                Staff Monthly Attendance Matrix & Daily Logger
+                Staff Monthly Attendance Matrix & Interactive Logger
               </h3>
               <p className="text-xs text-slate-500 mt-1">
                 Select a date below to log/edit daily attendance. View monthly matrix grids at the bottom.
               </p>
             </div>
             
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-600">Selected Log Date:</span>
-              <input
-                type="date"
-                value={attendanceDate}
-                onChange={e => setAttendanceDate(e.target.value)}
-                className="px-3.5 py-2 border border-slate-200 rounded-2xl text-xs bg-white shadow-sm font-semibold text-slate-800 focus:outline-none focus:border-cyan-500"
-              />
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Absent / Half Day Today & Auto-Fill Rest PRESENT Button */}
+              <button
+                type="button"
+                onClick={() => setShowMassFillModal(true)}
+                className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold text-xs shadow-md shadow-cyan-500/20 hover:shadow-cyan-500/30 flex items-center gap-2 transition-all active:scale-95"
+              >
+                <Zap className="w-4 h-4 text-amber-300 animate-pulse" />
+                Absent/Half Day & Auto-Fill PRESENT
+              </button>
             </div>
           </div>
 
-          {/* ══ CLAYMORPHISM DAILY QUICK LOGGER GRID ══ */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-            {/* ── Helper Boys Logger ── */}
-            <div className="clay p-5 rounded-2xl border border-slate-100 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <User2 className="w-4 h-4 text-cyan-600" />
-                  Helper Boys Daily Quick Logger ({attendanceDate})
-                </h4>
-              </div>
-
-              <div className="divide-y divide-slate-100">
-                {getBranchFilteredHelpers().length === 0 ? (
-                  <p className="py-4 text-xs text-slate-400 text-center font-light">No helper boys assigned to this branch.</p>
-                ) : (
-                  getBranchFilteredHelpers().map(helper => {
-                    const key1 = `helper-${helper.id}-1`
-                    const key2 = `helper-${helper.id}-2`
-                    const status1 = pendingAttendance[key1]
-                    const status2 = pendingAttendance[key2]
-
-                    return (
-                      <div key={helper.id} className="py-4 space-y-3">
-                        <div className="flex justify-between items-center">
-                          <p className="text-xs font-bold text-slate-900">{helper.name}</p>
-                          <span className="text-[9px] text-slate-400 font-medium uppercase tracking-wider">
-                            {helper.sunday_enabled ? 'Works Sundays' : 'Mon-Sat Only'}
-                          </span>
-                        </div>
-
-                        {/* Shift 1 & 2 Options */}
-                        <div className="space-y-2 pl-2 border-l-2 border-cyan-500/20">
-                          {helper.shift_1_enabled && (
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                              <span className="text-[10px] font-semibold text-slate-500">Shift 1 (Morning)</span>
-                              <div className="flex gap-1.5">
-                                {['present', 'absent', 'half_day'].map(opt => {
-                                  const isSel = status1 === opt
-                                  let btnClass = 'px-3 py-1 text-[9px] font-bold rounded-lg border transition-all '
-                                  if (isSel) {
-                                    btnClass += opt === 'present' ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm shadow-emerald-500/20'
-                                              : opt === 'absent' ? 'bg-rose-500 text-white border-rose-600 shadow-sm shadow-rose-500/20'
-                                              : 'bg-amber-500 text-white border-amber-600 shadow-sm shadow-amber-500/20'
-                                  } else {
-                                    btnClass += 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                                  }
-                                  return (
-                                    <button
-                                      key={opt}
-                                      onClick={() => handleToggleHelperAttendance(helper.id, 1, opt as any)}
-                                      className={btnClass}
-                                    >
-                                      {opt === 'present' ? 'PRESENT' : opt === 'absent' ? 'ABSENT' : 'HALF DAY'}
-                                    </button>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          )}
-
-                          {helper.shift_2_enabled && (
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
-                              <span className="text-[10px] font-semibold text-slate-500">Shift 2 (Evening)</span>
-                              <div className="flex gap-1.5">
-                                {['present', 'absent', 'half_day'].map(opt => {
-                                  const isSel = status2 === opt
-                                  let btnClass = 'px-3 py-1 text-[9px] font-bold rounded-lg border transition-all '
-                                  if (isSel) {
-                                    btnClass += opt === 'present' ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm shadow-emerald-500/20'
-                                              : opt === 'absent' ? 'bg-rose-500 text-white border-rose-600 shadow-sm shadow-rose-500/20'
-                                              : 'bg-amber-500 text-white border-amber-600 shadow-sm shadow-amber-500/20'
-                                  } else {
-                                    btnClass += 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                                  }
-                                  return (
-                                    <button
-                                      key={opt}
-                                      onClick={() => handleToggleHelperAttendance(helper.id, 2, opt as any)}
-                                      className={btnClass}
-                                    >
-                                      {opt === 'present' ? 'PRESENT' : opt === 'absent' ? 'ABSENT' : 'HALF DAY'}
-                                    </button>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
+          {/* Selector Controls Bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+            {/* Staff Category Selector */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                <User2 className="w-3.5 h-3.5 text-cyan-600" /> Staff Category
+              </label>
+              <div className="flex bg-white dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedStaffType('helper')
+                    const helpers = getBranchFilteredHelpers()
+                    if (helpers.length > 0) setSelectedStaffId(helpers[0].id)
+                  }}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+                    selectedStaffType === 'helper'
+                      ? 'bg-cyan-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                  }`}
+                >
+                  Helper Boys
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedStaffType('doctor')
+                    const docs = getBranchFilteredDoctors()
+                    if (docs.length > 0) setSelectedStaffId(docs[0].id)
+                  }}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+                    selectedStaffType === 'doctor'
+                      ? 'bg-cyan-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                  }`}
+                >
+                  Doctors
+                </button>
               </div>
             </div>
 
-            {/* ── Doctors Logger ── */}
-            <div className="clay p-5 rounded-2xl border border-slate-100 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <User2 className="w-4 h-4 text-emerald-600" />
-                  Doctor Daily Quick Logger ({attendanceDate})
-                </h4>
-              </div>
-
-              <div className="divide-y divide-slate-100">
-                {getBranchFilteredDoctors().length === 0 ? (
-                  <p className="py-4 text-xs text-slate-400 text-center font-light">No doctors assigned to this branch.</p>
-                ) : (
-                  getBranchFilteredDoctors().map(doc => {
-                    const key = `doc-${doc.id}`
-                    const status = pendingAttendance[key]
-
-                    return (
-                      <div key={doc.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-bold text-slate-900">Dr. {doc.name}</p>
-                          <span className="text-[9px] text-slate-400 font-medium uppercase tracking-wider">
-                            {doc.compensation_type === 'percentage' ? `${doc.profit_percentage}% Profit Share` : `INR ${doc.fixed_salary} Salary`}
-                          </span>
-                        </div>
-
-                        <div className="flex gap-1.5">
-                          {['present', 'absent', 'half_day'].map(opt => {
-                            const isSel = status === opt
-                            let btnClass = 'px-3.5 py-1.5 text-[9px] font-bold rounded-lg border transition-all '
-                            if (isSel) {
-                              btnClass += opt === 'present' ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm shadow-emerald-500/20'
-                                        : opt === 'absent' ? 'bg-rose-500 text-white border-rose-600 shadow-sm shadow-rose-500/20'
-                                        : 'bg-amber-500 text-white border-amber-600 shadow-sm shadow-amber-500/20'
-                            } else {
-                              btnClass += 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                            }
-                            return (
-                              <button
-                                key={opt}
-                                onClick={() => handleToggleDoctorAttendance(doc.id, opt as any)}
-                                className={btnClass}
-                              >
-                                {opt === 'present' ? 'PRESENT' : opt === 'absent' ? 'ABSENT' : 'HALF DAY'}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
+            {/* Person Drop Box */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                <User2 className="w-3.5 h-3.5 text-cyan-600" /> Select Person
+              </label>
+              <select
+                value={selectedStaffId}
+                onChange={e => setSelectedStaffId(e.target.value)}
+                className="w-full px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              >
+                <option value="" disabled>-- Select Person --</option>
+                {selectedStaffType === 'helper'
+                  ? getBranchFilteredHelpers().map(h => (
+                      <option key={h.id} value={h.id}>{h.name} {h.sunday_enabled ? '(Works Sundays)' : ''}</option>
+                    ))
+                  : getBranchFilteredDoctors().map(d => (
+                      <option key={d.id} value={d.id}>Dr. {d.name}</option>
+                    ))
+                }
+              </select>
             </div>
 
+            {/* Month Selector Dropdown */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-cyan-600" /> Select Month
+              </label>
+              <select
+                value={calMonth}
+                onChange={e => setCalMonth(parseInt(e.target.value, 10))}
+                className="w-full px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              >
+                {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, idx) => (
+                  <option key={idx} value={idx}>{m}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Year Selector Dropdown */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-cyan-600" /> Select Year
+              </label>
+              <select
+                value={calYear}
+                onChange={e => setCalYear(parseInt(e.target.value, 10))}
+                className="w-full px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              >
+                {[2024, 2025, 2026, 2027, 2028].map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Save Button for selected date */}
-          <div className="flex justify-end pt-4 border-t border-slate-100">
-            <button
-              onClick={handleSaveAllAttendance}
-              disabled={isSavingAttendance}
-              className="px-6 py-3.5 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white rounded-2xl font-bold text-xs shadow-md transition transform hover:scale-102 flex items-center gap-2 disabled:opacity-50"
-            >
-              {isSavingAttendance && <Loader2 className="w-4 h-4 animate-spin" />}
-              Update Daily Attendance for {attendanceDate}
-            </button>
-          </div>
-
-          {/* ═══ FULL MONTHLY ATTENDANCE MATRIX SECTION (7-COLUMN CALENDAR GRID) ═══ */}
-          <div className="space-y-8 border-t border-slate-200/60 pt-6">
-            
-            {/* DOCTOR MONTHLY GRID */}
+          {/* Interactive Big Calendar View */}
+          {selectedStaffId ? (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                  Doctor Monthly Attendance Calendar Grid ({selectedMonth})
-                </h4>
-                <span className="text-[10px] text-slate-400 font-medium">Click any day square to select it for daily logging</span>
+              {/* Legend & Month Summary Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-cyan-500/5 border border-cyan-500/20 p-4 rounded-2xl gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                    {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][calMonth]} {calYear}
+                  </span>
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-cyan-600/10 text-cyan-700 dark:text-cyan-300 font-semibold border border-cyan-500/20">
+                    {selectedStaffType === 'helper'
+                      ? helperBoysList.find(h => h.id === selectedStaffId)?.name
+                      : `Dr. ${getBranchFilteredDoctors().find(d => d.id === selectedStaffId)?.name}`
+                    }
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-4 text-xs font-semibold">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>
+                    <span className="text-slate-700 dark:text-slate-300">1x Present</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50"></span>
+                    <span className="text-slate-700 dark:text-slate-300">2x Half Day</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-rose-500 shadow-sm shadow-rose-500/50"></span>
+                    <span className="text-slate-700 dark:text-slate-300">3x Absent</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {getBranchFilteredDoctors().map(doc => {
-                  const totalDays = new Date(year, month, 0).getDate()
-                  const firstDayOfWeek = new Date(year, month - 1, 1).getDay()
-                  const todayStr = new Date().toISOString().split('T')[0]
-
-                  return (
-                    <div key={doc.id} className="clay border border-slate-200/60 p-5 space-y-3">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="font-bold text-slate-900">Dr. {doc.name}</span>
-                        <div className="flex gap-2">
-                          <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">PRES</span>
-                          <span className="text-[8px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded">ABS</span>
-                          <span className="text-[8px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">HALF</span>
-                        </div>
-                      </div>
-
-                      {/* Weekday titles */}
-                      <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-bold text-slate-400 border-b border-slate-100 pb-1">
-                        <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
-                      </div>
-
-                      {/* Calendar Grid */}
-                      <div className="grid grid-cols-7 gap-1 pt-1">
-                        {Array.from({ length: firstDayOfWeek }).map((_, emptyIdx) => (
-                          <div key={`empty-${emptyIdx}`} className="h-8 bg-slate-50/50 rounded-lg" />
-                        ))}
-                        
-                        {Array.from({ length: totalDays }, (_, i) => {
-                          const dayNum = i + 1
-                          const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
-                          const isFuture = dateStr > todayStr
-                          
-                          const attRecord = doctorAttendance.find(a => a.doctor_id === doc.id && a.date === dateStr)
-                          const status = attRecord?.status
-
-                          let bgClass = 'bg-emerald-500 text-white font-bold hover:bg-emerald-600 shadow-sm'
-                          if (isFuture) bgClass = 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                          else if (status === 'absent') bgClass = 'bg-rose-500 text-white font-bold hover:bg-rose-600 shadow-sm'
-                          else if (status === 'half_day') bgClass = 'bg-amber-500 text-white font-bold hover:bg-amber-600 shadow-sm'
-                          else if (!status) bgClass = 'bg-slate-200 text-slate-500 border border-dashed border-slate-350 font-bold hover:bg-slate-300 shadow-sm'
-
-                          return (
-                            <div
-                              key={dayNum}
-                              onClick={() => {
-                                if (!isFuture) {
-                                  setAttendanceDate(dateStr)
-                                }
-                              }}
-                              title={`${dateStr} - Click to select log date`}
-                              className={`h-8 flex flex-col items-center justify-center rounded-lg text-[9px] transition transform hover:scale-105 cursor-pointer select-none ${bgClass}`}
-                            >
-                              <span className="font-semibold">{dayNum}</span>
-                              <span className="text-[6px] uppercase leading-none opacity-90 font-mono">
-                                {isFuture ? 'WAIT' : status === 'absent' ? 'ABS' : status === 'half_day' ? 'HALF' : status === 'present' ? 'PRES' : 'UNMRK'}
-                              </span>
-                            </div>
-                          )
-                        })}
-                      </div>
+              {/* Big Calendar Grid */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-4 md:p-6 shadow-xl shadow-slate-200/50 dark:shadow-none overflow-x-auto">
+                {/* Day of Week Headers */}
+                <div className="grid grid-cols-7 gap-2 md:gap-4 mb-3 min-w-[600px]">
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => (
+                    <div key={day} className={`text-center text-xs font-bold uppercase tracking-wider py-2 rounded-xl ${
+                      idx === 0 ? 'text-rose-500 bg-rose-500/5' : 'text-slate-500 dark:text-slate-400 bg-slate-100/50 dark:bg-slate-800/50'
+                    }`}>
+                      {day}
                     </div>
-                  )
-                })}
+                  ))}
+                </div>
+
+                {/* Days Grid */}
+                <div className="grid grid-cols-7 gap-2 md:gap-4 min-w-[600px]">
+                  {/* Empty Offset Boxes for First Week */}
+                  {Array.from({ length: new Date(calYear, calMonth, 1).getDay() }).map((_, idx) => (
+                    <div key={`empty-${idx}`} className="h-28 md:h-36 rounded-2xl bg-slate-50/50 dark:bg-slate-900/20 border border-dashed border-slate-200/50 dark:border-slate-800/50 opacity-40"></div>
+                  ))}
+
+                  {/* Day Tiles */}
+                  {Array.from({ length: new Date(calYear, calMonth + 1, 0).getDate() }).map((_, idx) => {
+                    const dayNum = idx + 1
+                    const monthStr = String(calMonth + 1).padStart(2, '0')
+                    const dayStr = String(dayNum).padStart(2, '0')
+                    const dateStr = `${calYear}-${monthStr}-${dayStr}`
+                    const isToday = new Date().toISOString().split('T')[0] === dateStr
+
+                    if (selectedStaffType === 'helper') {
+                      const helper = helperBoysList.find(h => h.id === selectedStaffId)
+                      const rec1 = helperAttendance.find(a => a.helper_boy_id === selectedStaffId && a.date === dateStr && a.shift === 1)
+                      const rec2 = helperAttendance.find(a => a.helper_boy_id === selectedStaffId && a.date === dateStr && a.shift === 2)
+                      const status1 = rec1 ? rec1.status : 'unmarked'
+                      const status2 = rec2 ? rec2.status : 'unmarked'
+
+                      return (
+                        <div
+                          key={dayNum}
+                          className={`h-28 md:h-36 rounded-2xl border p-2.5 md:p-3 flex flex-col justify-between transition-all duration-200 relative group ${
+                            isToday
+                              ? 'border-cyan-500 ring-2 ring-cyan-500/20 bg-cyan-500/5'
+                              : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 hover:border-cyan-500/50 hover:shadow-lg'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className={`text-sm md:text-base font-bold ${isToday ? 'text-cyan-600 dark:text-cyan-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                              {dayNum}
+                            </span>
+                            {isToday && (
+                              <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-cyan-500 text-white">Today</span>
+                            )}
+                          </div>
+
+                          {/* Shifts Buttons for Helper */}
+                          <div className="space-y-1.5 my-auto">
+                            {helper?.shift_1_enabled && (
+                              <button
+                                type="button"
+                                onClick={() => handleCalendarDayClick(dateStr, 'helper', selectedStaffId, 1)}
+                                className={`w-full text-[10px] md:text-xs font-bold py-1 px-1.5 rounded-xl border flex items-center justify-between transition-all active:scale-95 ${
+                                  status1 === 'present'
+                                    ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm shadow-emerald-500/30'
+                                    : status1 === 'half_day'
+                                    ? 'bg-amber-500 text-white border-amber-600 shadow-sm shadow-amber-500/30'
+                                    : status1 === 'absent'
+                                    ? 'bg-rose-500 text-white border-rose-600 shadow-sm shadow-rose-500/30'
+                                    : 'bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600 hover:bg-slate-200'
+                                }`}
+                              >
+                                <span>Shift 1</span>
+                                <span className="uppercase text-[9px]">
+                                  {status1 === 'present' ? 'Present' : status1 === 'half_day' ? 'Half' : status1 === 'absent' ? 'Absent' : 'Click'}
+                                </span>
+                              </button>
+                            )}
+
+                            {helper?.shift_2_enabled && (
+                              <button
+                                type="button"
+                                onClick={() => handleCalendarDayClick(dateStr, 'helper', selectedStaffId, 2)}
+                                className={`w-full text-[10px] md:text-xs font-bold py-1 px-1.5 rounded-xl border flex items-center justify-between transition-all active:scale-95 ${
+                                  status2 === 'present'
+                                    ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm shadow-emerald-500/30'
+                                    : status2 === 'half_day'
+                                    ? 'bg-amber-500 text-white border-amber-600 shadow-sm shadow-amber-500/30'
+                                    : status2 === 'absent'
+                                    ? 'bg-rose-500 text-white border-rose-600 shadow-sm shadow-rose-500/30'
+                                    : 'bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600 hover:bg-slate-200'
+                                }`}
+                              >
+                                <span>Shift 2</span>
+                                <span className="uppercase text-[9px]">
+                                  {status2 === 'present' ? 'Present' : status2 === 'half_day' ? 'Half' : status2 === 'absent' ? 'Absent' : 'Click'}
+                                </span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    } else {
+                      // Doctor
+                      const rec = doctorAttendance.find(a => a.doctor_id === selectedStaffId && a.date === dateStr)
+                      const status = rec ? rec.status : 'unmarked'
+
+                      return (
+                        <div
+                          key={dayNum}
+                          onClick={() => handleCalendarDayClick(dateStr, 'doctor', selectedStaffId)}
+                          className={`h-28 md:h-36 rounded-2xl border p-2.5 md:p-3 flex flex-col justify-between cursor-pointer transition-all duration-200 relative group hover:scale-[1.02] ${
+                            isToday
+                              ? 'ring-2 ring-cyan-500/30 bg-cyan-500/5'
+                              : ''
+                          } ${
+                            status === 'present'
+                              ? 'bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-emerald-500/40 shadow-sm shadow-emerald-500/10'
+                              : status === 'half_day'
+                              ? 'bg-gradient-to-br from-amber-500/10 to-yellow-500/10 border-amber-500/40 shadow-sm shadow-amber-500/10'
+                              : status === 'absent'
+                              ? 'bg-gradient-to-br from-rose-500/10 to-red-500/10 border-rose-500/40 shadow-sm shadow-rose-500/10'
+                              : 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 hover:border-cyan-500/50'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className={`text-sm md:text-base font-bold ${isToday ? 'text-cyan-600 dark:text-cyan-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                              {dayNum}
+                            </span>
+                            {isToday && (
+                              <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-cyan-500 text-white">Today</span>
+                            )}
+                          </div>
+
+                          <div className="my-auto text-center">
+                            {status === 'present' && (
+                              <div className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-500 text-white font-extrabold text-xs shadow-md shadow-emerald-500/30 uppercase tracking-wide">
+                                <CheckCircle className="w-3.5 h-3.5" /> Present
+                              </div>
+                            )}
+                            {status === 'half_day' && (
+                              <div className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-500 text-white font-extrabold text-xs shadow-md shadow-amber-500/30 uppercase tracking-wide">
+                                <Clock className="w-3.5 h-3.5" /> Half Day
+                              </div>
+                            )}
+                            {status === 'absent' && (
+                              <div className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-500 text-white font-extrabold text-xs shadow-md shadow-rose-500/30 uppercase tracking-wide">
+                                <X className="w-3.5 h-3.5" /> Absent
+                              </div>
+                            )}
+                            {status === 'unmarked' && (
+                              <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-400 dark:text-slate-500 text-[11px] font-semibold border border-slate-200 dark:border-slate-700 group-hover:border-cyan-400 group-hover:text-cyan-600">
+                                Click to mark
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="text-[9px] text-slate-400 text-center font-medium">
+                            {status === 'present' ? '🟢 Present' : status === 'half_day' ? '🟡 Half Day' : status === 'absent' ? '🔴 Absent' : '⚪ Unmarked'}
+                          </div>
+                        </div>
+                      )
+                    }
+                  })}
+                </div>
               </div>
             </div>
-
-            {/* HELPER BOYS MONTHLY GRID */}
-            <div className="space-y-4 border-t border-slate-200/60 pt-6">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-500"></span>
-                  Helper Boys Monthly Attendance Calendar Grid ({selectedMonth})
-                </h4>
-              </div>
-
-              <div className="space-y-6">
-                {getBranchFilteredHelpers().map(helper => {
-                  const totalDays = new Date(year, month, 0).getDate()
-                  const firstDayOfWeek = new Date(year, month - 1, 1).getDay()
-                  const todayStr = new Date().toISOString().split('T')[0]
-
-                  return (
-                    <div key={helper.id} className="clay border border-slate-200/60 p-5 space-y-4">
-                      <div className="flex justify-between items-center text-xs border-b border-slate-100 pb-2">
-                        <div>
-                          <span className="font-bold text-slate-900">{helper.name}</span>
-                          <span className="text-[10px] text-slate-400 ml-2 font-light">
-                            Rates: S1=₹{helper.shift_1_rate} | S2=₹{helper.shift_2_rate}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Shift 1 Calendar */}
-                        {helper.shift_1_enabled && (
-                          <div className="space-y-2">
-                            <span className="text-[10px] font-bold text-cyan-600 uppercase tracking-wider block">Shift 1 (Morning)</span>
-                            <div className="grid grid-cols-7 gap-1 text-center text-[8px] font-bold text-slate-400 border-b border-slate-100 pb-1">
-                              <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
-                            </div>
-                            <div className="grid grid-cols-7 gap-1">
-                              {Array.from({ length: firstDayOfWeek }).map((_, emptyIdx) => (
-                                <div key={`empty-s1-${emptyIdx}`} className="h-8 bg-slate-50/50 rounded-lg" />
-                              ))}
-                              {Array.from({ length: totalDays }, (_, i) => {
-                                const dayNum = i + 1
-                                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
-                                const isFuture = dateStr > todayStr
-
-                                const record = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === dateStr && a.shift === 1)
-                                const status = record?.status
-
-                                let bgClass = 'bg-emerald-500 text-white font-bold hover:bg-emerald-600 shadow-sm'
-                                if (isFuture) bgClass = 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                                else if (status === 'absent') bgClass = 'bg-rose-500 text-white font-bold hover:bg-rose-600 shadow-sm'
-                                else if (status === 'half_day') bgClass = 'bg-amber-500 text-white font-bold hover:bg-amber-600 shadow-sm'
-                                else if (!status) bgClass = 'bg-slate-200 text-slate-500 border border-dashed border-slate-350 font-bold hover:bg-slate-300 shadow-sm'
-
-                                return (
-                                  <div
-                                    key={`s1_${dayNum}`}
-                                    onClick={() => {
-                                      if (!isFuture) {
-                                        setAttendanceDate(dateStr)
-                                      }
-                                    }}
-                                    title={`${dateStr} (Shift 1) - Click to select log date`}
-                                    className={`h-8 flex flex-col items-center justify-center rounded-lg text-[9px] transition transform hover:scale-105 cursor-pointer select-none ${bgClass}`}
-                                  >
-                                    <span className="font-semibold">{dayNum}</span>
-                                    <span className="text-[6px] uppercase leading-none opacity-90 font-mono">
-                                      {isFuture ? 'WAIT' : status === 'absent' ? 'ABS' : status === 'half_day' ? 'HALF' : status === 'present' ? 'PRES' : 'UNMRK'}
-                                    </span>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Shift 2 Calendar */}
-                        {helper.shift_2_enabled && (
-                          <div className="space-y-2">
-                            <span className="text-[10px] font-bold text-teal-600 uppercase tracking-wider block">Shift 2 (Evening)</span>
-                            <div className="grid grid-cols-7 gap-1 text-center text-[8px] font-bold text-slate-400 border-b border-slate-100 pb-1">
-                              <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
-                            </div>
-                            <div className="grid grid-cols-7 gap-1">
-                              {Array.from({ length: firstDayOfWeek }).map((_, emptyIdx) => (
-                                <div key={`empty-s2-${emptyIdx}`} className="h-8 bg-slate-50/50 rounded-lg" />
-                              ))}
-                              {Array.from({ length: totalDays }, (_, i) => {
-                                const dayNum = i + 1
-                                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
-                                const isFuture = dateStr > todayStr
-
-                                const record = helperAttendance.find(a => a.helper_boy_id === helper.id && a.date === dateStr && a.shift === 2)
-                                const status = record?.status
-
-                                let bgClass = 'bg-teal-600 text-white font-bold hover:bg-teal-700 shadow-sm'
-                                if (isFuture) bgClass = 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                                else if (status === 'absent') bgClass = 'bg-rose-500 text-white font-bold hover:bg-rose-600 shadow-sm'
-                                else if (status === 'half_day') bgClass = 'bg-amber-500 text-white font-bold hover:bg-amber-600 shadow-sm'
-                                else if (!status) bgClass = 'bg-slate-200 text-slate-500 border border-dashed border-slate-350 font-bold hover:bg-slate-300 shadow-sm'
-
-                                return (
-                                  <div
-                                    key={`s2_${dayNum}`}
-                                    onClick={() => {
-                                      if (!isFuture) {
-                                        setAttendanceDate(dateStr)
-                                      }
-                                    }}
-                                    title={`${dateStr} (Shift 2) - Click to select log date`}
-                                    className={`h-8 flex flex-col items-center justify-center rounded-lg text-[9px] transition transform hover:scale-105 cursor-pointer select-none ${bgClass}`}
-                                  >
-                                    <span className="font-semibold">{dayNum}</span>
-                                    <span className="text-[6px] uppercase leading-none opacity-90 font-mono">
-                                      {isFuture ? 'WAIT' : status === 'absent' ? 'ABS' : status === 'half_day' ? 'HALF' : status === 'present' ? 'PRES' : 'UNMRK'}
-                                    </span>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+          ) : (
+            <div className="text-center py-16 bg-slate-50 dark:bg-slate-900/30 border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">
+              <User2 className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3 animate-bounce" />
+              <h4 className="text-base font-bold text-slate-700 dark:text-slate-300">No Person Selected</h4>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+                Please select a staff category and a person from the drop box above to view and log their attendance on the interactive calendar.
+              </p>
             </div>
+          )}
 
-          </div>
+          {/* Mass Fill / Absent Today Modal */}
+          {showMassFillModal && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-6"
+              >
+                <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-600">
+                      <Zap className="w-5 h-5 text-amber-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                        Auto-Fill Attendance
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Mark absent/half-days & auto-present all other days
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowMassFillModal(false)}
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleMassAutoPresentSubmit} className="space-y-4">
+                  {/* Selected Person Display */}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 text-xs flex justify-between items-center">
+                    <span className="font-semibold text-slate-500">Target Person:</span>
+                    <span className="font-bold text-slate-900 dark:text-slate-100">
+                      {selectedStaffId
+                        ? selectedStaffType === 'helper'
+                          ? helperBoysList.find(h => h.id === selectedStaffId)?.name
+                          : `Dr. ${getBranchFilteredDoctors().find(d => d.id === selectedStaffId)?.name}`
+                        : 'No Person Selected!'}
+                    </span>
+                  </div>
+
+                  {/* Absent Days Input */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                      <span>Absent Date Numbers (comma-separated):</span>
+                      <span className="text-[10px] font-normal text-rose-500">e.g. 3, 14, 22</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 5, 12, 18"
+                      value={massAbsentDaysText}
+                      onChange={e => setMassAbsentDaysText(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                    />
+                  </div>
+
+                  {/* Half Days Input */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                      <span>Half-Day Date Numbers (comma-separated):</span>
+                      <span className="text-[10px] font-normal text-amber-500">e.g. 7, 19</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 8, 25"
+                      value={massHalfDaysText}
+                      onChange={e => setMassHalfDaysText(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                    />
+                  </div>
+
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[11px] text-amber-700 dark:text-amber-300 font-medium space-y-1">
+                    <p className="font-bold flex items-center gap-1">
+                      <Zap className="w-3.5 h-3.5" /> How Auto-Fill Works:
+                    </p>
+                    <p>
+                      All past days of the selected month that are NOT listed above as absent or half day will automatically be marked as <strong className="text-emerald-600 dark:text-emerald-400">PRESENT 🟢</strong> and saved to the database.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowMassFillModal(false)}
+                      className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isProcessingMassFill}
+                      className="flex-1 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-lg shadow-cyan-600/20 flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+                    >
+                      {isProcessingMassFill ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" /> Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-4 h-4 text-amber-300" /> Auto-Fill PRESENT
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          )}
         </div>
       )}
 

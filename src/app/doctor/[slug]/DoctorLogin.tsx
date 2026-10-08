@@ -25,14 +25,15 @@ export default function DoctorLogin({ doctorName, doctorSlug }: DoctorLoginProps
     try {
       const res = await loginDoctor(doctorSlug, password);
       if (res.success) {
-        window.location.reload();
+        window.location.href = `/doctor/${doctorSlug}`;
+        return;
       } else {
         setError(res.error || "Authentication failed.");
+        setLoading(false);
       }
     } catch (err) {
       console.error(err);
       setError("An unexpected error occurred.");
-    } finally {
       setLoading(false);
     }
   };

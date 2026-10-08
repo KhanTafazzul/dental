@@ -14,14 +14,13 @@ import DentalLogo from '@/components/DentalLogo'
 import { useTheme } from '@/components/ThemeContext'
 
 const NAV_ITEMS = [
-  { href: '/admin',                     icon: LayoutDashboard, label: 'Dashboard & Appts' },
-  { href: '/admin/doctors',             icon: Users,           label: 'Doctor Roster' },
-  { href: '/admin/finances',            icon: CircleDollarSign,label: 'Finances & Revenue' },
-  { href: '/admin/inventory',           icon: Package,         label: 'Inventory & Stock' },
-  { href: '/admin/complaints',          icon: LifeBuoy,        label: 'Complaints & Support' },
-  { href: '/admin/messaging',           icon: MessageSquare,   label: 'Patient Messaging' },
-  { href: '/admin/prescription-mapper', icon: FileText,        label: 'Rx Template Mapper' },
-  { href: '/admin/settings',            icon: Settings,        label: 'System Settings' },
+  { href: '/admin',            icon: LayoutDashboard, label: 'Dashboard & Appts' },
+  { href: '/admin/doctors',    icon: Users,           label: 'Doctor Roster' },
+  { href: '/admin/finances',   icon: CircleDollarSign,label: 'Finances & Revenue' },
+  { href: '/admin/inventory',  icon: Package,         label: 'Inventory & Stock' },
+  { href: '/admin/complaints', icon: LifeBuoy,        label: 'Complaints & Support' },
+  { href: '/admin/messaging',  icon: MessageSquare,   label: 'Patient Messaging' },
+  { href: '/admin/settings',   icon: Settings,        label: 'System Settings' },
 ]
 
 export default function AdminSidebar() {
@@ -117,14 +116,13 @@ export default function AdminSidebar() {
         initial={isMobile ? { x: -260 } : false}
         animate={
           isMobile
-            ? { x: isMobileOpen ? 0 : -260, width: 260 }
-            : { x: 0, width: isCollapsed ? 80 : 260 }
+            ? { x: isMobileOpen ? 0 : -260, width: 260, borderRadius: 24 }
+            : { x: 0, width: isCollapsed ? 80 : 260, borderRadius: isCollapsed ? 60 : 24 }
         }
-        transition={{ duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
+        transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
         className="admin-sidebar"
         style={{
           backgroundColor: '#FFFFFF',
-          borderRadius: isCollapsed ? '60px' : '24px',
           margin: isMobile ? 0 : 16,
           height: isMobile ? '100vh' : 'calc(100vh - 32px)',
           display: 'flex',
@@ -135,63 +133,83 @@ export default function AdminSidebar() {
           top: isMobile ? 0 : 16,
           left: 0,
           zIndex: 50,
-          overflow: 'visible',
+          overflow: 'hidden',
           border: '1px solid #E4E7D3',
           boxShadow: '4px 0 28px rgba(74, 93, 35, 0.06)',
-          transition: 'width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), border-radius 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}
       >
-        <div style={{ position: 'relative', zIndex: 1, overflowY: 'auto', flex: 1, overflowX: 'hidden' }}>
-          {/* Logo & Header */}
-          <div
-            style={{
-              height: 68,
-              borderBottom: '1px solid #F4F6F0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-start',
-              overflow: 'hidden',
-              paddingLeft: isCollapsed ? 18 : 20,
-              paddingRight: 20,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  background: 'linear-gradient(135deg, #4A5D23 0%, #6B823E 100%)',
-                  borderRadius: 14,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 4px 14px rgba(74, 93, 35, 0.2)',
-                  flexShrink: 0,
-                }}
-              >
-                <DentalLogo size={22} />
-              </div>
-              <AnimatePresence initial={false}>
-                {!isCollapsed && (
-                  <motion.div
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2 }}
-                    style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}
-                  >
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#2C3325', lineHeight: 1.2, fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>
-                      Dental Admin
-                    </div>
-                    <div style={{ fontSize: 9, color: '#8A9380', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                      Clinical Console
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+        {/* Sticky Header Logo (Does NOT scroll out) */}
+        <div
+          style={{
+            height: 68,
+            borderBottom: '1px solid #F4F6F0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            overflow: 'hidden',
+            paddingLeft: isCollapsed ? 18 : 20,
+            paddingRight: 20,
+            flexShrink: 0,
+            backgroundColor: '#FFFFFF',
+            zIndex: 2,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                background: 'linear-gradient(135deg, #4A5D23 0%, #6B823E 100%)',
+                borderRadius: 14,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 14px rgba(74, 93, 35, 0.2)',
+                flexShrink: 0,
+              }}
+            >
+              <DentalLogo size={22} />
             </div>
+            <AnimatePresence initial={false}>
+              {!isCollapsed && (
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.2 }}
+                  style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}
+                >
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#2C3325', lineHeight: 1.2, fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>
+                    Dental Admin
+                  </div>
+                  <div style={{ fontSize: 9, color: '#8A9380', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                    Clinical Console
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
+        </div>
 
+        {/* Scrollable Navigation Container (Hidden Scrollbar) */}
+        <div
+          className="admin-nav-scroll"
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            overflowY: 'auto',
+            flex: 1,
+            overflowX: 'hidden',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+          }}
+        >
+          <style jsx global>{`
+            .admin-nav-scroll::-webkit-scrollbar {
+              display: none;
+            }
+          `}</style>
+          
           {/* Navigation Items */}
           <nav style={{ padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
             {NAV_ITEMS.map((item) => {

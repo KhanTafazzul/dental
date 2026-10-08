@@ -1,13 +1,14 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { updateAppointmentStatus, getLocalIpAddress, sendPatientReport, bookOfflineAppointment, createCaptureTicket, clearCaptureTicket, triggerDeliverAndCleanup, postponeAppointmentAction } from '@/app/admin/actions'
+import { updateAppointmentStatus, getLocalIpAddress, sendPatientReport, bookOfflineAppointment, createCaptureTicket, clearCaptureTicket, triggerDeliverAndCleanup, postponeAppointmentAction, scheduleReappointment } from '@/app/admin/actions'
 import { supabase } from '@/lib/supabase'
 import { 
   Search, Calendar, Check, X, AlertCircle, Info, Filter,
   Building, User2, RefreshCw, ChevronDown, CheckCircle2, Clock,
-  FileText, QrCode, UploadCloud, Copy, HelpCircle, User, Plus, Loader2, Sparkles
+  FileText, QrCode, UploadCloud, Copy, HelpCircle, User, Plus, Loader2, Sparkles, Printer
 } from 'lucide-react'
 import { getClientCache, saveClientCache } from '@/lib/clientCache'
 
@@ -17,6 +18,7 @@ interface AppointmentsClientProps {
 }
 
 export default function AppointmentsClient({ initialAppointments, branches }: AppointmentsClientProps) {
+  const router = useRouter()
   const [appointments, setAppointments] = useState<any[]>(() => {
     if (typeof window !== 'undefined') {
       const cached = getClientCache<any[]>('admin_appointments')
@@ -248,6 +250,52 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
     }
   }
 
+  // Reappointment Modal state
+  const [showReappointmentModal, setShowReappointmentModal] = useState(false)
+  const [reappointmentAppt, setReappointmentAppt] = useState<any | null>(null)
+  const [targetTeethVal, setTargetTeethVal] = useState('Tooth #14')
+  const [followUpDaysVal, setFollowUpDaysVal] = useState(5)
+  const [reappointmentNotesVal, setReappointmentNotesVal] = useState('5-Day Follow-Up: Permanent Crown Fitting')
+  const [schedulingReappointment, setSchedulingReappointment] = useState(false)
+
+  const handleOpenReappointmentModal = (appt: any) => {
+    setReappointmentAppt(appt)
+    setTargetTeethVal('Tooth #14')
+    setFollowUpDaysVal(5)
+    setReappointmentNotesVal('5-Day Follow-Up: Permanent Crown Fitting')
+    setShowReappointmentModal(true)
+  }
+
+  const handleConfirmReappointment = async () => {
+    if (!reappointmentAppt) return
+    setSchedulingReappointment(true)
+    try {
+      const res = await scheduleReappointment({
+        patientName: reappointmentAppt.patients?.name || reappointmentAppt.patient_name || 'Patient',
+        patientPhone: reappointmentAppt.patients?.mobile || reappointmentAppt.phone || '',
+        patientEmail: reappointmentAppt.patients?.email || reappointmentAppt.email || '',
+        doctorId: reappointmentAppt.doctor_id,
+        doctorName: reappointmentAppt.doctor_name || reappointmentAppt.doctors?.name,
+        branchId: reappointmentAppt.branch_id,
+        followUpDays: followUpDaysVal,
+        targetTeeth: targetTeethVal,
+        treatmentNotes: reappointmentNotesVal,
+      })
+
+      if (res.success) {
+        alert(`Reappointment scheduled for ${res.date}! WhatsApp & Email confirmation sent to patient.`)
+        setShowReappointmentModal(false)
+        router.refresh()
+      } else {
+        alert(res.error || 'Failed to schedule reappointment.')
+      }
+    } catch (err: any) {
+      alert(err.message || 'An error occurred.')
+    } finally {
+      setSchedulingReappointment(false)
+    }
+  }
+
   // Submit diagnostic reports and trigger Brevo email
   const handleSendReport = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -424,68 +472,68 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
       </div>
 
       {/* ═══ 1. STATISTICS CARDS (4 Columns) ═══ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         
         <motion.div 
           whileHover={{ y: -2 }}
-          className="bg-white p-6 rounded-[16px] border border-[#E4E7D3] shadow-sm flex items-center justify-between"
+          className="bg-white p-5 sm:p-6 rounded-[16px] border border-[#E4E7D3] shadow-sm flex items-center justify-between overflow-hidden"
         >
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[#8A9380] uppercase tracking-wider font-semibold">Total Appointments</span>
-              <span className="px-2 py-0.5 rounded-full bg-[#E4E7D3] text-[#4A5D23] text-[10px] font-bold">+12%</span>
+          <div className="space-y-1 min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-[#8A9380] uppercase tracking-wider font-semibold truncate">Total Appointments</span>
+              <span className="px-2 py-0.5 rounded-full bg-[#E4E7D3] text-[#4A5D23] text-[10px] font-bold shrink-0">+12%</span>
             </div>
             <p className="text-2xl font-bold text-[#2C3325]" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>{totalCount}</p>
           </div>
-          <div className="p-3.5 bg-[#E4E7D3] rounded-2xl text-[#4A5D23]">
+          <div className="p-3.5 bg-[#E4E7D3] rounded-2xl text-[#4A5D23] shrink-0 ml-3">
             <Building className="w-5 h-5" />
           </div>
         </motion.div>
 
         <motion.div 
           whileHover={{ y: -2 }}
-          className="bg-white p-6 rounded-[16px] border border-[#E4E7D3] shadow-sm flex items-center justify-between"
+          className="bg-white p-5 sm:p-6 rounded-[16px] border border-[#E4E7D3] shadow-sm flex items-center justify-between overflow-hidden"
         >
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[#8A9380] uppercase tracking-wider font-semibold">Pending Review</span>
-              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">Action Needed</span>
+          <div className="space-y-1 min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-[#8A9380] uppercase tracking-wider font-semibold truncate">Pending Review</span>
+              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold shrink-0">Action Needed</span>
             </div>
             <p className="text-2xl font-bold text-[#2C3325]" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>{pendingCount}</p>
           </div>
-          <div className="p-3.5 bg-amber-50 rounded-2xl text-amber-700">
+          <div className="p-3.5 bg-amber-50 rounded-2xl text-amber-700 shrink-0 ml-3">
             <Clock className="w-5 h-5" />
           </div>
         </motion.div>
 
         <motion.div 
           whileHover={{ y: -2 }}
-          className="bg-white p-6 rounded-[16px] border border-[#E4E7D3] shadow-sm flex items-center justify-between"
+          className="bg-white p-5 sm:p-6 rounded-[16px] border border-[#E4E7D3] shadow-sm flex items-center justify-between overflow-hidden"
         >
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[#8A9380] uppercase tracking-wider font-semibold">Confirmed Slots</span>
-              <span className="px-2 py-0.5 rounded-full bg-[#E4E7D3] text-[#4A5D23] text-[10px] font-bold">Scheduled</span>
+          <div className="space-y-1 min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-[#8A9380] uppercase tracking-wider font-semibold truncate">Confirmed Slots</span>
+              <span className="px-2 py-0.5 rounded-full bg-[#E4E7D3] text-[#4A5D23] text-[10px] font-bold shrink-0">Scheduled</span>
             </div>
             <p className="text-2xl font-bold text-[#2C3325]" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>{confirmedCount}</p>
           </div>
-          <div className="p-3.5 bg-[#E4E7D3] rounded-2xl text-[#4A5D23]">
+          <div className="p-3.5 bg-[#E4E7D3] rounded-2xl text-[#4A5D23] shrink-0 ml-3">
             <CheckCircle2 className="w-5 h-5" />
           </div>
         </motion.div>
 
         <motion.div 
           whileHover={{ y: -2 }}
-          className="bg-white p-6 rounded-[16px] border border-[#E4E7D3] shadow-sm flex items-center justify-between"
+          className="bg-white p-5 sm:p-6 rounded-[16px] border border-[#E4E7D3] shadow-sm flex items-center justify-between overflow-hidden"
         >
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[#8A9380] uppercase tracking-wider font-semibold">Completed Care</span>
-              <span className="px-2 py-0.5 rounded-full bg-[#E4E7D3] text-[#4A5D23] text-[10px] font-bold">+18%</span>
+          <div className="space-y-1 min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-[#8A9380] uppercase tracking-wider font-semibold truncate">Completed Care</span>
+              <span className="px-2 py-0.5 rounded-full bg-[#E4E7D3] text-[#4A5D23] text-[10px] font-bold shrink-0">+18%</span>
             </div>
             <p className="text-2xl font-bold text-[#2C3325]" style={{ fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>{completedCount}</p>
           </div>
-          <div className="p-3.5 bg-[#E4E7D3] rounded-2xl text-[#4A5D23]">
+          <div className="p-3.5 bg-[#E4E7D3] rounded-2xl text-[#4A5D23] shrink-0 ml-3">
             <Check className="w-5 h-5" />
           </div>
         </motion.div>
@@ -678,7 +726,13 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                       <div className="flex flex-col items-center gap-1.5">
                         <div className="flex items-center gap-1.5 justify-center">
                           <button
-                            onClick={() => handleOpenReportsModal(appt)}
+                            onClick={() => {
+                              if (appt.status === 'completed' || appt.report_sent_at) {
+                                handleOpenReportsModal(appt)
+                              } else {
+                                router.push(`/admin/billing?appointmentId=${appt.id}`)
+                              }
+                            }}
                             className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer ${
                               appt.status === 'completed' || appt.report_sent_at
                                 ? 'bg-[#E4E7D3] text-[#4A5D23] hover:bg-[#d8dcc3]'
@@ -695,6 +749,14 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                           >
                             <Clock className="w-3.5 h-3.5 text-[#4A5D23]" />
                             Postpone
+                          </button>
+                          <button
+                            onClick={() => handleOpenReappointmentModal(appt)}
+                            title="Schedule 5-Day Tooth Reappointment"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-semibold transition cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5 text-emerald-700" />
+                            Reappoint
                           </button>
                         </div>
                         {appt.report_sent_at && (
@@ -764,9 +826,20 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                         Bill Attached: Rs. {associatedInvoiceTotal?.toFixed(2)}
                       </span>
-                      <span className="text-[9px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400 px-2 py-0.5 rounded font-mono font-bold border border-emerald-100 dark:border-emerald-900/30">
-                        #{associatedInvoiceId.substring(0, 8).toUpperCase()}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400 px-2 py-0.5 rounded font-mono font-bold border border-emerald-100 dark:border-emerald-900/30">
+                          #{associatedInvoiceId.substring(0, 8).toUpperCase()}
+                        </span>
+                        <a
+                          href={`/admin/billing/print/${associatedInvoiceId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] bg-[#4A5D23] text-white hover:bg-[#3B4A1C] px-2 py-1 rounded-lg font-semibold transition cursor-pointer flex items-center gap-1 shadow-sm"
+                        >
+                          <Printer className="w-3 h-3" />
+                          <span>View Bill</span>
+                        </a>
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-1 mt-1">
@@ -1362,6 +1435,115 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      {/* REAPPOINTMENT MODAL FOR ADMIN */}
+      <AnimatePresence>
+        {showReappointmentModal && reappointmentAppt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-[#121c19] rounded-3xl border border-slate-200 dark:border-teal-900/40 shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+            
+            <div className="p-6 border-b border-slate-100 dark:border-teal-900/25 flex items-center justify-between bg-emerald-50/60 dark:bg-emerald-950/20">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 rounded-2xl">
+                  <Plus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Schedule Multi-Visit Reappointment</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Patient: {reappointmentAppt.patients?.name || reappointmentAppt.patient_name || 'Patient'}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReappointmentModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={e => { e.preventDefault(); handleConfirmReappointment() }} className="p-6 space-y-4 text-xs">
+              
+              {/* Target Tooth Selector */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Target Tooth Number / Arch</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Tooth #14, Tooth #46, Upper Molar"
+                  value={targetTeethVal}
+                  onChange={e => setTargetTeethVal(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-teal-900/40 rounded-2xl text-xs bg-white dark:bg-[#182622] text-slate-800 dark:text-slate-100 font-semibold focus:outline-none focus:border-emerald-500 shadow-sm"
+                />
+              </div>
+
+              {/* Follow-up Days Preset */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Follow-up Timeline</label>
+                <div className="flex items-center gap-2">
+                  {[
+                    { days: 5, label: '+5 Days (Default)' },
+                    { days: 7, label: '+7 Days (1 Wk)' },
+                    { days: 14, label: '+14 Days (2 Wks)' },
+                  ].map(preset => (
+                    <button
+                      key={preset.days}
+                      type="button"
+                      onClick={() => setFollowUpDaysVal(preset.days)}
+                      className={`flex-1 py-2 px-2.5 rounded-xl font-bold transition-all border text-center cursor-pointer ${
+                        followUpDaysVal === preset.days
+                          ? 'bg-[#4A5D23] text-white border-[#4A5D23] shadow-sm'
+                          : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Next Treatment Phase Notes */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Next Phase Treatment Notes</label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="e.g. Root Canal Step 2: Permanent Crown Fitting & Occlusion Check"
+                  value={reappointmentNotesVal}
+                  onChange={e => setReappointmentNotesVal(e.target.value)}
+                  className="w-full p-3 border border-slate-200 dark:border-teal-900/40 rounded-2xl text-xs bg-white dark:bg-[#182622] text-slate-800 dark:text-slate-100 font-semibold focus:outline-none focus:border-emerald-500 shadow-sm"
+                />
+              </div>
+
+              {/* Info Note */}
+              <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 rounded-2xl text-[11px] text-emerald-900 dark:text-emerald-300 font-medium leading-relaxed flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>Auto-schedules visit in <strong>{followUpDaysVal} days</strong> & sends <strong>WhatsApp + Email confirmation</strong>.</span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-teal-900/20">
+                <button
+                  type="button"
+                  onClick={() => setShowReappointmentModal(false)}
+                  className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-teal-900/40 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={schedulingReappointment}
+                  className="px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-[#4A5D23] to-[#748c56] hover:opacity-95 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {schedulingReappointment ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                  Confirm Reappointment
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
       </AnimatePresence>
 
     </motion.div>

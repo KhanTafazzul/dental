@@ -685,10 +685,127 @@ export async function loginDoctor(slug: string, password: string) {
   }
 }
 
+export async function loginDoctorUniversal(identifier: string, password: string) {
+  const adminDb = getAdminSupabase()
+  try {
+    const trimmed = identifier.trim()
+    
+    // Search by slug, name, or email
+    let { data: doctors, error } = await adminDb
+      .from('doctors')
+      .select('id, name, slug, email, password')
+      .or(`slug.eq.${trimmed.toLowerCase()},email.ilike.${trimmed},name.ilike.%${trimmed}%`)
+
+    if (error || !doctors || doctors.length === 0) {
+      return { success: false, error: 'No doctor found with that Name or Email.' }
+    }
+
+    const doctor = doctors[0]
+
+    if (doctor.password === password) {
+      const cookieStore = await cookies()
+      const signedToken = await signToken(doctor.slug)
+      cookieStore.set('dental_doctor_token', signedToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24, // 1 day expiration
+        path: '/'
+      })
+      return { success: true, slug: doctor.slug, name: doctor.name }
+    }
+    return { success: false, error: 'Incorrect security password.' }
+  } catch (err: any) {
+    console.error('Universal doctor login error:', err)
+    return { success: false, error: err.message || 'Login failed.' }
+  }
+}
+
 export async function logoutDoctor() {
   const cookieStore = await cookies()
   cookieStore.delete('dental_doctor_token')
   return { success: true }
+}
+
+// Action: Schedule a 5-day Tooth Reappointment / Multi-Visit Follow-Up
+export async function scheduleReappointment(params: {
+  patientName: string
+  patientPhone: string
+  patientEmail?: string
+  doctorId?: string
+  doctorName?: string
+  branchId?: string
+  branchSlug?: string
+  followUpDays?: number
+  targetTeeth?: string
+  treatmentNotes?: string
+}) {
+  const adminDb = getAdminSupabase()
+  try {
+    const days = params.followUpDays || 5
+    const followUpDate = new Date()
+    followUpDate.setDate(followUpDate.getDate() + days)
+    const dateStr = followUpDate.toISOString().split('T')[0]
+    const formattedDate = followUpDate.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    })
+
+    const teethLabel = params.targetTeeth ? ` (${params.targetTeeth})` : ''
+    const reasonText = `Multi-Visit Reappointment${teethLabel}: ${params.treatmentNotes || 'Follow-up dental procedure'}`
+
+    // Insert into appointments table
+    const { data: newAppt, error } = await adminDb
+      .from('appointments')
+      .insert({
+        patient_name: params.patientName,
+        phone: params.patientPhone,
+        email: params.patientEmail || '',
+        doctor_id: params.doctorId || null,
+        doctor_name: params.doctorName || 'Assigned Dentist',
+        branch_id: params.branchId || null,
+        appointment_date: dateStr,
+        appointment_time: '11:00 AM',
+        status: 'confirmed',
+        reason: reasonText,
+        treatment: params.treatmentNotes || 'Tooth Reappointment',
+        notes: `Scheduled ${days}-day follow-up for ${params.targetTeeth || 'procedure'}`
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.warn('Reappointment insert notice:', error)
+    }
+
+    // Dispatch notification via WAHA Engine
+    const messageBody = 
+      `🦷 *REAPPOINTMENT CONFIRMED - DENTAL CARE CLINIC*\n\n` +
+      `Dear *${params.patientName}*,\n` +
+      `Your ${days}-day follow-up treatment${teethLabel} has been scheduled:\n\n` +
+      `📅 *Date:* ${formattedDate}\n` +
+      `👨‍⚕️ *Doctor:* ${params.doctorName || 'Dr. Nadeem'}\n` +
+      `📌 *Procedure:* ${params.treatmentNotes || 'Next Phase Dental Care'}\n\n` +
+      `Please contact us if you need to adjust your slot timing.`
+
+    await sendNotification({
+      recipientName: params.patientName,
+      recipientPhone: params.patientPhone,
+      recipientEmail: params.patientEmail,
+      subject: `Follow-up Reappointment Confirmed (${formattedDate})`,
+      messageBody,
+      type: 'appointment_confirmation'
+    })
+
+    revalidatePath('/admin')
+    revalidatePath('/doctor')
+
+    return { success: true, date: formattedDate, appointment: newAppt }
+  } catch (err: any) {
+    console.error('Schedule reappointment error:', err)
+    return { success: false, error: err.message || 'Failed to schedule reappointment' }
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -1339,41 +1456,43 @@ export async function saveMedicineStock(
   }
 }
 
-// Action: Fetch all medicines and active batches from TiDB Cloud for a specific branch
+// Action: Fetch all medicines and active batches from TiDB Cloud for a specific branch (High Speed Single Query Batching)
 export async function getAllMedicines(branchSlug: string = 'hazara') {
   try {
-    // 0. Ensure tables are in sync
-    try {
-      await queryTiDB('ALTER TABLE medicines ADD COLUMN tablets_per_patch INT NOT NULL DEFAULT 10')
-    } catch (e) {}
-    try {
-      await queryTiDB('ALTER TABLE medicine_batches ADD COLUMN cost_price DECIMAL(10, 2) NOT NULL DEFAULT 0.00')
-    } catch (e) {}
-    try {
-      await queryTiDB("ALTER TABLE medicine_batches ADD COLUMN branch_slug VARCHAR(50) NOT NULL DEFAULT 'hazara'")
-    } catch (e) {}
-    try {
-      await queryTiDB('ALTER TABLE medicine_batches ADD COLUMN mrp DECIMAL(10, 2) NOT NULL DEFAULT 0.00')
-    } catch (e) {}
-
     const sql = `
       SELECT m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at, COALESCE(SUM(b.stock), 0) as stock
       FROM medicines m
-      LEFT JOIN medicine_batches b ON m.id = b.medicine_id AND b.branch_slug = ? AND b.stock > 0 AND b.expiry_date >= CURDATE()
+      LEFT JOIN medicine_batches b ON m.id = b.medicine_id AND (b.branch_slug = ? OR b.branch_slug IS NULL) AND b.stock > 0 AND b.expiry_date >= CURDATE()
       GROUP BY m.id, m.name, m.generic_name, m.barcode, m.tablets_per_patch, m.created_at
       ORDER BY m.name ASC
     `
     const medicines = await queryTiDB(sql, [branchSlug])
-    for (const medicine of medicines) {
-      const batchSql = `
-        SELECT id, batch_number, expiry_date, price, cost_price, mrp, stock, branch_slug
-        FROM medicine_batches
-        WHERE medicine_id = ? AND stock > 0 AND branch_slug = ?
-        ORDER BY expiry_date ASC
-      `
-      const batches = await queryTiDB(batchSql, [medicine.id, branchSlug])
-      medicine.batches = batches
+    if (!medicines || medicines.length === 0) {
+      return { success: true, data: [] }
     }
+
+    // Single query for all batches across all medicines (eliminates N+1 latency)
+    const medIds = medicines.map((m: any) => m.id)
+    const placeholders = medIds.map(() => '?').join(',')
+    const batchSql = `
+      SELECT id, medicine_id, batch_number, expiry_date, price, cost_price, mrp, stock, branch_slug
+      FROM medicine_batches
+      WHERE medicine_id IN (${placeholders}) AND stock > 0 AND (branch_slug = ? OR branch_slug IS NULL)
+      ORDER BY expiry_date ASC
+    `
+    const allBatches = await queryTiDB(batchSql, [...medIds, branchSlug])
+
+    const batchMap = new Map<string, any[]>()
+    for (const b of allBatches) {
+      const list = batchMap.get(b.medicine_id) || []
+      list.push(b)
+      batchMap.set(b.medicine_id, list)
+    }
+
+    for (const medicine of medicines) {
+      medicine.batches = batchMap.get(medicine.id) || []
+    }
+
     return { success: true, data: medicines }
   } catch (err: any) {
     console.error('Error fetching all medicines:', err)
@@ -1608,6 +1727,102 @@ export async function createInvoice(
   } catch (err: any) {
     console.error('Error creating invoice:', err)
     return { success: false, error: err.message || 'Failed to create invoice.' }
+  }
+}
+
+// Action: Fetch complete invoice details for dynamic Olive Theme receipt rendering
+export async function getInvoiceDetails(invoiceId: string) {
+  const adminDb = getAdminSupabase()
+  try {
+    const { data: invoice, error } = await adminDb
+      .from('invoices')
+      .select(`
+        id,
+        subtotal,
+        discount_percentage,
+        treatment_discount_percentage,
+        medicine_discount_percentage,
+        total,
+        created_at,
+        appointment_id,
+        patient_id,
+        patients ( name, mobile, email, age ),
+        appointments (
+          appointment_date,
+          appointment_time,
+          doctors ( name ),
+          branches ( name, slug )
+        ),
+        invoice_items (
+          id,
+          item_type,
+          custom_name,
+          quantity,
+          unit_price,
+          total_price,
+          medicine_id,
+          treatment_id
+        )
+      `)
+      .eq('id', invoiceId)
+      .single()
+
+    if (error || !invoice) {
+      throw new Error(error?.message || 'Invoice not found')
+    }
+
+    const appt = (invoice as any).appointments || {}
+    const patient = (invoice as any).patients || {}
+    const items = ((invoice as any).invoice_items || []).map((i: any) => ({
+      type: i.item_type,
+      name: i.custom_name || 'Item',
+      quantity: i.quantity,
+      price: Number(i.unit_price || 0),
+    }))
+
+    const rawSubtotal = Number(invoice.subtotal || 0)
+    const grandTotal = Number(invoice.total || 0)
+    const treatmentDiscPercent = Number(invoice.treatment_discount_percentage || invoice.discount_percentage || 0)
+    const medicineDiscPercent = Number(invoice.medicine_discount_percentage || invoice.discount_percentage || 0)
+
+    const treatmentItems = items.filter((i: any) => i.type === 'treatment' || i.type === 'custom')
+    const medicineItems = items.filter((i: any) => i.type === 'medicine')
+
+    const treatmentSubtotal = treatmentItems.reduce((sum: number, i: any) => sum + (i.price * i.quantity), 0)
+    const medicineSubtotal = medicineItems.reduce((sum: number, i: any) => sum + (i.price * i.quantity), 0)
+
+    const treatmentDiscountVal = treatmentSubtotal * (treatmentDiscPercent / 100)
+    const medicineDiscountVal = medicineSubtotal * (medicineDiscPercent / 100)
+    const totalDiscountSaved = treatmentDiscountVal + medicineDiscountVal
+    const overallDiscountPercent = rawSubtotal > 0 ? (totalDiscountSaved / rawSubtotal) * 100 : 0
+
+    return {
+      success: true,
+      data: {
+        invoiceId: invoice.id,
+        date: new Date(invoice.created_at || Date.now()).toLocaleDateString('en-US'),
+        branchName: appt.branches?.name || 'Family Dental Clinic',
+        doctorName: appt.doctors?.name || 'Dr. Nadeem',
+        patientName: patient.name || 'Patient',
+        patientAge: patient.age || '18',
+        patientMobile: patient.mobile || 'N/A',
+        patientEmail: patient.email || 'N/A',
+        items,
+        subtotal: rawSubtotal,
+        treatmentSubtotal,
+        treatmentDiscountPercent: treatmentDiscPercent,
+        treatmentDiscountVal,
+        medicineSubtotal,
+        medicineDiscountPercent: medicineDiscPercent,
+        medicineDiscountVal,
+        totalDiscountSaved,
+        overallDiscountPercent,
+        grandTotal,
+      }
+    }
+  } catch (err: any) {
+    console.error('Error fetching invoice details:', err)
+    return { success: false, error: err.message || 'Failed to fetch invoice details.' }
   }
 }
 

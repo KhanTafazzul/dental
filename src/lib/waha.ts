@@ -86,6 +86,16 @@ export function formatWahaChatId(phone: string): string {
 }
 
 /**
+ * Anti-Ban Protection: Generates a randomized delay between 2.5s and 5.0s
+ * to mimic human typing and avoid Meta/WhatsApp rate-limit bans.
+ */
+export async function delayWithRandomJitter(minMs = 2500, maxMs = 5000): Promise<void> {
+  const ms = Math.floor(minMs + Math.random() * (maxMs - minMs))
+  console.log(`[Anti-Ban Protection] Delaying next bulk dispatch by ${(ms / 1000).toFixed(2)}s`)
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
  * Sends a WhatsApp text message via WAHA (WhatsApp HTTP API - GOWS engine on Render).
  * Uses HTTP POST with X-Api-Key authentication header and JSON payload.
  */
@@ -362,6 +372,9 @@ export async function sendDailyDoctorAppointmentDigest(): Promise<{
       if (sendRes.success) {
         sentDoctors.push(doc.name)
       }
+
+      // Anti-Ban Protection: Pause 2.5s - 5.0s before processing next recipient
+      await delayWithRandomJitter(2500, 5000)
     }
 
     return {

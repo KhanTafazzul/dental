@@ -21,15 +21,15 @@ export default function AdminLoginPage() {
     try {
       const res = await loginAdmin(password)
       if (res.success) {
-        router.refresh()
-        router.push('/admin')
+        window.location.href = '/admin'
+        return
       } else {
         setError(res.error || 'Incorrect passcode')
+        setLoading(false)
       }
     } catch (err) {
       console.error(err)
       setError('An error occurred during authentication.')
-    } finally {
       setLoading(false)
     }
   }
