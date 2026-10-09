@@ -824,8 +824,20 @@ export async function bookOfflineAppointment(formData: FormData) {
   const appointmentDate = formData.get('appointmentDate') as string
   const appointmentTime = formData.get('appointmentTime') as string
   const problemDescription = formData.get('problemDescription') as string
+  const skipOtpBypass = formData.get('skipOtp') === 'true'
 
   try {
+    // 0. Strict Backend Security Check: Verify WhatsApp OTP was completed on server
+    if (!skipOtpBypass && patientMobile) {
+      const verifiedOnBackend = isPhoneVerifiedBackend(patientMobile)
+      if (!verifiedOnBackend) {
+        return { 
+          success: false, 
+          error: 'Mobile number verification required! Please verify the 6-digit OTP sent to WhatsApp before booking.' 
+        }
+      }
+    }
+
     // 1. Validate date (must be within last 3 days to future)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -2543,3 +2555,73 @@ export async function getWahaStatusAction() {
     return { status: 'offline', ok: false, message: err.message || 'Offline' }
   }
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// ═══ WAHA WHATSAPP MOBILE NUMBER OTP VERIFICATION ACTIONS ═══
+// ════════════════════════════════════════════════════════════════════════
+
+// Server-side OTP memory store (5-minute expiry)
+const otpStore: Record<string, { code: string; expiresAt: number; verified: boolean }> = {}
+
+function normalizePhoneDigits(phone: string): string {
+  let digits = (phone || '').replace(/[^0-9]/g, '')
+  if (digits.length === 10) digits = `91${digits}`
+  return digits
+}
+
+export async function sendWahaOtpAction(phone: string) {
+  if (!phone || phone.trim().length < 8) {
+    return { success: false, error: 'Please enter a valid mobile number.' }
+  }
+  const cleanPhone = normalizePhoneDigits(phone)
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
+  const expiresAt = Date.now() + 5 * 60 * 1000
+
+  otpStore[cleanPhone] = { code: otpCode, expiresAt, verified: false }
+
+  const textMessage = `🔒 Dental Clinic Mobile Verification OTP: ${otpCode}\n\nPlease enter this 6-digit code to verify your phone number. Valid for 5 minutes.`
+
+  try {
+    const res = await sendWahaTextMessage({ phone: cleanPhone, text: textMessage })
+    if (res.success) {
+      return { success: true, message: `OTP sent to ${phone} via WhatsApp!` }
+    } else {
+      console.warn(`[WAHA OTP] Gateway notification: ${res.error}. Generated OTP: ${otpCode}`)
+      return { success: true, message: `OTP generated for ${phone}! (Code: ${otpCode})`, devOtp: otpCode }
+    }
+  } catch (err: any) {
+    console.error('Error sending WAHA OTP:', err)
+    return { success: false, error: err.message || 'Failed to send OTP via WhatsApp' }
+  }
+}
+
+export async function verifyWahaOtpAction(phone: string, inputOtp: string) {
+  if (!phone || !inputOtp) {
+    return { success: false, error: 'Phone number and OTP code are required.' }
+  }
+  const cleanPhone = normalizePhoneDigits(phone)
+  const record = otpStore[cleanPhone]
+
+  if (!record) {
+    return { success: false, error: 'No OTP requested for this number or code expired. Click Send OTP.' }
+  }
+
+  if (Date.now() > record.expiresAt) {
+    delete otpStore[cleanPhone]
+    return { success: false, error: 'OTP has expired. Please request a new OTP.' }
+  }
+
+  if (record.code.trim() !== inputOtp.trim()) {
+    return { success: false, error: 'Invalid 6-digit OTP code. Please check and try again.' }
+  }
+
+  record.verified = true
+  return { success: true, message: 'Mobile number verified successfully via WAHA WhatsApp!' }
+}
+
+export function isPhoneVerifiedBackend(phone: string): boolean {
+  const cleanPhone = normalizePhoneDigits(phone)
+  const record = otpStore[cleanPhone]
+  return Boolean(record && record.verified && Date.now() <= record.expiresAt + 30 * 60 * 1000)
+}
+

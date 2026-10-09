@@ -65,6 +65,8 @@ export const PRESET_FIELDS: Omit<BoundingField, 'id'>[] = [
   { name: 'Doctor Name',  key: 'doctorName',  x: 40,  y: 80,  width: 240, height: 28, color: '#0e7490', fontFamily: 'Arial', fontSize: 13 },
   { name: 'Medicines',    key: 'medicines',   x: 40,  y: 300, width: 680, height: 300, color: '#1e293b', fontFamily: 'Arial', fontSize: 13 },
   { name: 'Notes',        key: 'notes',       x: 40,  y: 650, width: 680, height: 120, color: '#475569', fontFamily: 'Arial', fontSize: 12 },
+  { name: 'Diagnosis',    key: 'diagnosis',   x: 260, y: 230, width: 300, height: 28, color: '#1e293b', fontFamily: 'Arial', fontSize: 12 },
+  { name: 'Branch Name',  key: 'branchName',  x: 300, y: 80,  width: 240, height: 28, color: '#4A5D23', fontFamily: 'Arial', fontSize: 13 },
 ];
 
 export const WEB_SAFE_FONTS = [

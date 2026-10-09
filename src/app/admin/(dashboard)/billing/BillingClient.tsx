@@ -8,7 +8,7 @@ import OliveInvoiceView, { InvoiceData } from '@/components/billing/OliveInvoice
 import { 
   Receipt, User, Search, PlusCircle, Trash2, Loader2, 
   CheckCircle, Percent, AlertCircle, ShoppingCart, Activity, ShieldAlert, Sparkles, Send, Barcode,
-  CreditCard, Sparkle, Layers, ChevronRight, Check, ArrowRight
+  CreditCard, Sparkle, Layers, ChevronRight, Check, ArrowRight, Pill, Pause, Play
 } from 'lucide-react'
 import DentalLogo from '@/components/DentalLogo'
 
@@ -108,7 +108,8 @@ export default function BillingClient({ initialAppointments, initialTreatments }
   const [savingNewMed, setSavingNewMed] = useState(false)
 
   // Redirect states
-  const [redirectCountdown, setRedirectCountdown] = useState(3)
+  const [redirectCountdown, setRedirectCountdown] = useState(5)
+  const [isRedirectPaused, setIsRedirectPaused] = useState(false)
   const [targetApptId, setTargetApptId] = useState<string | null>(null)
   const router = useRouter()
 
@@ -126,16 +127,16 @@ export default function BillingClient({ initialAppointments, initialTreatments }
   // Auto-redirect to Appointments dashboard on checkout success
   useEffect(() => {
     let timer: NodeJS.Timeout
-    if (checkoutSuccess && targetApptId && redirectCountdown > 0) {
+    if (checkoutSuccess && targetApptId && redirectCountdown > 0 && !isRedirectPaused) {
       timer = setTimeout(() => {
         setRedirectCountdown(prev => prev - 1)
       }, 1000)
-    } else if (checkoutSuccess && targetApptId && redirectCountdown === 0) {
+    } else if (checkoutSuccess && targetApptId && redirectCountdown === 0 && !isRedirectPaused) {
       const invoiceParam = successInfo?.invoiceId ? `&openInvoiceId=${successInfo.invoiceId}` : ''
       router.push(`/admin?openReportsApptId=${targetApptId}${invoiceParam}`)
     }
     return () => clearTimeout(timer)
-  }, [checkoutSuccess, targetApptId, redirectCountdown, successInfo, router])
+  }, [checkoutSuccess, targetApptId, redirectCountdown, isRedirectPaused, successInfo, router])
 
   // Update selected appointment details
   useEffect(() => {
@@ -577,25 +578,71 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                 </div>
                 <div>
                   <h3 className="font-bold text-[#313d24] text-sm">Invoice Created & Recorded</h3>
-                  <p className="text-xs text-[#5c7244]">Official Olive Theme Receipt #{(successInfo?.invoiceId || '').substring(0, 10).toUpperCase()}</p>
+                  <p className="text-xs text-[#5c7244] flex items-center gap-1.5 flex-wrap">
+                    <span>Official Olive Theme Receipt #{(successInfo?.invoiceId || '').substring(0, 10).toUpperCase()}</span>
+                    {!isRedirectPaused && redirectCountdown > 0 && (
+                      <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                        (Opening sending page in {redirectCountdown}s)
+                      </span>
+                    )}
+                    {isRedirectPaused && (
+                      <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        ✓ Auto-redirect paused (Staying on bill)
+                      </span>
+                    )}
+                  </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
                 <button
-                  onClick={() => setCheckoutSuccess(false)}
-                  className="px-4 py-2.5 bg-[#eef2e8] hover:bg-[#dfe6d8] text-[#313d24] rounded-xl font-bold text-xs transition cursor-pointer border border-[#dfe6d8]"
+                  type="button"
+                  onClick={() => setIsRedirectPaused(!isRedirectPaused)}
+                  className={`px-3 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer border flex items-center gap-1.5 ${
+                    isRedirectPaused 
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100' 
+                      : 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                  }`}
                 >
-                  + Create Another Bill
+                  {isRedirectPaused ? (
+                    <>
+                      <Play className="w-3.5 h-3.5" />
+                      <span>Resume Redirect</span>
+                    </>
+                  ) : (
+                    <>
+                      <Pause className="w-3.5 h-3.5" />
+                      <span>Stay on Bill ({redirectCountdown}s)</span>
+                    </>
+                  )}
                 </button>
+
                 <button
+                  type="button"
+                  onClick={() => router.push('/admin/prescription-mapper')}
+                  className="px-3.5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-bold text-xs shadow-md transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <Pill className="w-4 h-4" />
+                  <span>Rx Prescription</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCheckoutSuccess(false)}
+                  className="px-3.5 py-2.5 bg-[#eef2e8] hover:bg-[#dfe6d8] text-[#313d24] rounded-xl font-bold text-xs transition cursor-pointer border border-[#dfe6d8]"
+                >
+                  + New Bill
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => {
                     const invoiceParam = successInfo?.invoiceId ? `&openInvoiceId=${successInfo.invoiceId}` : ''
                     router.push(`/admin?openReportsApptId=${targetApptId}${invoiceParam}`)
                   }}
-                  className="px-5 py-2.5 bg-[#5c7244] hover:bg-[#465733] text-white rounded-xl font-bold text-xs shadow-md transition cursor-pointer flex items-center gap-1.5"
+                  className="px-4 py-2.5 bg-[#5c7244] hover:bg-[#465733] text-white rounded-xl font-bold text-xs shadow-md transition cursor-pointer flex items-center gap-1.5"
                 >
-                  <span>Go to Appointments</span>
+                  <span>Go to Sending Page</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

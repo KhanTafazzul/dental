@@ -1361,14 +1361,14 @@ export default function FinancesClient({
       {/* ════ SECTION 1: GLOBAL CONTROL BAR (CLAYMORPHISM) ════ */}
       <div className="clay p-5 border border-slate-200/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
         
-        {/* Branch Filters */}
-        <div className="flex items-center gap-1.5 p-1.5 bg-slate-200/50 rounded-2xl self-start backdrop-blur-sm border border-slate-200/40">
+        {/* Branch Filters (Olive Aesthetic Theme) */}
+        <div className="flex items-center gap-1.5 p-1.5 bg-[#F2F4EC] dark:bg-[#1E2619] rounded-2xl self-start backdrop-blur-sm border border-[#E4E7D3] dark:border-olive-900/40">
           <button
             onClick={() => setSelectedBranch('all')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition-all duration-300 ${
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all duration-300 ${
               selectedBranch === 'all' 
-                ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-md shadow-cyan-600/20' 
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                ? 'bg-[#4A5D23] text-white shadow-md shadow-[#4A5D23]/25' 
+                : 'text-[#4A5D23]/80 hover:text-[#2C3325] hover:bg-white/60 dark:text-emerald-300'
             }`}
           >
             All Branches
@@ -1377,10 +1377,10 @@ export default function FinancesClient({
             <button
               key={b.id}
               onClick={() => setSelectedBranch(b.slug)}
-              className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition-all duration-300 ${
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all duration-300 ${
                 selectedBranch === b.slug 
-                  ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-md shadow-cyan-600/20' 
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                  ? 'bg-[#4A5D23] text-white shadow-md shadow-[#4A5D23]/25' 
+                  : 'text-[#4A5D23]/80 hover:text-[#2C3325] hover:bg-white/60 dark:text-emerald-300'
               }`}
             >
               {b.name.split(' ')[0]}

@@ -3,12 +3,12 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { updateAppointmentStatus, getLocalIpAddress, sendPatientReport, bookOfflineAppointment, createCaptureTicket, clearCaptureTicket, triggerDeliverAndCleanup, postponeAppointmentAction, scheduleReappointment } from '@/app/admin/actions'
+import { updateAppointmentStatus, getLocalIpAddress, sendPatientReport, bookOfflineAppointment, createCaptureTicket, clearCaptureTicket, triggerDeliverAndCleanup, postponeAppointmentAction, scheduleReappointment, searchMedicines, sendWahaOtpAction, verifyWahaOtpAction } from '@/app/admin/actions'
 import { supabase } from '@/lib/supabase'
 import { 
   Search, Calendar, Check, X, AlertCircle, Info, Filter,
   Building, User2, RefreshCw, ChevronDown, CheckCircle2, Clock,
-  FileText, QrCode, UploadCloud, Copy, HelpCircle, User, Plus, Loader2, Sparkles, Printer
+  FileText, QrCode, UploadCloud, Copy, HelpCircle, User, Plus, Loader2, Sparkles, Printer, Pill, PlusCircle
 } from 'lucide-react'
 import { getClientCache, saveClientCache } from '@/lib/clientCache'
 
@@ -179,7 +179,50 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
 
   const [associatedInvoiceId, setAssociatedInvoiceId] = useState<string | null>(null)
   const [associatedInvoiceTotal, setAssociatedInvoiceTotal] = useState<number | null>(null)
+  const [associatedInvoiceItems, setAssociatedInvoiceItems] = useState<any[]>([])
   const [loadingInvoiceCheck, setLoadingInvoiceCheck] = useState(false)
+
+  // Quick Add Medicine state inside Reports Modal
+  const [showAddMedDrawer, setShowAddMedDrawer] = useState(false)
+  const [quickMedName, setQuickMedName] = useState('')
+  const [quickMedDosage, setQuickMedDosage] = useState('500mg')
+  const [quickMedFreq, setQuickMedFreq] = useState('1-0-1')
+  const [quickMedDuration, setQuickMedDuration] = useState('5 days')
+  const [quickMedSearchQuery, setQuickMedSearchQuery] = useState('')
+  const [quickMedSearchResults, setQuickMedSearchResults] = useState<any[]>([])
+  const [searchingQuickMeds, setSearchingQuickMeds] = useState(false)
+
+  const handleQuickMedSearch = async (val: string) => {
+    setQuickMedSearchQuery(val)
+    if (!val.trim()) {
+      setQuickMedSearchResults([])
+      return
+    }
+    setSearchingQuickMeds(true)
+    try {
+      const res = await searchMedicines(val, activeAppt?.branches?.slug)
+      if (res.success && res.data) {
+        setQuickMedSearchResults(res.data)
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSearchingQuickMeds(false)
+    }
+  }
+
+  const handleAppendMedicineToPrescription = (medNameInput?: string) => {
+    const medName = medNameInput || quickMedName
+    if (!medName.trim()) return
+
+    const line = `• ${medName.trim()} ${quickMedDosage.trim() ? `(${quickMedDosage.trim()})` : ''} — ${quickMedFreq} for ${quickMedDuration}`
+    setPrescriptionText(prev => prev ? `${prev}\n${line}` : line)
+    
+    setQuickMedName('')
+    setQuickMedSearchQuery('')
+    setQuickMedSearchResults([])
+    setShowAddMedDrawer(false)
+  }
 
   // Open Reports Modal and populate fields
   const handleOpenReportsModal = async (appt: any, passedInvoiceId?: string) => {
@@ -197,24 +240,26 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
 
     setAssociatedInvoiceId(passedInvoiceId || null)
     setAssociatedInvoiceTotal(null)
+    setAssociatedInvoiceItems([])
     setLoadingInvoiceCheck(true)
     try {
       if (passedInvoiceId) {
         const { data: invData } = await supabase
           .from('invoices')
-          .select('id, total')
+          .select('id, total, invoice_items(*)')
           .eq('id', passedInvoiceId)
           .maybeSingle()
         if (invData) {
           setAssociatedInvoiceId(invData.id)
           setAssociatedInvoiceTotal(Number(invData.total))
+          setAssociatedInvoiceItems(invData.invoice_items || [])
           return
         }
       }
 
       const { data } = await supabase
         .from('invoices')
-        .select('id, total')
+        .select('id, total, invoice_items(*)')
         .eq('appointment_id', appt.id)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -222,11 +267,117 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
       if (data && data.length > 0) {
         setAssociatedInvoiceId(data[0].id)
         setAssociatedInvoiceTotal(Number(data[0].total))
+        setAssociatedInvoiceItems(data[0].invoice_items || [])
       }
     } catch (err) {
       console.error(err)
     } finally {
       setLoadingInvoiceCheck(false)
+    }
+  }
+
+  // Double-Click Patient History & Prescription PDF Archive Modal state
+  const [showPatientHistoryModal, setShowPatientHistoryModal] = useState(false)
+  const [patientHistoryData, setPatientHistoryData] = useState<{
+    patientName: string
+    mobile: string
+    email: string
+    records: any[]
+  }>({ patientName: '', mobile: '', email: '', records: [] })
+  const [loadingHistory, setLoadingHistory] = useState(false)
+
+  const handleOpenPatientHistoryModal = async (appt: any) => {
+    const pName = appt.patients?.name || appt.patient_name || 'Patient'
+    const pMobile = appt.patients?.mobile || ''
+    const pEmail = appt.patients?.email || ''
+    setPatientHistoryData({ patientName: pName, mobile: pMobile, email: pEmail, records: [] })
+    setShowPatientHistoryModal(true)
+    setLoadingHistory(true)
+
+    try {
+      const { data } = await supabase
+        .from('appointments')
+        .select(`
+          id,
+          appointment_date,
+          appointment_time,
+          status,
+          problem_description,
+          prescription_text,
+          prescription_url,
+          xray_url,
+          created_at,
+          doctors (name, specialty),
+          branches (name),
+          invoices (id, total, created_at, invoice_items (*))
+        `)
+        .order('appointment_date', { ascending: false })
+
+      if (data) {
+        // Filter by matching patient mobile or email or name
+        const matched = data.filter((a: any) => {
+          const p = a.patients || {}
+          return (pMobile && p.mobile === pMobile) || (pEmail && p.email === pEmail) || (a.patient_name === pName)
+        })
+        setPatientHistoryData({
+          patientName: pName,
+          mobile: pMobile,
+          email: pEmail,
+          records: matched.length > 0 ? matched : data.slice(0, 5)
+        })
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
+  // Offline Booking OTP Verification States & Handlers
+  const [offlineOtpSent, setOfflineOtpSent] = useState(false)
+  const [offlineOtpInput, setOfflineOtpInput] = useState('')
+  const [offlineSendingOtp, setOfflineSendingOtp] = useState(false)
+  const [offlineVerifyingOtp, setOfflineVerifyingOtp] = useState(false)
+  const [offlineOtpVerified, setOfflineOtpVerified] = useState(false)
+  const [offlineOtpMsg, setOfflineOtpMsg] = useState<string | null>(null)
+
+  const handleSendOfflineWahaOtp = async () => {
+    if (!offlineMobile.trim()) {
+      alert('Please enter a mobile number first.')
+      return
+    }
+    setOfflineSendingOtp(true)
+    setOfflineOtpMsg(null)
+    try {
+      const res = await sendWahaOtpAction(offlineMobile)
+      if (res.success) {
+        setOfflineOtpSent(true)
+        setOfflineOtpMsg(res.message)
+      } else {
+        alert(res.error || 'Failed to send WhatsApp OTP.')
+      }
+    } catch (err: any) {
+      alert(err.message || 'An error occurred.')
+    } finally {
+      setOfflineSendingOtp(false)
+    }
+  }
+
+  const handleVerifyOfflineWahaOtp = async () => {
+    if (!offlineOtpInput.trim()) return
+    setOfflineVerifyingOtp(true)
+    try {
+      const res = await verifyWahaOtpAction(offlineMobile, offlineOtpInput)
+      if (res.success) {
+        setOfflineOtpVerified(true)
+        setOfflineOtpMsg('✓ Phone number verified on backend!')
+      } else {
+        alert(res.error || 'Invalid OTP code.')
+      }
+    } catch (err: any) {
+      alert(err.message || 'An error occurred.')
+    } finally {
+      setOfflineVerifyingOtp(false)
     }
   }
 
@@ -649,10 +800,19 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                 {filteredAppointments.map(appt => (
                   <tr key={appt.id} className="hover:bg-slate-50/50 transition">
                     
-                    {/* Patient demographics */}
-                    <td className="px-6 py-4 max-w-xs">
+                    {/* Patient demographics (Double-click to open history) */}
+                    <td 
+                      onDoubleClick={() => handleOpenPatientHistoryModal(appt)}
+                      title="Double click to view patient's previous prescription PDFs & history archive"
+                      className="px-6 py-4 max-w-xs cursor-pointer group hover:bg-cyan-50/40 transition rounded-xl"
+                    >
                       <div className="space-y-0.5">
-                        <p className="font-semibold text-slate-800">{appt.patients?.name}</p>
+                        <p className="font-semibold text-slate-800 group-hover:text-cyan-700 flex items-center justify-between">
+                          <span>{appt.patients?.name}</span>
+                          <span className="text-[9px] bg-cyan-100 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-300 px-1.5 py-0.5 rounded font-mono font-normal opacity-0 group-hover:opacity-100 transition shadow-xs">
+                            Double-Click Rx
+                          </span>
+                        </p>
                         <p className="text-xs text-slate-400">Age: {appt.patients?.age} yrs | {appt.patients?.mobile}</p>
                         <p className="text-xs text-slate-500 font-light">{appt.patients?.email}</p>
                       </div>
@@ -839,6 +999,14 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                           <Printer className="w-3 h-3" />
                           <span>View Bill</span>
                         </a>
+                        <button
+                          type="button"
+                          onClick={() => router.push('/admin/prescription-mapper')}
+                          className="text-[10px] bg-cyan-600 text-white hover:bg-cyan-700 px-2 py-1 rounded-lg font-semibold transition cursor-pointer flex items-center gap-1 shadow-sm"
+                        >
+                          <Pill className="w-3 h-3" />
+                          <span>Rx Mapper</span>
+                        </button>
                       </div>
                     </div>
                   ) : (
@@ -880,9 +1048,40 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                   />
                 </div>
 
-                {/* Clinical Notes */}
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400">Clinical Prescription Notes</label>
+                {/* Prescribed Medicines & Clinical Notes */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <FileText className="w-4 h-4 text-cyan-600" />
+                      Clinical Prescription Notes & Medicines
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddMedDrawer(true)}
+                      className="text-[11px] font-bold text-cyan-700 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/40 hover:bg-cyan-100 border border-cyan-200 dark:border-cyan-800 px-3 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer"
+                    >
+                      <Pill className="w-3.5 h-3.5" />
+                      + Add Medicine
+                    </button>
+                  </div>
+
+                  {/* Display Prescribed Medicines list if invoice items exist */}
+                  {associatedInvoiceItems.filter(i => i.item_type === 'medicine' || i.type === 'medicine').length > 0 && (
+                    <div className="p-3 bg-cyan-50/60 dark:bg-cyan-950/20 border border-cyan-150 dark:border-cyan-900/40 rounded-xl space-y-1.5">
+                      <p className="text-[10px] font-bold text-cyan-800 dark:text-cyan-300 uppercase tracking-wider flex items-center gap-1">
+                        <Pill className="w-3 h-3" /> Prescribed Medicines from Invoice ({associatedInvoiceItems.filter(i => i.item_type === 'medicine' || i.type === 'medicine').length})
+                      </p>
+                      <div className="divide-y divide-cyan-100 dark:divide-cyan-900/30 text-xs">
+                        {associatedInvoiceItems.filter(i => i.item_type === 'medicine' || i.type === 'medicine').map((item, idx) => (
+                          <div key={idx} className="py-1.5 flex justify-between items-center text-slate-800 dark:text-slate-200">
+                            <span className="font-semibold">{idx + 1}. {item.item_name || item.name}</span>
+                            <span className="text-slate-500 font-mono text-[11px]">Qty: {item.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <textarea
                     required
                     placeholder="Enter patient diagnosis, medication details, and dosage instructions..."
@@ -1211,16 +1410,65 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                         className="w-full px-3 py-1.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-805 dark:text-slate-200"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-455">Mobile</label>
+                    <div className="space-y-1 sm:col-span-2">
+                      <div className="flex justify-between items-center">
+                        <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-455">Mobile Number</label>
+                        {offlineOtpVerified ? (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <Check className="w-3 h-3 text-emerald-600" /> Verified via WAHA
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleSendOfflineWahaOtp}
+                            disabled={offlineSendingOtp || !offlineMobile.trim()}
+                            className="text-[10px] font-bold text-[#4A5D23] bg-[#E4E7D3] hover:bg-[#4A5D23] hover:text-white px-2 py-0.5 rounded-lg transition border border-[#4A5D23]/20 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                          >
+                            {offlineSendingOtp ? <Loader2 className="w-3 h-3 animate-spin" /> : <Lock className="w-3 h-3" />}
+                            Send WhatsApp OTP
+                          </button>
+                        )}
+                      </div>
                       <input
                         type="tel"
                         required
                         placeholder="03001234567"
                         value={offlineMobile}
-                        onChange={e => setOfflineMobile(e.target.value)}
-                        className="w-full px-3 py-1.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-805 dark:text-slate-200"
+                        onChange={e => {
+                          setOfflineMobile(e.target.value)
+                          setOfflineOtpVerified(false)
+                        }}
+                        className="w-full px-3 py-1.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs focus:outline-none focus:border-cyan-500 bg-white dark:bg-[#121c19] text-slate-805 dark:text-slate-200 font-mono"
                       />
+                      {offlineOtpSent && !offlineOtpVerified && (
+                        <div className="p-2.5 bg-[#E4E7D3]/40 dark:bg-[#182622] border border-[#4A5D23]/30 rounded-xl space-y-1.5 mt-2">
+                          <span className="text-[10px] font-bold text-[#4A5D23] dark:text-teal-300 flex items-center gap-1">
+                            <KeyRound className="w-3 h-3" /> Enter 6-Digit WhatsApp OTP Code
+                          </span>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              maxLength={6}
+                              placeholder="e.g. 482910"
+                              value={offlineOtpInput}
+                              onChange={e => setOfflineOtpInput(e.target.value)}
+                              className="w-full px-2.5 py-1 bg-white dark:bg-[#121c19] border border-slate-200 dark:border-teal-900/40 rounded-lg text-center font-mono font-bold tracking-widest text-xs focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleVerifyOfflineWahaOtp}
+                              disabled={offlineVerifyingOtp || offlineOtpInput.length < 6}
+                              className="px-3 py-1 bg-[#4A5D23] hover:bg-[#3D4D1D] text-white rounded-lg text-xs font-bold transition disabled:opacity-50 cursor-pointer flex items-center gap-1 shrink-0"
+                            >
+                              {offlineVerifyingOtp && <Loader2 className="w-3 h-3 animate-spin" />}
+                              Verify Code
+                            </button>
+                          </div>
+                          {offlineOtpMsg && (
+                            <p className="text-[10px] text-[#4A5D23] dark:text-teal-300 font-medium">{offlineOtpMsg}</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-1">
                       <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-455">Age</label>
@@ -1544,6 +1792,262 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
           </div>
         </div>
       )}
+      </AnimatePresence>
+
+      {/* QUICK ADD MEDICINE MODAL FOR REPORTS PAGE */}
+      <AnimatePresence>
+        {showAddMedDrawer && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              className="bg-white dark:bg-[#121c19] rounded-3xl border border-slate-200 dark:border-teal-900/40 shadow-2xl w-full max-w-md overflow-hidden flex flex-col"
+            >
+              <div className="p-5 border-b border-slate-100 dark:border-teal-900/25 flex items-center justify-between bg-cyan-50/60 dark:bg-cyan-950/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-800 dark:text-cyan-300 rounded-2xl">
+                    <Pill className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Add Medicine to Prescription</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Quick Prescriber for {activeAppt?.patients?.name || 'Patient'}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddMedDrawer(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4 text-xs">
+                {/* Search Medicine Inventory */}
+                <div className="space-y-1.5 relative">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Search Clinic Inventory</label>
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Type medicine name (e.g. Amoxicillin)..."
+                      value={quickMedSearchQuery}
+                      onChange={e => handleQuickMedSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs bg-white dark:bg-[#182622] text-slate-800 dark:text-slate-100 focus:outline-none focus:border-cyan-500"
+                    />
+                    {searchingQuickMeds && (
+                      <Loader2 className="w-4 h-4 animate-spin absolute right-3 top-3 text-cyan-600" />
+                    )}
+                  </div>
+
+                  {/* Autocomplete Search Results */}
+                  {quickMedSearchResults.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-[#182622] border border-slate-200 dark:border-teal-900/40 rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                      {quickMedSearchResults.map(med => (
+                        <div
+                          key={med.id}
+                          onClick={() => {
+                            setQuickMedName(med.name)
+                            setQuickMedSearchResults([])
+                            setQuickMedSearchQuery('')
+                          }}
+                          className="p-2.5 hover:bg-cyan-50 dark:hover:bg-cyan-950/40 cursor-pointer flex justify-between items-center"
+                        >
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">{med.name}</span>
+                          <span className="text-[10px] text-slate-400">Stock: {med.stock}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Custom / Selected Medicine Name */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Medicine Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Amoxicillin Trihydrate"
+                    value={quickMedName}
+                    onChange={e => setQuickMedName(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs bg-white dark:bg-[#182622] text-slate-800 dark:text-slate-100 font-semibold focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+
+                {/* Dosage, Frequency, Duration grid */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Dosage</label>
+                    <input
+                      type="text"
+                      placeholder="500mg"
+                      value={quickMedDosage}
+                      onChange={e => setQuickMedDosage(e.target.value)}
+                      className="w-full px-2.5 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs bg-white dark:bg-[#182622] text-slate-800 dark:text-slate-100 focus:outline-none focus:border-cyan-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Frequency</label>
+                    <select
+                      value={quickMedFreq}
+                      onChange={e => setQuickMedFreq(e.target.value)}
+                      className="w-full px-2 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs bg-white dark:bg-[#182622] text-slate-800 dark:text-slate-100 focus:outline-none focus:border-cyan-500"
+                    >
+                      <option value="1-0-1">1-0-1 (BD)</option>
+                      <option value="1-1-1">1-1-1 (TDS)</option>
+                      <option value="1-0-0">1-0-0 (OD AM)</option>
+                      <option value="0-0-1">0-0-1 (OD PM)</option>
+                      <option value="SOS">SOS (As needed)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Duration</label>
+                    <input
+                      type="text"
+                      placeholder="5 days"
+                      value={quickMedDuration}
+                      onChange={e => setQuickMedDuration(e.target.value)}
+                      className="w-full px-2.5 py-2 border border-slate-200 dark:border-teal-900/40 rounded-xl text-xs bg-white dark:bg-[#182622] text-slate-800 dark:text-slate-100 focus:outline-none focus:border-cyan-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-teal-900/20">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddMedDrawer(false)}
+                    className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-teal-900/40 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAppendMedicineToPrescription()}
+                    disabled={!quickMedName.trim()}
+                    className="px-5 py-2 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Append to Prescription
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* DOUBLE-CLICK PATIENT CLINICAL HISTORY & PRESCRIPTION PDF ARCHIVE MODAL */}
+      <AnimatePresence>
+        {showPatientHistoryModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              className="bg-white dark:bg-[#121c19] rounded-3xl border border-slate-200 dark:border-teal-900/40 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              {/* Header */}
+              <div className="p-5 border-b border-slate-100 dark:border-teal-900/25 flex items-center justify-between bg-gradient-to-r from-slate-900 to-slate-800 text-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center text-cyan-300">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold tracking-tight">
+                      Patient Clinical History & Prescription PDF Archive
+                    </h3>
+                    <p className="text-xs text-slate-300 font-medium">
+                      Patient: <strong className="text-cyan-300">{patientHistoryData.patientName}</strong> • {patientHistoryData.mobile || 'No Phone'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPatientHistoryModal(false)}
+                  className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/10 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 overflow-y-auto space-y-4 flex-1 text-xs">
+                {loadingHistory ? (
+                  <div className="py-12 text-center text-slate-400 space-y-2">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-cyan-600" />
+                    <p>Fetching clinical history & prescription PDF records...</p>
+                  </div>
+                ) : patientHistoryData.records.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 space-y-2 bg-slate-50 dark:bg-white/5 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                    <AlertCircle className="w-8 h-8 mx-auto text-slate-300" />
+                    <p>No previous prescription or clinical records found for this patient.</p>
+                  </div>
+                ) : (
+                  patientHistoryData.records.map((rec: any, idx: number) => {
+                    const inv = Array.isArray(rec.invoices) ? rec.invoices[0] : rec.invoices
+                    return (
+                      <div
+                        key={rec.id || idx}
+                        className="p-4 bg-slate-50 dark:bg-[#182622] rounded-2xl border border-slate-200/80 dark:border-teal-900/40 space-y-3 shadow-xs"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 dark:border-teal-900/30 pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2.5 py-0.5 bg-cyan-100 text-cyan-800 dark:bg-cyan-950/50 dark:text-cyan-300 font-bold rounded-full text-[10px]">
+                              Visit #{idx + 1} • {rec.appointment_date} @ {rec.appointment_time?.substring(0, 5)}
+                            </span>
+                            <span className="text-slate-500 font-medium text-[11px]">
+                              Doctor: <strong>Dr. {rec.doctors?.name || 'Clinic Specialist'}</strong>
+                            </span>
+                          </div>
+                          {inv && (
+                            <a
+                              href={`/admin/billing/print/${inv.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1 bg-[#4A5D23] hover:bg-[#3B4A1C] text-white rounded-lg text-[11px] font-bold flex items-center gap-1 transition shadow-xs cursor-pointer"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                              <span>View A4 Prescription PDF (Rs. {Number(inv.total || 0).toFixed(0)})</span>
+                            </a>
+                          )}
+                        </div>
+
+                        {rec.prescription_text && (
+                          <div className="bg-white dark:bg-[#121c19] p-3 rounded-xl border border-slate-200/60 dark:border-teal-900/30">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Prescription & Clinical Advice</p>
+                            <p className="text-slate-700 dark:text-slate-200 whitespace-pre-wrap font-sans leading-relaxed">{rec.prescription_text}</p>
+                          </div>
+                        )}
+
+                        {inv?.invoice_items && inv.invoice_items.length > 0 && (
+                          <div className="bg-cyan-50/50 dark:bg-cyan-950/20 p-3 rounded-xl border border-cyan-150 dark:border-cyan-900/30">
+                            <p className="text-[10px] font-bold text-cyan-800 dark:text-cyan-300 uppercase tracking-wider mb-1">Issued Medicines & Treatments</p>
+                            <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700 dark:text-slate-300">
+                              {inv.invoice_items.map((item: any, itemIdx: number) => (
+                                <div key={itemIdx} className="flex justify-between font-medium bg-white/70 dark:bg-white/5 p-1.5 rounded-lg border border-cyan-100 dark:border-cyan-900/20">
+                                  <span>{item.item_name}</span>
+                                  <span className="font-mono text-cyan-700 dark:text-cyan-400">Qty: {item.quantity}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {rec.xray_url && (
+                          <div className="flex items-center gap-2 pt-1 text-[11px]">
+                            <span className="text-slate-400">Attached X-Ray:</span>
+                            <a href={rec.xray_url} target="_blank" rel="noreferrer" className="text-cyan-600 hover:underline font-semibold">View Dental Scan</a>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
 
     </motion.div>

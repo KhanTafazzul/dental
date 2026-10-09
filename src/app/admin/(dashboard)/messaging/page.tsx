@@ -6,13 +6,16 @@ import {
   sendBroadcastCampaignAction, 
   getMessageLogsAction,
   testWahaWhatsAppAction,
-  getWahaStatusAction
+  getWahaStatusAction,
+  sendWahaOtpAction,
+  verifyWahaOtpAction
 } from '@/app/admin/actions'
+import { supabase } from '@/lib/supabase'
 import { 
   MessageSquare, Send, Bell, 
   CheckCircle, Loader2, RefreshCw, Paperclip,
   Server, Phone, AlertTriangle, Users, History,
-  Sparkles, CheckCircle2, Shield
+  Sparkles, CheckCircle2, Shield, Search, KeyRound, Lock, Check
 } from 'lucide-react'
 
 export interface WahaLogItem {
@@ -44,6 +47,80 @@ export default function MessagingCampaignPage() {
   const [testMessage, setTestMessage] = useState('👋 Hello! Important notification from Hazara & Family Dental Clinic.')
   const [sendingTest, setSendingTest] = useState(false)
   const [testResult, setTestResult] = useState<WahaTestResult | null>(null)
+
+  // Patient Autocomplete State
+  const [patientSearchQuery, setPatientSearchQuery] = useState('')
+  const [patientSearchResults, setPatientSearchResults] = useState<any[]>([])
+  const [searchingPatients, setSearchingPatients] = useState(false)
+
+  // OTP Verification State
+  const [otpInput, setOtpInput] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
+  const [sendingOtp, setSendingOtp] = useState(false)
+  const [verifyingOtp, setVerifyingOtp] = useState(false)
+  const [otpVerified, setOtpVerified] = useState(false)
+  const [otpStatusMsg, setOtpStatusMsg] = useState<string | null>(null)
+
+  const handlePatientSearch = async (val: string) => {
+    setPatientSearchQuery(val)
+    if (!val.trim()) {
+      setPatientSearchResults([])
+      return
+    }
+    setSearchingPatients(true)
+    try {
+      const { data } = await supabase
+        .from('patients')
+        .select('id, name, mobile, email')
+        .ilike('name', `%${val}%`)
+        .limit(6)
+      if (data) setPatientSearchResults(data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSearchingPatients(false)
+    }
+  }
+
+  const handleSendOtp = async () => {
+    if (!testPhone.trim()) {
+      alert('Please enter a mobile number first.')
+      return
+    }
+    setSendingOtp(true)
+    setOtpStatusMsg(null)
+    try {
+      const res = await sendWahaOtpAction(testPhone)
+      if (res.success) {
+        setOtpSent(true)
+        setOtpStatusMsg(res.message)
+      } else {
+        alert(res.error || 'Failed to send OTP via WAHA')
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error sending OTP')
+    } finally {
+      setSendingOtp(false)
+    }
+  }
+
+  const handleVerifyOtp = async () => {
+    if (!otpInput.trim()) return
+    setVerifyingOtp(true)
+    try {
+      const res = await verifyWahaOtpAction(testPhone, otpInput)
+      if (res.success) {
+        setOtpVerified(true)
+        setOtpStatusMsg('✓ Mobile number verified on backend!')
+      } else {
+        alert(res.error || 'Invalid OTP code.')
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error verifying OTP')
+    } finally {
+      setVerifyingOtp(false)
+    }
+  }
 
   // Message Logs state
   const [logs, setLogs] = useState<WahaLogItem[]>([])
@@ -308,17 +385,110 @@ export default function MessagingCampaignPage() {
             )}
 
             <form onSubmit={handleSendQuickMessage} className="space-y-4 text-xs">
+              
+              {/* Patient Name Search Autocomplete */}
+              <div className="space-y-1 relative">
+                <label className="block text-xs font-bold text-[#2C3325]">Search Patient by Name (Auto-Detect Mobile)</label>
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-3 text-[#8A9380]" />
+                  <input
+                    type="text"
+                    placeholder="Type patient name to detect mobile number..."
+                    value={patientSearchQuery}
+                    onChange={e => handlePatientSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] placeholder-[#8A9380] focus:outline-none focus:border-[#4A5D23]"
+                  />
+                  {searchingPatients && (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin absolute right-3 top-3 text-[#4A5D23]" />
+                  )}
+                </div>
+
+                {/* Autocomplete Dropdown */}
+                {patientSearchResults.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#E4E7D3] rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto divide-y divide-[#F4F6F0]">
+                    {patientSearchResults.map(p => (
+                      <div
+                        key={p.id}
+                        onClick={() => {
+                          setTestPhone(p.mobile || '')
+                          setPatientSearchQuery(p.name)
+                          setPatientSearchResults([])
+                          setOtpVerified(false)
+                        }}
+                        className="p-2.5 hover:bg-[#F4F6F0] cursor-pointer flex justify-between items-center text-xs"
+                      >
+                        <span className="font-bold text-[#2C3325]">{p.name}</span>
+                        <span className="font-mono text-[11px] text-[#4A5D23] font-semibold">{p.mobile || 'No Mobile'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div>
-                <label className="block text-xs font-bold text-[#2C3325] mb-1">Patient Phone Number</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-bold text-[#2C3325]">Patient Phone Number</label>
+                  {otpVerified ? (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Check className="w-3 h-3 text-emerald-600" /> Verified via WAHA
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={sendingOtp || !testPhone.trim()}
+                      className="text-[10px] font-bold text-[#4A5D23] bg-[#E4E7D3] hover:bg-[#4A5D23] hover:text-white px-2.5 py-1 rounded-lg transition border border-[#4A5D23]/20 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    >
+                      {sendingOtp ? <Loader2 className="w-3 h-3 animate-spin" /> : <Lock className="w-3 h-3" />}
+                      Send WhatsApp OTP
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   required
                   value={testPhone}
-                  onChange={(e) => setTestPhone(e.target.value)}
+                  onChange={(e) => {
+                    setTestPhone(e.target.value)
+                    setOtpVerified(false)
+                  }}
                   placeholder="+91 98765 43210"
                   className="w-full p-3 bg-[#F4F6F0] border border-[#E4E7D3] rounded-xl text-xs text-[#2C3325] placeholder-[#8A9380] focus:outline-none focus:border-[#4A5D23] font-mono"
                 />
               </div>
+
+              {/* OTP Verification Drawer if OTP Sent */}
+              {otpSent && !otpVerified && (
+                <div className="p-3 bg-[#E4E7D3]/40 border border-[#4A5D23]/30 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-[#4A5D23] flex items-center gap-1">
+                      <KeyRound className="w-3.5 h-3.5" /> Enter 6-Digit WhatsApp OTP
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder="e.g. 482910"
+                      value={otpInput}
+                      onChange={e => setOtpInput(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-[#E4E7D3] rounded-lg text-center font-mono font-bold tracking-widest text-xs focus:outline-none focus:border-[#4A5D23]"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleVerifyOtp}
+                      disabled={verifyingOtp || otpInput.length < 6}
+                      className="px-4 py-1.5 bg-[#4A5D23] hover:bg-[#3D4D1D] text-white rounded-lg text-xs font-bold transition disabled:opacity-50 cursor-pointer flex items-center gap-1"
+                    >
+                      {verifyingOtp && <Loader2 className="w-3 h-3 animate-spin" />}
+                      Verify
+                    </button>
+                  </div>
+                  {otpStatusMsg && (
+                    <p className="text-[10px] text-[#4A5D23] font-medium leading-tight">{otpStatusMsg}</p>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-[#2C3325] mb-1">Message Content</label>

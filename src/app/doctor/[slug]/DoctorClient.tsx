@@ -21,7 +21,7 @@ import { supabase } from '@/lib/supabase'
 import { 
   Calendar, Clock, Check, X, FileText, Upload, Copy, Info, Mail, Phone,
   TrendingUp, Award, LogOut, Sparkles, RefreshCw, User, HelpCircle, CheckCircle,
-  Search, PlusCircle, Trash2, Loader2, Percent, AlertCircle, ShoppingCart, Send, Barcode, Activity, MessageSquare
+  Search, PlusCircle, Trash2, Loader2, Percent, AlertCircle, ShoppingCart, Send, Barcode, Activity, MessageSquare, Printer
 } from 'lucide-react'
 
 
@@ -184,6 +184,62 @@ export default function DoctorClient({
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'appointments' | 'book' | 'finances'>('appointments')
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments)
+
+  // Double-Click Patient History & Prescription PDF Archive Modal state
+  const [showPatientHistoryModal, setShowPatientHistoryModal] = useState(false)
+  const [patientHistoryData, setPatientHistoryData] = useState<{
+    patientName: string
+    mobile: string
+    email: string
+    records: any[]
+  }>({ patientName: '', mobile: '', email: '', records: [] })
+  const [loadingHistory, setLoadingHistory] = useState(false)
+
+  const handleOpenPatientHistoryModal = async (appt: any) => {
+    const pName = appt.patients?.name || appt.patient_name || 'Patient'
+    const pMobile = appt.patients?.mobile || ''
+    const pEmail = appt.patients?.email || ''
+    setPatientHistoryData({ patientName: pName, mobile: pMobile, email: pEmail, records: [] })
+    setShowPatientHistoryModal(true)
+    setLoadingHistory(true)
+
+    try {
+      const { data } = await supabase
+        .from('appointments')
+        .select(`
+          id,
+          appointment_date,
+          appointment_time,
+          status,
+          problem_description,
+          prescription_text,
+          prescription_url,
+          xray_url,
+          created_at,
+          doctors (name, specialty),
+          branches (name),
+          invoices (id, total, created_at, invoice_items (*))
+        `)
+        .order('appointment_date', { ascending: false })
+
+      if (data) {
+        const matched = data.filter((a: any) => {
+          const p = a.patients || {}
+          return (pMobile && p.mobile === pMobile) || (pEmail && p.email === pEmail) || (a.patient_name === pName)
+        })
+        setPatientHistoryData({
+          patientName: pName,
+          mobile: pMobile,
+          email: pEmail,
+          records: matched.length > 0 ? matched : data.slice(0, 5)
+        })
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
 
 
   // Postpone Appointment Modal states for Doctor
@@ -1099,13 +1155,22 @@ export default function DoctorClient({
                     ) : (
                       appointments.map(appt => (
                         <motion.tr variants={itemVariants} key={appt.id} className="hover:bg-white/60 transition-colors">
-                          <td className="px-6 py-4">
+                          <td 
+                            onDoubleClick={() => handleOpenPatientHistoryModal(appt)}
+                            title="Double click to view patient's previous prescription PDFs & history archive"
+                            className="px-6 py-4 cursor-pointer group hover:bg-cyan-50/40 transition rounded-xl"
+                          >
                             <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold text-sm">
                                 {appt.patients?.name.charAt(0)}
                               </div>
                               <div>
-                                <p className="font-semibold text-slate-800 font-sans">{appt.patients?.name}</p>
+                                <p className="font-semibold text-slate-800 font-sans flex items-center gap-2">
+                                  <span>{appt.patients?.name}</span>
+                                  <span className="text-[9px] bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded font-mono font-normal opacity-0 group-hover:opacity-100 transition shadow-xs">
+                                    Double-Click Rx
+                                  </span>
+                                </p>
                                 <span className="text-[10px] text-slate-400 font-medium">{appt.patients?.age} yrs · {appt.patients?.mobile}</span>
                               </div>
                             </div>
@@ -2090,6 +2155,120 @@ export default function DoctorClient({
         </div>
       )}
 
+      {/* DOUBLE-CLICK PATIENT CLINICAL HISTORY & PRESCRIPTION PDF ARCHIVE MODAL */}
+      <AnimatePresence>
+        {showPatientHistoryModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              className="bg-white dark:bg-[#121c19] rounded-3xl border border-slate-200 dark:border-teal-900/40 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              {/* Header */}
+              <div className="p-5 border-b border-slate-100 dark:border-teal-900/25 flex items-center justify-between bg-gradient-to-r from-slate-900 to-slate-800 text-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center text-cyan-300">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold tracking-tight">
+                      Patient Clinical History & Prescription PDF Archive
+                    </h3>
+                    <p className="text-xs text-slate-300 font-medium">
+                      Patient: <strong className="text-cyan-300">{patientHistoryData.patientName}</strong> • {patientHistoryData.mobile || 'No Phone'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPatientHistoryModal(false)}
+                  className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/10 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 overflow-y-auto space-y-4 flex-1 text-xs">
+                {loadingHistory ? (
+                  <div className="py-12 text-center text-slate-400 space-y-2">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-cyan-600" />
+                    <p>Fetching clinical history & prescription PDF records...</p>
+                  </div>
+                ) : patientHistoryData.records.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 space-y-2 bg-slate-50 dark:bg-white/5 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                    <AlertCircle className="w-8 h-8 mx-auto text-slate-300" />
+                    <p>No previous prescription or clinical records found for this patient.</p>
+                  </div>
+                ) : (
+                  patientHistoryData.records.map((rec: any, idx: number) => {
+                    const inv = Array.isArray(rec.invoices) ? rec.invoices[0] : rec.invoices
+                    return (
+                      <div
+                        key={rec.id || idx}
+                        className="p-4 bg-slate-50 dark:bg-[#182622] rounded-2xl border border-slate-200/80 dark:border-teal-900/40 space-y-3 shadow-xs"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 dark:border-teal-900/30 pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2.5 py-0.5 bg-cyan-100 text-cyan-800 dark:bg-cyan-950/50 dark:text-cyan-300 font-bold rounded-full text-[10px]">
+                              Visit #{idx + 1} • {rec.appointment_date} @ {rec.appointment_time?.substring(0, 5)}
+                            </span>
+                            <span className="text-slate-500 font-medium text-[11px]">
+                              Doctor: <strong>Dr. {rec.doctors?.name || 'Clinic Specialist'}</strong>
+                            </span>
+                          </div>
+                          {inv && (
+                            <a
+                              href={`/admin/billing/print/${inv.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1 bg-[#4A5D23] hover:bg-[#3B4A1C] text-white rounded-lg text-[11px] font-bold flex items-center gap-1 transition shadow-xs cursor-pointer"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                              <span>View A4 Prescription PDF (Rs. {Number(inv.total || 0).toFixed(0)})</span>
+                            </a>
+                          )}
+                        </div>
+
+                        {rec.prescription_text && (
+                          <div className="bg-white dark:bg-[#121c19] p-3 rounded-xl border border-slate-200/60 dark:border-teal-900/30">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Prescription & Clinical Advice</p>
+                            <p className="text-slate-700 dark:text-slate-200 whitespace-pre-wrap font-sans leading-relaxed">{rec.prescription_text}</p>
+                          </div>
+                        )}
+
+                        {inv?.invoice_items && inv.invoice_items.length > 0 && (
+                          <div className="bg-cyan-50/50 dark:bg-cyan-950/20 p-3 rounded-xl border border-cyan-150 dark:border-cyan-900/30">
+                            <p className="text-[10px] font-bold text-cyan-800 dark:text-cyan-300 uppercase tracking-wider mb-1">Issued Medicines & Treatments</p>
+                            <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700 dark:text-slate-300">
+                              {inv.invoice_items.map((item: any, itemIdx: number) => (
+                                <div key={itemIdx} className="flex justify-between font-medium bg-white/70 dark:bg-white/5 p-1.5 rounded-lg border border-cyan-100 dark:border-cyan-900/20">
+                                  <span>{item.item_name}</span>
+                                  <span className="font-mono text-cyan-700 dark:text-cyan-400">Qty: {item.quantity}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {rec.xray_url && (
+                          <div className="flex items-center gap-2 pt-1 text-[11px]">
+                            <span className="text-slate-400">Attached X-Ray:</span>
+                            <a href={rec.xray_url} target="_blank" rel="noreferrer" className="text-cyan-600 hover:underline font-semibold">View Dental Scan</a>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   )
 }
+
