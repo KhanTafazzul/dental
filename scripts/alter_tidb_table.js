@@ -33,6 +33,9 @@ async function run() {
   }
 
   let connection;
+  let hasErrors = false;
+  const failedMigrations = [];
+
   try {
     connection = await mysql.createConnection({
       host,
@@ -65,9 +68,6 @@ async function run() {
       }
     ];
 
-    let hasErrors = false;
-    const failedMigrations = [];
-
     for (const m of migrations) {
       try {
         console.log(`Applying migration: ${m.name}...`);
@@ -97,18 +97,18 @@ async function run() {
         }
       }
     }
-
-    if (hasErrors) {
-      console.error(`Migration finished with ${failedMigrations.length} failure(s):`, failedMigrations);
-      process.exitCode = 1;
-    } else {
-      console.log('All migrations applied successfully.');
-    }
   } finally {
     if (connection) {
       await connection.end();
     }
   }
+
+  if (hasErrors) {
+    console.error(`Migration finished with ${failedMigrations.length} failure(s):`, failedMigrations);
+    process.exit(1);
+  }
+
+  console.log('All migrations applied successfully.');
 }
 
 run().catch(err => {
