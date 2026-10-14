@@ -52,6 +52,39 @@ interface DoctorChatPortalProps {
 
 const CLINICAL_TAGS = ['Acknowledged', 'Priority', 'Prescribed', 'Reviewed', 'Complete']
 
+// Map common legacy emoji keys to supported CLINICAL_TAGS
+const LEGACY_EMOJI_MAP: Record<string, string> = {
+  '👍': 'Acknowledged',
+  '✅': 'Complete',
+  '❤️': 'Acknowledged',
+  '📋': 'Reviewed',
+  '💊': 'Prescribed',
+  '⚠️': 'Priority',
+  '⚡': 'Priority',
+  '👀': 'Reviewed',
+}
+
+function sanitizeMessageReactions(msg: ChatMessage): ChatMessage {
+  if (!msg.reactions || typeof msg.reactions !== 'object') {
+    return { ...msg, reactions: {} }
+  }
+
+  const sanitized: Record<string, string[]> = {}
+  for (const [key, senders] of Object.entries(msg.reactions)) {
+    if (!Array.isArray(senders) || senders.length === 0) continue
+
+    // Map legacy emoji to clinical tag if possible; otherwise only accept if in CLINICAL_TAGS
+    const validKey = CLINICAL_TAGS.includes(key) ? key : LEGACY_EMOJI_MAP[key]
+
+    if (validKey && CLINICAL_TAGS.includes(validKey)) {
+      const existing = sanitized[validKey] || []
+      sanitized[validKey] = Array.from(new Set([...existing, ...senders]))
+    }
+  }
+
+  return { ...msg, reactions: sanitized }
+}
+
 export default function DoctorChatPortal({
   currentUser,
   doctorsList = [],
@@ -69,7 +102,12 @@ export default function DoctorChatPortal({
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('falix_doctor_chat_messages')
       if (saved) {
-        try { return JSON.parse(saved) } catch (e) {}
+        try {
+          const parsed = JSON.parse(saved)
+          if (Array.isArray(parsed)) {
+            return parsed.map(sanitizeMessageReactions)
+          }
+        } catch (e) {}
       }
     }
     // Default initial mock conversation
@@ -560,15 +598,25 @@ export default function DoctorChatPortal({
                     {/* Reaction Badges below message */}
                     {hasReactions && (
                       <div className="flex items-center gap-1 mt-1">
-                        {Object.entries(msg.reactions!).map(([emoji, senders]) => (
-                          <span
-                            key={emoji}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-900/90 border border-white/15 text-[10px] text-slate-200 shadow-sm"
-                          >
-                            <span>{emoji}</span>
-                            <span className="font-mono font-bold">{senders.length}</span>
-                          </span>
-                        ))}
+                        {Object.entries(msg.reactions!).map(([emoji, senders]) => {
+                          const hasReacted = senders.includes(currentUser.id)
+                          return (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={() => handleToggleReaction(msg.id, emoji)}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] shadow-sm cursor-pointer transition-colors ${
+                                hasReacted
+                                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                                  : 'bg-slate-900/90 border-white/15 text-slate-200 hover:border-white/30'
+                              }`}
+                              title={hasReacted ? `Click to remove ${emoji}` : `Click to add ${emoji}`}
+                            >
+                              <span>{emoji}</span>
+                              <span className="font-mono font-bold">{senders.length}</span>
+                            </button>
+                          )
+                        })}
                       </div>
                     )}
 

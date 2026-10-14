@@ -289,17 +289,6 @@ export async function saveMedicineStock(
       return { success: false, error: 'Unauthorized: Missing or invalid session credentials.' }
     }
 
-    // Ensure schema is up-to-date (idempotent ALTER TABLE attempts)
-    const schemaMigrations = [
-      'ALTER TABLE medicines ADD COLUMN tablets_per_patch INT NOT NULL DEFAULT 10',
-      'ALTER TABLE medicine_batches ADD COLUMN cost_price DECIMAL(10, 2) NOT NULL DEFAULT 0.00',
-      "ALTER TABLE medicine_batches ADD COLUMN branch_slug VARCHAR(50) NOT NULL DEFAULT 'hazara'",
-      'ALTER TABLE medicine_batches ADD COLUMN mrp DECIMAL(10, 2) NOT NULL DEFAULT 0.00',
-    ]
-    for (const migration of schemaMigrations) {
-      try { await queryTiDB(migration) } catch (_) { /* column already exists */ }
-    }
-
     const branchSlug = details.branchSlug || 'hazara'
     let barcodeToUse = barcode?.trim()
     let medicineId: string
