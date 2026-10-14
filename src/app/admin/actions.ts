@@ -2619,7 +2619,7 @@ export async function verifyWahaOtpAction(phone: string, inputOtp: string) {
   return { success: true, message: 'Mobile number verified successfully via WAHA WhatsApp!' }
 }
 
-export function isPhoneVerifiedBackend(phone: string): boolean {
+export async function isPhoneVerifiedBackend(phone: string): Promise<boolean> {
   const cleanPhone = normalizePhoneDigits(phone)
   const record = otpStore[cleanPhone]
   return Boolean(record && record.verified && Date.now() <= record.expiresAt + 30 * 60 * 1000)
