@@ -196,18 +196,25 @@ export default function DoctorClient({
   const [loadingHistory, setLoadingHistory] = useState(false)
 
   const handleOpenPatientHistoryModal = async (appt: any) => {
+    const patientId = appt.patient_id || appt.patients?.id
     const pName = appt.patients?.name || appt.patient_name || 'Patient'
-    const pMobile = appt.patients?.mobile || ''
-    const pEmail = appt.patients?.email || ''
+    const pMobile = appt.patients?.mobile || appt.patient_mobile || ''
+    const pEmail = appt.patients?.email || appt.patient_email || ''
     setPatientHistoryData({ patientName: pName, mobile: pMobile, email: pEmail, records: [] })
     setShowPatientHistoryModal(true)
     setLoadingHistory(true)
 
     try {
+      const cleanMobile = pMobile.replace(/\D/g, '')
+      const cleanEmail = pEmail.trim().toLowerCase()
+      const cleanName = pName.trim().toLowerCase()
+
       const { data } = await supabase
         .from('appointments')
         .select(`
           id,
+          patient_id,
+          patient_name,
           appointment_date,
           appointment_time,
           status,
@@ -218,24 +225,40 @@ export default function DoctorClient({
           created_at,
           doctors (name, specialty),
           branches (name),
+          patients (id, name, email, mobile, age),
           invoices (id, total, created_at, invoice_items (*))
         `)
         .order('appointment_date', { ascending: false })
 
       if (data) {
+        // Filter strictly by this patient only (never fallback to other patients' records)
         const matched = data.filter((a: any) => {
+          if (patientId && a.patient_id && a.patient_id === patientId) {
+            return true
+          }
           const p = a.patients || {}
-          return (pMobile && p.mobile === pMobile) || (pEmail && p.email === pEmail) || (a.patient_name === pName)
+          if (cleanMobile && p.mobile && p.mobile.replace(/\D/g, '') === cleanMobile) {
+            return true
+          }
+          if (cleanEmail && p.email && p.email.trim().toLowerCase() === cleanEmail) {
+            return true
+          }
+          if (cleanName && cleanName !== 'patient') {
+            const rowPatientName = (p.name || a.patient_name || '').trim().toLowerCase()
+            if (rowPatientName === cleanName) return true
+          }
+          return false
         })
+
         setPatientHistoryData({
           patientName: pName,
           mobile: pMobile,
           email: pEmail,
-          records: matched.length > 0 ? matched : data.slice(0, 5)
+          records: matched,
         })
       }
     } catch (err) {
-      console.error(err)
+      console.error('Error loading patient history:', err)
     } finally {
       setLoadingHistory(false)
     }
@@ -2158,48 +2181,49 @@ export default function DoctorClient({
       {/* DOUBLE-CLICK PATIENT CLINICAL HISTORY & PRESCRIPTION PDF ARCHIVE MODAL */}
       <AnimatePresence>
         {showPatientHistoryModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2C3325]/70 backdrop-blur-md">
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 15 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 15 }}
-              className="bg-white dark:bg-[#121c19] rounded-3xl border border-slate-200 dark:border-teal-900/40 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]"
+              className="bg-white dark:bg-[#1C2317] rounded-3xl border border-[#E4E7D3] dark:border-[#4A5D23]/40 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]"
             >
               {/* Header */}
-              <div className="p-5 border-b border-slate-100 dark:border-teal-900/25 flex items-center justify-between bg-gradient-to-r from-slate-900 to-slate-800 text-white">
+              <div className="p-5 border-b border-[#4A5D23]/20 flex items-center justify-between bg-gradient-to-r from-[#4A5D23] to-[#6B823E] text-white">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center text-cyan-300">
+                  <div className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-[#E4E7D3]">
                     <FileText className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold tracking-tight">
+                    <h3 className="text-base font-bold tracking-tight font-['Outfit']">
                       Patient Clinical History & Prescription PDF Archive
                     </h3>
-                    <p className="text-xs text-slate-300 font-medium">
-                      Patient: <strong className="text-cyan-300">{patientHistoryData.patientName}</strong> • {patientHistoryData.mobile || 'No Phone'}
+                    <p className="text-xs text-[#E4E7D3] font-medium font-['Plus_Jakarta_Sans']">
+                      Patient: <strong className="text-white">{patientHistoryData.patientName}</strong> • {patientHistoryData.mobile || 'No Phone'}
                     </p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowPatientHistoryModal(false)}
-                  className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/10 transition cursor-pointer"
+                  className="p-2 text-white/80 hover:text-white rounded-xl hover:bg-white/10 transition cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {/* Body */}
-              <div className="p-6 overflow-y-auto space-y-4 flex-1 text-xs">
+              <div className="p-6 overflow-y-auto space-y-4 flex-1 text-xs bg-[#F4F6F0]/60 dark:bg-[#12170F]">
                 {loadingHistory ? (
-                  <div className="py-12 text-center text-slate-400 space-y-2">
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-cyan-600" />
-                    <p>Fetching clinical history & prescription PDF records...</p>
+                  <div className="py-12 text-center text-[#8A9380] space-y-2">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#4A5D23]" />
+                    <p className="font-medium">Fetching clinical history & prescription PDF records...</p>
                   </div>
                 ) : patientHistoryData.records.length === 0 ? (
-                  <div className="py-12 text-center text-slate-400 space-y-2 bg-slate-50 dark:bg-white/5 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
-                    <AlertCircle className="w-8 h-8 mx-auto text-slate-300" />
-                    <p>No previous prescription or clinical records found for this patient.</p>
+                  <div className="py-12 text-center text-[#8A9380] space-y-2 bg-white dark:bg-[#1C2317] rounded-2xl border border-dashed border-[#E4E7D3] dark:border-[#4A5D23]/40">
+                    <AlertCircle className="w-8 h-8 mx-auto text-[#8A9380]/60" />
+                    <p className="font-semibold text-[#2C3325] dark:text-[#E4E7D3]">No previous prescription or clinical records found for this patient.</p>
+                    <p className="text-[11px] text-[#8A9380]">All upcoming and completed visits for this patient will be catalogued here.</p>
                   </div>
                 ) : (
                   patientHistoryData.records.map((rec: any, idx: number) => {
@@ -2207,15 +2231,15 @@ export default function DoctorClient({
                     return (
                       <div
                         key={rec.id || idx}
-                        className="p-4 bg-slate-50 dark:bg-[#182622] rounded-2xl border border-slate-200/80 dark:border-teal-900/40 space-y-3 shadow-xs"
+                        className="p-4 bg-white dark:bg-[#1C2317] rounded-2xl border border-[#E4E7D3] dark:border-[#4A5D23]/30 space-y-3 shadow-xs"
                       >
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 dark:border-teal-900/30 pb-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E4E7D3]/60 dark:border-[#4A5D23]/20 pb-2">
                           <div className="flex items-center gap-2">
-                            <span className="px-2.5 py-0.5 bg-cyan-100 text-cyan-800 dark:bg-cyan-950/50 dark:text-cyan-300 font-bold rounded-full text-[10px]">
+                            <span className="px-2.5 py-0.5 bg-[#E4E7D3] text-[#4A5D23] font-bold rounded-full text-[10px]">
                               Visit #{idx + 1} • {rec.appointment_date} @ {rec.appointment_time?.substring(0, 5)}
                             </span>
-                            <span className="text-slate-500 font-medium text-[11px]">
-                              Doctor: <strong>Dr. {rec.doctors?.name || 'Clinic Specialist'}</strong>
+                            <span className="text-[#8A9380] font-medium text-[11px]">
+                              Doctor: <strong className="text-[#2C3325] dark:text-white">Dr. {rec.doctors?.name || 'Clinic Specialist'}</strong>
                             </span>
                           </div>
                           {inv && (
@@ -2232,20 +2256,20 @@ export default function DoctorClient({
                         </div>
 
                         {rec.prescription_text && (
-                          <div className="bg-white dark:bg-[#121c19] p-3 rounded-xl border border-slate-200/60 dark:border-teal-900/30">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Prescription & Clinical Advice</p>
-                            <p className="text-slate-700 dark:text-slate-200 whitespace-pre-wrap font-sans leading-relaxed">{rec.prescription_text}</p>
+                          <div className="bg-[#F4F6F0] dark:bg-[#141A10] p-3 rounded-xl border border-[#E4E7D3]/80 dark:border-[#4A5D23]/30">
+                            <p className="text-[10px] font-bold text-[#4A5D23] dark:text-[#E4E7D3] uppercase tracking-wider mb-1">Prescription & Clinical Advice</p>
+                            <p className="text-[#2C3325] dark:text-slate-200 whitespace-pre-wrap font-sans leading-relaxed">{rec.prescription_text}</p>
                           </div>
                         )}
 
                         {inv?.invoice_items && inv.invoice_items.length > 0 && (
-                          <div className="bg-cyan-50/50 dark:bg-cyan-950/20 p-3 rounded-xl border border-cyan-150 dark:border-cyan-900/30">
-                            <p className="text-[10px] font-bold text-cyan-800 dark:text-cyan-300 uppercase tracking-wider mb-1">Issued Medicines & Treatments</p>
-                            <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700 dark:text-slate-300">
+                          <div className="bg-[#F4F6F0]/60 dark:bg-[#141A10] p-3 rounded-xl border border-[#E4E7D3] dark:border-[#4A5D23]/30">
+                            <p className="text-[10px] font-bold text-[#4A5D23] dark:text-[#E4E7D3] uppercase tracking-wider mb-1">Issued Medicines & Treatments</p>
+                            <div className="grid grid-cols-2 gap-2 text-[11px] text-[#2C3325] dark:text-slate-300">
                               {inv.invoice_items.map((item: any, itemIdx: number) => (
-                                <div key={itemIdx} className="flex justify-between font-medium bg-white/70 dark:bg-white/5 p-1.5 rounded-lg border border-cyan-100 dark:border-cyan-900/20">
+                                <div key={itemIdx} className="flex justify-between font-medium bg-white dark:bg-[#1C2317] p-1.5 rounded-lg border border-[#E4E7D3] dark:border-[#4A5D23]/20">
                                   <span>{item.item_name}</span>
-                                  <span className="font-mono text-cyan-700 dark:text-cyan-400">Qty: {item.quantity}</span>
+                                  <span className="font-mono text-[#4A5D23] dark:text-[#E4E7D3]">Qty: {item.quantity}</span>
                                 </div>
                               ))}
                             </div>
@@ -2254,8 +2278,8 @@ export default function DoctorClient({
 
                         {rec.xray_url && (
                           <div className="flex items-center gap-2 pt-1 text-[11px]">
-                            <span className="text-slate-400">Attached X-Ray:</span>
-                            <a href={rec.xray_url} target="_blank" rel="noreferrer" className="text-cyan-600 hover:underline font-semibold">View Dental Scan</a>
+                            <span className="text-[#8A9380]">Attached X-Ray:</span>
+                            <a href={rec.xray_url} target="_blank" rel="noreferrer" className="text-[#4A5D23] hover:underline font-semibold">View Dental Scan</a>
                           </div>
                         )}
                       </div>
