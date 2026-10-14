@@ -97,21 +97,26 @@ async function run() {
         }
       }
     }
+    // Report migration failures before connection cleanup can reject
+    if (hasErrors) {
+      console.error(`Migration finished with ${failedMigrations.length} failure(s):`, failedMigrations);
+      process.exitCode = 1;
+    } else {
+      console.log('All migrations applied successfully.');
+    }
   } finally {
     if (connection) {
-      await connection.end();
+      try {
+        await connection.end();
+      } catch (cleanupErr) {
+        console.error('Error closing database connection:', cleanupErr.message);
+        process.exitCode = 1;
+      }
     }
   }
-
-  if (hasErrors) {
-    console.error(`Migration finished with ${failedMigrations.length} failure(s):`, failedMigrations);
-    process.exit(1);
-  }
-
-  console.log('All migrations applied successfully.');
 }
 
 run().catch(err => {
   console.error('Fatal migration error:', err);
-  process.exit(1);
+  process.exitCode = 1;
 });
