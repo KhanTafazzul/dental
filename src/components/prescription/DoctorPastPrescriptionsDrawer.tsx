@@ -8,7 +8,7 @@
  * allows quick-preview of prior medications, and enables side-by-side comparison during consultation.
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   History,
   X,
@@ -49,13 +49,8 @@ export default function DoctorPastPrescriptionsDrawer({
   const [selectedRx, setSelectedRx] = useState<PrescriptionRecord | null>(null)
   const [copiedMedIndex, setCopiedMedIndex] = useState<number | null>(null)
 
-  useEffect(() => {
-    if (isOpen && patientId) {
-      fetchHistory()
-    }
-  }, [isOpen, patientId])
-
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
+    if (!patientId) return
     setLoading(true)
     try {
       const res = await fetch(`/api/patients/${patientId}/prescriptions`)
@@ -71,7 +66,13 @@ export default function DoctorPastPrescriptionsDrawer({
     } finally {
       setLoading(false)
     }
-  }
+  }, [patientId])
+
+  useEffect(() => {
+    if (isOpen && patientId) {
+      fetchHistory()
+    }
+  }, [isOpen, patientId, fetchHistory])
 
   if (!isOpen) return null
 

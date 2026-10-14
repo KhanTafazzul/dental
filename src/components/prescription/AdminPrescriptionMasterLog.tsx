@@ -11,7 +11,7 @@
  * - Manual Retry / Resend via WhatsApp and Email with live execution status modal
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   FileText,
   Search,
@@ -59,7 +59,7 @@ export default function AdminPrescriptionMasterLog() {
   const [isResending, setIsResending] = useState(false)
   const [resendResult, setResendResult] = useState<string | null>(null)
 
-  const fetchPrescriptions = async () => {
+  const fetchPrescriptions = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -81,11 +81,11 @@ export default function AdminPrescriptionMasterLog() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [deliveryFilter, page, search])
 
   useEffect(() => {
     fetchPrescriptions()
-  }, [page, deliveryFilter])
+  }, [fetchPrescriptions])
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()

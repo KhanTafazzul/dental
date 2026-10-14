@@ -1,5 +1,3 @@
-'use server'
-
 /**
  * @file app/admin/actions.ts
  * @description Central Server Action Hub (backward compatibility layer).

@@ -55,7 +55,7 @@ export default function MobileCapturePage() {
 
   // GS1 DataMatrix and standard 1D/2D parser
   const parseGS1Barcode = (rawText: string) => {
-    let str = rawText.replace(/^\]d2/, '').trim()
+    const str = rawText.replace(/^\]d2/, '').trim()
     const result = { gtin: '', batch: '', expiry: '' }
 
     if (str.includes('(01)') || str.includes('(17)') || str.includes('(10)')) {

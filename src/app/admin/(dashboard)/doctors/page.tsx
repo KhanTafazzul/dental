@@ -20,16 +20,35 @@ export default async function AdminDoctorsPage() {
         process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-supabase-project')) {
       dbConfigured = false
     } else {
-      // Fetch Branches and Doctors in parallel
-      const [branchRes, docRes] = await Promise.all([
-        adminDb.from('branches').select('id, name, slug'),
-        adminDb
+      // Fetch Branches and Doctors
+      const branchRes = await adminDb.from('branches').select('id, name, slug')
+      let docRes: any = await adminDb
+        .from('doctors')
+        .select(`
+          id,
+          name,
+          email,
+          phone,
+          specialty,
+          picture_url,
+          branch_id,
+          compensation_type,
+          fixed_salary,
+          profit_percentage,
+          profit_sharing_target,
+          slug,
+          password,
+          branches (id, name, slug)
+        `)
+        .order('created_at', { ascending: false })
+
+      if (docRes.error && docRes.error.message?.includes('phone')) {
+        docRes = await adminDb
           .from('doctors')
           .select(`
             id,
             name,
             email,
-            phone,
             specialty,
             picture_url,
             branch_id,
@@ -42,11 +61,11 @@ export default async function AdminDoctorsPage() {
             branches (id, name, slug)
           `)
           .order('created_at', { ascending: false })
-      ])
+      }
 
       if (docRes.error) throw docRes.error
       branches = branchRes.data || []
-      doctors = docRes.data || []
+      doctors = (docRes.data || []).map((d: any) => ({ ...d, phone: d.phone || '' }))
     }
   } catch (error) {
     console.error('Error loading doctors dashboard:', error)

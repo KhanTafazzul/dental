@@ -24,9 +24,6 @@ import {
 } from '@/lib/waha'
 import type { ActionResponse } from '@/types/common.types'
 
-// Re-export patient report & appointment email from appointments.actions
-export { sendPatientReport, sendAppointmentEmail } from '@/actions/appointments.actions'
-
 // ─── Campaigns & Broadcasts ───────────────────────────────────────────────────
 
 /**

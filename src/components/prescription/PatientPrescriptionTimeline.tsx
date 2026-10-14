@@ -6,7 +6,7 @@
  * and secure S3 Presigned URL PDF viewing modal.
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   FileText,
   Calendar,
@@ -64,7 +64,7 @@ export default function PatientPrescriptionTimeline({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewTitle, setPreviewTitle] = useState('')
 
-  const fetchPrescriptions = async () => {
+  const fetchPrescriptions = useCallback(async () => {
     if (!patientId) return
     setLoading(true)
     setError(null)
@@ -82,11 +82,11 @@ export default function PatientPrescriptionTimeline({
     } finally {
       setLoading(false)
     }
-  }
+  }, [patientId])
 
   useEffect(() => {
     fetchPrescriptions()
-  }, [patientId])
+  }, [fetchPrescriptions])
 
   return (
     <div className="space-y-6">

@@ -228,7 +228,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
   }
 
   // Open Reports Modal and populate fields
-  const handleOpenReportsModal = async (appt: any, passedInvoiceId?: string) => {
+  async function handleOpenReportsModal(appt: any, passedInvoiceId?: string) {
     setActiveAppt(appt)
     setEmailVal(appt.patients?.email || '')
     setMobileVal(appt.patients?.mobile || '')

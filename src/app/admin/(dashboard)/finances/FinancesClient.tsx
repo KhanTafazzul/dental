@@ -246,6 +246,19 @@ export default function FinancesClient({
   const [pendingAttendance, setPendingAttendance] = useState<{ [key: string]: 'present' | 'absent' | 'half_day' }>({})
   const [isSavingAttendance, setIsSavingAttendance] = useState(false)
 
+  // Branch filtered helper and doctor accessors
+  const getBranchFilteredHelpers = () => {
+    if (selectedBranch === 'all') return helperBoysList
+    const targetBranch = branches.find(b => b.slug === selectedBranch)
+    return helperBoysList.filter(h => h.branch_id === targetBranch?.id)
+  }
+
+  const getBranchFilteredDoctors = () => {
+    if (selectedBranch === 'all') return doctors
+    const targetBranch = branches.find(b => b.slug === selectedBranch)
+    return doctors.filter(d => d.branch_id === targetBranch?.id)
+  }
+
   // Initialize pending values on date/branch/lists load
   useEffect(() => {
     const initial: { [key: string]: 'present' | 'absent' | 'half_day' } = {}
@@ -627,8 +640,6 @@ export default function FinancesClient({
   }, [appointments, selectedMonth, selectedBranch])
 
   // Function wrappers for backward compatibility
-  const getBranchFilteredHelpers = () => branchFilteredHelpers
-  const getBranchFilteredDoctors = () => branchFilteredDoctors
   const getFilteredExtraExpenses = () => filteredExtraExpenses
   const getFilteredAppointments = () => filteredAppointments
 

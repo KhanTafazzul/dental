@@ -17,6 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_patients_created_at ON public.patients (created_a
 
 -- 2. DOCTORS TABLE INDEXES
 -- Optimizes doctor lookup by email, branch assignment, URL slug, and specialty
+ALTER TABLE public.doctors ADD COLUMN IF NOT EXISTS phone TEXT;
 CREATE INDEX IF NOT EXISTS idx_doctors_email ON public.doctors (email);
 CREATE INDEX IF NOT EXISTS idx_doctors_slug ON public.doctors (slug);
 CREATE INDEX IF NOT EXISTS idx_doctors_branch_id ON public.doctors (branch_id);
