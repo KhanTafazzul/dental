@@ -303,15 +303,19 @@ export default function DoctorClient({
   const [showReappointmentModal, setShowReappointmentModal] = useState(false)
   const [reappointmentAppt, setReappointmentAppt] = useState<any | null>(null)
   const [targetTeethVal, setTargetTeethVal] = useState('Tooth #14')
-  const [followUpDaysVal, setFollowUpDaysVal] = useState(5)
-  const [reappointmentNotesVal, setReappointmentNotesVal] = useState('5-Day Follow-Up: Permanent Crown Fitting')
+  const [reappointmentDateVal, setReappointmentDateVal] = useState('')
+  const [reappointmentTimeVal, setReappointmentTimeVal] = useState('11:00 AM')
+  const [reappointmentNotesVal, setReappointmentNotesVal] = useState('Follow-Up: Permanent Crown Fitting & Occlusion')
   const [schedulingReappointment, setSchedulingReappointment] = useState(false)
 
   const handleOpenReappointmentModal = (appt: any) => {
     setReappointmentAppt(appt)
     setTargetTeethVal('Tooth #14')
-    setFollowUpDaysVal(5)
-    setReappointmentNotesVal('5-Day Follow-Up: Permanent Crown Fitting')
+    const targetDate = new Date()
+    targetDate.setDate(targetDate.getDate() + 5)
+    setReappointmentDateVal(targetDate.toISOString().split('T')[0])
+    setReappointmentTimeVal('11:00 AM')
+    setReappointmentNotesVal('Follow-Up: Permanent Crown Fitting & Occlusion')
     setShowReappointmentModal(true)
   }
 
@@ -320,6 +324,7 @@ export default function DoctorClient({
     setSchedulingReappointment(true)
     try {
       const res = await scheduleReappointment({
+        patientId: reappointmentAppt.patient_id || reappointmentAppt.patients?.id,
         patientName: reappointmentAppt.patients?.name || reappointmentAppt.patient_name || 'Patient',
         patientPhone: reappointmentAppt.patients?.mobile || reappointmentAppt.phone || '',
         patientEmail: reappointmentAppt.patients?.email || reappointmentAppt.email || '',
@@ -327,13 +332,14 @@ export default function DoctorClient({
         doctorName: doctor.name,
         branchId: doctor.branch_id,
         branchSlug: doctor.branches?.slug,
-        followUpDays: followUpDaysVal,
+        appointmentDate: reappointmentDateVal,
+        appointmentTime: reappointmentTimeVal,
         targetTeeth: targetTeethVal,
         treatmentNotes: reappointmentNotesVal,
       })
 
       if (res.success) {
-        alert(`Reappointment scheduled for ${res.date}! Patient notified via WhatsApp & Email.`)
+        alert(`Reappointment scheduled for ${res.data?.date || reappointmentDateVal} @ ${reappointmentTimeVal}! Patient notified via WhatsApp & Email.`)
         setShowReappointmentModal(false)
         router.refresh()
       } else {
@@ -2111,26 +2117,48 @@ export default function DoctorClient({
                 />
               </div>
 
-              {/* Follow-up Days Preset */}
+              {/* Reappointment Date Picker */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Follow-up Timeline</label>
-                <div className="flex items-center gap-2">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Select Reappointment Date *
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={reappointmentDateVal}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={e => setReappointmentDateVal(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-2xl text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-[#4A5D23] shadow-sm"
+                />
+              </div>
+
+              {/* Free Time Slot Selector */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Free Time Slot *
+                  </label>
+                  <span className="text-[10px] text-[#4A5D23] font-bold">
+                    Slot: {reappointmentTimeVal}
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
                   {[
-                    { days: 5, label: '+5 Days (Default)' },
-                    { days: 7, label: '+7 Days (1 Wk)' },
-                    { days: 14, label: '+14 Days (2 Wks)' },
-                  ].map(preset => (
+                    '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
+                    '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM',
+                    '06:00 PM', '07:00 PM', '08:00 PM'
+                  ].map(slot => (
                     <button
-                      key={preset.days}
+                      key={slot}
                       type="button"
-                      onClick={() => setFollowUpDaysVal(preset.days)}
-                      className={`flex-1 py-2 px-2.5 rounded-xl font-bold transition-all border text-center cursor-pointer ${
-                        followUpDaysVal === preset.days
-                          ? 'bg-[#4A5D23] text-white border-[#4A5D23] shadow-sm'
-                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      onClick={() => setReappointmentTimeVal(slot)}
+                      className={`py-1.5 px-1.5 rounded-xl text-[11px] font-bold transition-all border text-center cursor-pointer ${
+                        reappointmentTimeVal === slot
+                          ? 'bg-[#4A5D23] text-white border-[#4A5D23] shadow-xs scale-[1.02]'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
-                      {preset.label}
+                      {slot}
                     </button>
                   ))}
                 </div>
@@ -2152,7 +2180,7 @@ export default function DoctorClient({
               {/* Info Note */}
               <div className="p-3 bg-emerald-50/70 border border-emerald-200/60 rounded-2xl text-[11px] text-emerald-900 font-medium leading-relaxed flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Auto-schedules visit in <strong>{followUpDaysVal} days</strong> & sends <strong>WhatsApp + Email confirmation</strong>.</span>
+                <span>Auto-schedules visit for <strong>{reappointmentDateVal} @ {reappointmentTimeVal}</strong> &amp; sends <strong>WhatsApp + Email confirmation</strong>.</span>
               </div>
 
               {/* Action Buttons */}

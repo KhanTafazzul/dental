@@ -117,27 +117,33 @@ function PatientAccountPortalContent() {
   const [phoneOtpError, setPhoneOtpError] = useState<string | null>(null);
 
   const isPhoneChanged = useMemo(() => {
-    return Boolean(initialProfile.mobile && profile.mobile.trim() !== initialProfile.mobile.trim());
+    const cleanCurrent = (profile.mobile || '').replace(/\D/g, '');
+    const cleanInitial = (initialProfile.mobile || '').replace(/\D/g, '');
+    return cleanCurrent.length >= 8 && cleanCurrent !== cleanInitial;
   }, [profile.mobile, initialProfile.mobile]);
 
-  const handleSendProfileOtp = async () => {
-    if (!profile.mobile.trim() || profile.mobile.trim().length < 8) {
-      setPhoneOtpError("Please enter a valid mobile number.");
-      return;
+  const handleSendProfileOtp = async (targetPhone?: string) => {
+    const phoneToUse = targetPhone || profile.mobile;
+    if (!phoneToUse || phoneToUse.trim().replace(/\D/g, '').length < 8) {
+      setPhoneOtpError("Please enter a valid mobile number (at least 8-10 digits).");
+      return false;
     }
     setSendingPhoneOtp(true);
     setPhoneOtpError(null);
     setPhoneOtpMsg(null);
     try {
-      const res = await sendWahaOtpAction(profile.mobile);
+      const res = await sendWahaOtpAction(phoneToUse);
       if (res.success) {
         setPhoneOtpSent(true);
-        setPhoneOtpMsg(res.message || "OTP code sent via WhatsApp.");
+        setPhoneOtpMsg(res.message || `WhatsApp verification code dispatched to ${phoneToUse}.`);
+        return true;
       } else {
-        setPhoneOtpError(res.error || "Failed to send OTP code.");
+        setPhoneOtpError(res.error || "Failed to dispatch WhatsApp OTP. Please ensure the number is active on WhatsApp.");
+        return false;
       }
     } catch (err: any) {
-      setPhoneOtpError(err.message || "Error dispatching OTP.");
+      setPhoneOtpError(err.message || "Error dispatching WhatsApp OTP.");
+      return false;
     } finally {
       setSendingPhoneOtp(false);
     }
@@ -302,7 +308,12 @@ function PatientAccountPortalContent() {
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isPhoneChanged && !phoneOtpVerified) {
-      alert("Please verify your new mobile number via the 6-digit WhatsApp OTP code before saving changes.");
+      if (!phoneOtpSent) {
+        setPhoneOtpError("Mobile number changed. Dispatching WhatsApp OTP verification code...");
+        await handleSendProfileOtp();
+      } else {
+        setPhoneOtpError("Please enter the 6-digit WhatsApp OTP code to verify your new mobile number before saving.");
+      }
       return;
     }
     setIsSaving(true);
@@ -493,15 +504,9 @@ function PatientAccountPortalContent() {
                         <Check className="w-3 h-3 text-emerald-600" /> Verified via WhatsApp
                       </span>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={handleSendProfileOtp}
-                        disabled={sendingPhoneOtp || !profile.mobile.trim()}
-                        className="text-[10px] font-bold text-[#4A5D23] bg-[#E4E7D3] hover:bg-[#4A5D23] hover:text-white px-2.5 py-0.5 rounded-lg transition border border-[#4A5D23]/20 flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                      >
-                        {sendingPhoneOtp ? <Loader2 className="w-3 h-3 animate-spin" /> : <Lock className="w-3 h-3" />}
-                        Verify via WhatsApp OTP
-                      </button>
+                      <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Lock className="w-3 h-3" /> OTP Verification Required
+                      </span>
                     )
                   )}
                 </div>
@@ -512,35 +517,83 @@ function PatientAccountPortalContent() {
                     setProfile({ ...profile, mobile: e.target.value });
                     setPhoneOtpVerified(false);
                     setPhoneOtpSent(false);
+                    setPhoneOtpMsg(null);
+                    setPhoneOtpError(null);
                   }}
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#A3B799]/40 bg-white/70 dark:bg-[#1C2618]/70 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#556B4B]"
+                  className={`w-full px-4 py-2.5 rounded-xl border bg-white/70 dark:bg-[#1C2618]/70 text-xs font-mono focus:outline-none focus:ring-2 ${
+                    isPhoneChanged && !phoneOtpVerified
+                      ? "border-amber-500/60 focus:ring-amber-500"
+                      : "border-[#A3B799]/40 focus:ring-[#556B4B]"
+                  }`}
                 />
 
-                {phoneOtpSent && !phoneOtpVerified && (
-                  <div className="p-3 bg-[#E4E7D3]/40 dark:bg-[#182622] border border-[#4A5D23]/30 rounded-xl space-y-2 mt-2">
-                    <span className="text-[11px] font-bold text-[#4A5D23] dark:text-teal-300 flex items-center gap-1">
-                      <KeyRound className="w-3.5 h-3.5" /> Enter 6-Digit WhatsApp Code sent to {profile.mobile}
-                    </span>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        maxLength={6}
-                        placeholder="e.g. 482910"
-                        value={phoneOtpInput}
-                        onChange={(e) => setPhoneOtpInput(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-white dark:bg-[#121c19] border border-slate-200 dark:border-teal-900/40 rounded-lg text-center font-mono font-bold tracking-widest text-xs focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleVerifyProfileOtp}
-                        disabled={verifyingPhoneOtp || phoneOtpInput.length < 6}
-                        className="px-3 py-1.5 bg-[#4A5D23] hover:bg-[#3D4C1D] text-white rounded-lg text-xs font-bold transition flex items-center gap-1 disabled:opacity-50 cursor-pointer"
-                      >
-                        {verifyingPhoneOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Verify Code"}
-                      </button>
+                {isPhoneChanged && !phoneOtpVerified && (
+                  !phoneOtpSent ? (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2 mt-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                          <Lock className="w-3.5 h-3.5 shrink-0" />
+                          New mobile number detected. WhatsApp OTP verification is required before changes can be saved.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleSendProfileOtp()}
+                          disabled={sendingPhoneOtp || !profile.mobile.trim()}
+                          className="text-[11px] font-bold text-white bg-[#4A5D23] hover:bg-[#3D4C1D] px-3 py-1.5 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-sm shrink-0"
+                        >
+                          {sendingPhoneOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
+                          Send WhatsApp OTP
+                        </button>
+                      </div>
+                      {phoneOtpError && <p className="text-[10px] text-red-600 dark:text-red-400 font-medium">{phoneOtpError}</p>}
+                      {phoneOtpMsg && <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">{phoneOtpMsg}</p>}
                     </div>
-                    {phoneOtpMsg && <p className="text-[10px] text-slate-600 dark:text-slate-300">{phoneOtpMsg}</p>}
-                    {phoneOtpError && <p className="text-[10px] text-red-600 dark:text-red-400">{phoneOtpError}</p>}
+                  ) : (
+                    <div className="p-3.5 bg-[#E4E7D3]/60 dark:bg-[#182622] border border-[#4A5D23]/40 rounded-xl space-y-2.5 mt-2 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-[#4A5D23] dark:text-teal-300 flex items-center gap-1.5">
+                          <KeyRound className="w-3.5 h-3.5" /> Enter 6-Digit WhatsApp Code sent to {profile.mobile}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleSendProfileOtp()}
+                          disabled={sendingPhoneOtp}
+                          className="text-[10px] font-semibold text-[#556B4B] hover:text-[#4A5D23] underline cursor-pointer disabled:opacity-50"
+                        >
+                          {sendingPhoneOtp ? "Sending..." : "Resend Code"}
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          maxLength={6}
+                          placeholder="e.g. 482910"
+                          value={phoneOtpInput}
+                          onChange={(e) => setPhoneOtpInput(e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-[#121c19] border border-[#4A5D23]/30 dark:border-teal-900/40 rounded-lg text-center font-mono font-bold tracking-widest text-sm focus:outline-none focus:ring-2 focus:ring-[#4A5D23]"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleVerifyProfileOtp}
+                          disabled={verifyingPhoneOtp || phoneOtpInput.length < 6}
+                          className="px-4 py-2 bg-[#4A5D23] hover:bg-[#3D4C1D] text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-sm shrink-0"
+                        >
+                          {verifyingPhoneOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                          Verify Code
+                        </button>
+                      </div>
+                      {phoneOtpMsg && <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">{phoneOtpMsg}</p>}
+                      {phoneOtpError && <p className="text-[10px] text-red-600 dark:text-red-400 font-medium">{phoneOtpError}</p>}
+                    </div>
+                  )
+                )}
+
+                {isPhoneChanged && phoneOtpVerified && (
+                  <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center gap-2 mt-2">
+                    <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                      Mobile number verified successfully via WhatsApp! You can now save your profile.
+                    </span>
                   </div>
                 )}
               </div>
