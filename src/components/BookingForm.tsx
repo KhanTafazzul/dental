@@ -2,34 +2,40 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
-import { sendAppointmentEmail } from "@/app/admin/actions";
+import { bookPatientAppointmentAction } from "@/actions/appointments.actions";
 import {
   CheckCircle,
   AlertCircle,
-  ChevronRight,
   Loader2,
-  ArrowLeft,
   Users,
   LogIn,
   Lock,
+  Calendar,
+  Clock,
+  Sparkles,
+  ArrowRight,
+  UserCheck,
+  Stethoscope,
+  ShieldCheck,
+  Plus,
+  Check,
 } from "lucide-react";
 import { FamilyMember, calculateAgeFromDob, getStoredFamilyMembers } from "@/lib/family";
-import { AppleLiquidCard } from "@/components/ui/AppleLiquidCard";
-import { TelemetryBadge } from "@/components/ui/TelemetryBadge";
-import { AntigravityButton } from "@/components/ui/AntigravityButton";
 import { ProgressiveLoader } from "@/components/ui/ProgressiveLoader";
 import { BookingSkeleton } from "@/components/skeletons/BookingSkeleton";
 
 const TIME_SLOTS = [
-  { value: "09:00:00", label: "09:00 AM" },
-  { value: "10:00:00", label: "10:00 AM" },
-  { value: "11:00:00", label: "11:00 AM" },
-  { value: "12:00:00", label: "12:00 PM" },
-  { value: "14:00:00", label: "02:00 PM" },
-  { value: "15:00:00", label: "03:00 PM" },
-  { value: "16:00:00", label: "04:00 PM" },
-  { value: "17:00:00", label: "05:00 PM" },
+  { value: "09:00:00", label: "09:00 AM", period: "morning" },
+  { value: "10:00:00", label: "10:00 AM", period: "morning" },
+  { value: "11:00:00", label: "11:00 AM", period: "morning" },
+  { value: "12:00:00", label: "12:00 PM", period: "morning" },
+  { value: "14:00:00", label: "02:00 PM", period: "afternoon" },
+  { value: "15:00:00", label: "03:00 PM", period: "afternoon" },
+  { value: "16:00:00", label: "04:00 PM", period: "afternoon" },
+  { value: "17:00:00", label: "05:00 PM", period: "evening" },
+  { value: "18:00:00", label: "06:00 PM", period: "evening" },
 ];
 
 interface Doctor {
@@ -60,7 +66,6 @@ function BookingFormContent({ branchSlug }: BookingFormProps) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [step, setStep] = useState(1);
 
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string>("self");
@@ -72,7 +77,7 @@ function BookingFormContent({ branchSlug }: BookingFormProps) {
   const [problemDescription, setProblemDescription] = useState("");
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState("10:00:00");
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -94,7 +99,7 @@ function BookingFormContent({ branchSlug }: BookingFormProps) {
             relationship: "Self",
             mobile: parsed.mobile || "",
             email: parsed.email || "",
-            gender: "Male",
+            gender: parsed.gender || "Male",
           };
 
           const combined = [selfMember, ...storedFamily.filter((f) => f.id !== "self")];
@@ -137,7 +142,10 @@ function BookingFormContent({ branchSlug }: BookingFormProps) {
         if (bData) setBranch(bData);
 
         const { data: dData } = await supabase.from("doctors").select("id, name, specialty, picture_url").order("name");
-        if (dData) setDoctors(dData);
+        if (dData && dData.length > 0) {
+          setDoctors(dData);
+          setSelectedDoctorId(dData[0].id);
+        }
       } catch (err: any) {
         console.error("Booking load error:", err);
       } finally {
@@ -168,8 +176,8 @@ function BookingFormContent({ branchSlug }: BookingFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!patientName || !patientMobile || !selectedDoctorId || !selectedDate || !selectedTimeSlot) {
-      setError("Please complete all required fields.");
+    if (!patientName.trim() || !patientMobile.trim() || !selectedDoctorId || !selectedDate || !selectedTimeSlot) {
+      setError("Please fill out all required details (Patient Name, Mobile, Doctor, Date, and Time Slot).");
       return;
     }
 
@@ -177,35 +185,23 @@ function BookingFormContent({ branchSlug }: BookingFormProps) {
     setError(null);
 
     try {
-      const selectedDoc = doctors.find((d) => d.id === selectedDoctorId);
-      const { data, error: insertError } = await supabase
-        .from("appointments")
-        .insert({
-          branch_id: branch?.id || null,
-          doctor_id: selectedDoctorId,
-          patient_name: patientName.trim(),
-          patient_age: patientAge ? parseInt(patientAge, 10) : null,
-          patient_phone: patientMobile.trim(),
-          patient_email: patientEmail.trim() || null,
-          appointment_date: selectedDate,
-          appointment_time: selectedTimeSlot,
-          notes: problemDescription.trim() || null,
-          status: "pending",
-        })
-        .select()
-        .single();
+      const res = await bookPatientAppointmentAction({
+        branchSlug,
+        doctorId: selectedDoctorId,
+        patientName: patientName.trim(),
+        patientAge: patientAge ? parseInt(patientAge, 10) : null,
+        patientPhone: patientMobile.trim(),
+        patientEmail: patientEmail.trim() || null,
+        appointmentDate: selectedDate,
+        appointmentTime: selectedTimeSlot,
+        notes: problemDescription.trim() || null,
+      });
 
-      if (insertError) throw insertError;
-
-      if (patientEmail.trim() && data) {
-        try {
-          await sendAppointmentEmail(data.id);
-        } catch (mailErr) {
-          console.error("Email send notice:", mailErr);
-        }
+      if (!res.success) {
+        throw new Error(res.error || "Failed to confirm appointment booking.");
       }
 
-      router.push(`/${branchSlug}/book/success?id=${data.id}`);
+      router.push(`/${branchSlug}/book/success?id=${res.data?.id}`);
     } catch (err: any) {
       setError(err.message || "Failed to confirm booking. Please try again.");
     } finally {
@@ -215,146 +211,312 @@ function BookingFormContent({ branchSlug }: BookingFormProps) {
 
   if (isAuthenticated === false) {
     return (
-      <AppleLiquidCard variant="light" className="p-8 max-w-lg mx-auto text-center space-y-6">
-        <div className="w-16 h-16 rounded-full bg-[#2C3A27] text-[#F5F7F3] flex items-center justify-center mx-auto">
+      <div className="max-w-md mx-auto p-8 rounded-3xl bg-white dark:bg-[#1C2618] border border-[#4A5D23]/20 shadow-xl text-center space-y-6">
+        <div className="w-16 h-16 rounded-full bg-[#E4E7D3] dark:bg-[#2C3A27] text-[#4A5D23] dark:text-[#88B04B] flex items-center justify-center mx-auto shadow-inner">
           <Lock className="w-8 h-8" />
         </div>
         <div className="space-y-2">
-          <h2 className="text-xl font-bold text-[#1C2618] dark:text-[#F5F7F3]">Patient Login Required</h2>
-          <p className="text-xs text-[#556B4B]">
-            To schedule a appointment, please log in to your patient account first.
+          <h2 className="text-2xl font-bold font-display text-[#2C3325] dark:text-white">Sign In Required</h2>
+          <p className="text-xs text-[#556B4B] dark:text-[#A3B799] leading-relaxed">
+            To ensure your dental records and clinical follow-ups are preserved, please authenticate with your mobile number or password.
           </p>
         </div>
-        <AntigravityButton
-          variant="primary"
-          size="lg"
-          className="w-full"
+        <button
           onClick={() => router.push(`/login?redirect=/${branchSlug}/book`)}
+          className="w-full py-3.5 px-6 rounded-2xl bg-[#4A5D23] hover:bg-[#3D4C1D] text-white font-display font-semibold text-sm transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#4A5D23]/25"
         >
           <LogIn className="w-4 h-4" /> Sign In to Book Appointment
-        </AntigravityButton>
-      </AppleLiquidCard>
+        </button>
+      </div>
     );
   }
 
   return (
-    <AppleLiquidCard variant="light" className="p-4 sm:p-8 space-y-6 w-full max-w-full overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-[#A3B799]/30 pb-4">
-        <div>
-          <h2 className="text-lg font-bold text-[#1C2618] dark:text-[#F5F7F3]">
-            Schedule Appointment ({isHazara ? "Hazara Branch" : "Family Branch"})
-          </h2>
-          <p className="text-xs text-[#556B4B]">Select patient profile, date, and preferred doctor</p>
+    <div className="w-full max-w-4xl mx-auto space-y-8 font-ui">
+      {/* Header Banner */}
+      <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-[#2C3325] to-[#3E4D21] text-white space-y-2 relative overflow-hidden shadow-xl">
+        <div className="absolute right-0 top-0 w-64 h-64 bg-[#88B04B]/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 relative z-10">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-[11px] font-semibold text-[#E4E7D3] mb-2">
+              <Sparkles className="w-3.5 h-3.5 text-[#88B04B]" />
+              {isHazara ? "Hazara Restorative & Orthodontic Clinic" : "Family Dental Care Branch"}
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold font-display tracking-tight text-white">
+              Schedule Your Dental Consultation
+            </h1>
+            <p className="text-xs sm:text-sm text-[#E4E7D3]/80">
+              Select who this appointment is for, choose your specialist, and pick an available time slot.
+            </p>
+          </div>
+          <div className="shrink-0 flex sm:flex-col items-center sm:items-end gap-1 text-[11px] font-mono text-[#E4E7D3]/70">
+            <span>BRANCH CODE</span>
+            <span className="font-bold text-white px-2.5 py-1 rounded-lg bg-white/10">{branchSlug.toUpperCase()}-01</span>
+          </div>
         </div>
-        <TelemetryBadge label={isHazara ? "Hazara Clinic" : "Family Clinic"} code="STEP 1" variant="olive" />
       </div>
 
       {error && (
-        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-400 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-400 text-xs sm:text-sm flex items-center gap-2.5"
+        >
+          <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
           <span>{error}</span>
-        </div>
+        </motion.div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Step 1: Patient Profile Selector */}
-        <div className="space-y-2">
-          <label className="text-xs font-bold text-[#2C3A27] dark:text-[#E2E8DC] flex items-center gap-2">
-            <Users className="w-4 h-4 text-[#556B4B]" /> Select Patient Profile
-          </label>
-          <select
-            value={selectedProfileId}
-            onChange={(e) => handleProfileChange(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border border-[#A3B799]/40 bg-white/70 dark:bg-[#1C2618]/70 text-xs focus:outline-none focus:ring-2 focus:ring-[#556B4B]"
-          >
-            {familyMembers.map((fam) => (
-              <option key={fam.id} value={fam.id} className="bg-[#1C2618] text-white">
-                {fam.fullName} ({fam.relationship} - Age {calculateAgeFromDob(fam.dob)})
-              </option>
-            ))}
-          </select>
+      <form onSubmit={handleSubmit} className="space-y-8">
+        
+        {/* Step 1: Circular Family Member Switcher */}
+        <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#1C2618] border border-[#4A5D23]/15 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base sm:text-lg font-bold font-display text-[#2C3325] dark:text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-[#4A5D23]" /> 1. Who is this appointment for?
+              </h2>
+              <p className="text-xs text-[#556B4B] dark:text-[#A3B799]">
+                Click a family member profile below to auto-load their age and contact info.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => router.push("/family")}
+              className="text-xs font-semibold text-[#4A5D23] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" /> Manage Family
+            </button>
+          </div>
+
+          {/* Circular Button Family Member Switcher Grid */}
+          <div className="flex flex-wrap gap-3 sm:gap-4 pt-2">
+            {familyMembers.map((fam) => {
+              const isSelected = selectedProfileId === fam.id;
+              const initials = fam.fullName
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .substring(0, 2)
+                .toUpperCase();
+
+              return (
+                <motion.button
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.96 }}
+                  key={fam.id}
+                  type="button"
+                  onClick={() => handleProfileChange(fam.id)}
+                  className={`flex items-center gap-3 p-2.5 pr-4 rounded-full border transition-all cursor-pointer ${
+                    isSelected
+                      ? "bg-[#4A5D23] text-white border-[#4A5D23] shadow-md shadow-[#4A5D23]/25"
+                      : "bg-[#F0F2EB] dark:bg-[#141F16] text-[#2C3325] dark:text-[#E2E8DC] border-[#4A5D23]/15 hover:border-[#4A5D23]/40"
+                  }`}
+                >
+                  {/* Circular Avatar Button */}
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold font-display text-xs shrink-0 transition ${
+                      isSelected
+                        ? "bg-white text-[#4A5D23] shadow-inner"
+                        : "bg-[#4A5D23] text-white"
+                    }`}
+                  >
+                    {initials || "P"}
+                  </div>
+                  <div className="text-left">
+                    <div className="text-xs font-bold leading-tight flex items-center gap-1.5">
+                      <span>{fam.fullName}</span>
+                      {isSelected && <Check className="w-3 h-3 text-white" />}
+                    </div>
+                    <div className={`text-[10px] ${isSelected ? "text-white/80" : "text-[#556B4B] dark:text-[#A3B799]"}`}>
+                      {fam.relationship} • Age {calculateAgeFromDob(fam.dob)}
+                    </div>
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
+
+          {/* Patient Details Inputs */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-[#4A5D23]/10">
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-[#556B4B]">Patient Name</label>
+              <input
+                type="text"
+                required
+                value={patientName}
+                onChange={(e) => setPatientName(e.target.value)}
+                placeholder="Full Name"
+                className="w-full px-3.5 py-2.5 rounded-xl premium-input text-xs font-medium"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-[#556B4B]">Age</label>
+              <input
+                type="number"
+                value={patientAge}
+                onChange={(e) => setPatientAge(e.target.value)}
+                placeholder="Years"
+                className="w-full px-3.5 py-2.5 rounded-xl premium-input text-xs font-medium"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-[#556B4B]">WhatsApp Mobile</label>
+              <input
+                type="tel"
+                required
+                value={patientMobile}
+                onChange={(e) => setPatientMobile(e.target.value)}
+                placeholder="10-digit number"
+                className="w-full px-3.5 py-2.5 rounded-xl premium-input text-xs font-mono font-medium"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Step 2: Doctor Selection */}
-        <div className="space-y-2">
-          <label className="text-xs font-bold text-[#2C3A27] dark:text-[#E2E8DC]">Select Specialist Doctor</label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#1C2618] border border-[#4A5D23]/15 shadow-sm space-y-4">
+          <div>
+            <h2 className="text-base sm:text-lg font-bold font-display text-[#2C3325] dark:text-white flex items-center gap-2">
+              <Stethoscope className="w-5 h-5 text-[#4A5D23]" /> 2. Select Specialist Doctor
+            </h2>
+            <p className="text-xs text-[#556B4B] dark:text-[#A3B799]">
+              Choose from our verified clinical team available at this branch.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {doctors.map((doc) => {
               const isSelected = selectedDoctorId === doc.id;
               return (
-                <div
+                <motion.div
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.98 }}
                   key={doc.id}
                   onClick={() => setSelectedDoctorId(doc.id)}
-                  className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-center gap-3 ${
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center gap-3.5 ${
                     isSelected
-                      ? "bg-[#2C3A27] text-[#F5F7F3] border-white/20 shadow-md"
-                      : "bg-[#E2E8DC]/40 dark:bg-[#1C2618]/40 border-[#A3B799]/30 hover:border-[#556B4B]"
+                      ? "bg-[#4A5D23] text-white border-[#4A5D23] shadow-md shadow-[#4A5D23]/20"
+                      : "bg-[#F0F2EB] dark:bg-[#141F16] text-[#2C3325] dark:text-[#E2E8DC] border-[#4A5D23]/15 hover:border-[#4A5D23]/30"
                   }`}
                 >
-                  <div className="w-10 h-10 rounded-full bg-[#556B4B] text-[#F5F7F3] font-bold flex items-center justify-center shrink-0">
+                  <div
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center font-display font-bold text-base shrink-0 shadow-sm ${
+                      isSelected ? "bg-white text-[#4A5D23]" : "bg-[#4A5D23] text-white"
+                    }`}
+                  >
                     {doc.name.charAt(0)}
                   </div>
-                  <div>
-                    <h3 className="text-xs font-bold">{doc.name}</h3>
-                    <p className="text-[10px] opacity-80">{doc.specialty || "Dental Specialist"}</p>
+                  <div className="overflow-hidden">
+                    <h3 className="text-xs sm:text-sm font-bold truncate">Dr. {doc.name}</h3>
+                    <p className={`text-[10px] truncate ${isSelected ? "text-white/80" : "text-[#556B4B] dark:text-[#A3B799]"}`}>
+                      {doc.specialty || "Senior Dental Surgeon"}
+                    </p>
                   </div>
-                </div>
+                  {isSelected && <Check className="w-4 h-4 ml-auto text-white shrink-0" />}
+                </motion.div>
               );
             })}
           </div>
         </div>
 
-        {/* Step 3: Date & Slot Picker */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-[#556B4B]">Appointment Date</label>
+        {/* Step 3: Date & Available Free Time Slots */}
+        <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#1C2618] border border-[#4A5D23]/15 shadow-sm space-y-5">
+          <div>
+            <h2 className="text-base sm:text-lg font-bold font-display text-[#2C3325] dark:text-white flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-[#4A5D23]" /> 3. Select Consultation Date & Time Slot
+            </h2>
+            <p className="text-xs text-[#556B4B] dark:text-[#A3B799]">
+              Pick your preferred visit date to see live free consultation slots.
+            </p>
+          </div>
+
+          <div className="max-w-xs space-y-1">
+            <label className="text-xs font-semibold text-[#556B4B] block">Consultation Date</label>
             <input
               type="date"
               min={today}
+              required
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-[#A3B799]/40 bg-white/70 dark:bg-[#1C2618]/70 text-xs focus:outline-none focus:ring-2 focus:ring-[#556B4B]"
+              className="w-full px-4 py-3 rounded-2xl premium-input text-xs sm:text-sm font-medium"
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-[#556B4B]">Preferred Time Slot</label>
-            <select
-              value={selectedTimeSlot}
-              onChange={(e) => setSelectedTimeSlot(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-[#A3B799]/40 bg-white/70 dark:bg-[#1C2618]/70 text-xs focus:outline-none focus:ring-2 focus:ring-[#556B4B]"
-            >
-              <option value="">Choose Time Slot</option>
-              {TIME_SLOTS.map((slot) => {
-                const isBooked = bookedSlots.includes(slot.value);
-                return (
-                  <option key={slot.value} value={slot.value} disabled={isBooked} className="bg-[#1C2618] text-white">
-                    {slot.label} {isBooked ? "(Booked)" : ""}
-                  </option>
-                );
-              })}
-            </select>
+          {selectedDate && (
+            <div className="space-y-3 pt-2">
+              <label className="text-xs font-semibold text-[#556B4B] block">Available Time Slots</label>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
+                {TIME_SLOTS.map((slot) => {
+                  const isBooked = bookedSlots.includes(slot.value);
+                  const isSelected = selectedTimeSlot === slot.value;
+
+                  return (
+                    <button
+                      key={slot.value}
+                      type="button"
+                      disabled={isBooked}
+                      onClick={() => setSelectedTimeSlot(slot.value)}
+                      className={`py-2.5 px-3 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                        isBooked
+                          ? "bg-slate-100 dark:bg-slate-800 text-slate-400 border border-transparent cursor-not-allowed opacity-50 line-through"
+                          : isSelected
+                          ? "bg-[#4A5D23] text-white shadow-md shadow-[#4A5D23]/25 scale-105"
+                          : "bg-[#F0F2EB] dark:bg-[#141F16] text-[#2C3325] dark:text-[#E2E8DC] border border-[#4A5D23]/15 hover:border-[#4A5D23]"
+                      }`}
+                    >
+                      <span>{slot.label}</span>
+                      <span className="text-[9px] font-sans font-normal opacity-75">
+                        {isBooked ? "Booked" : isSelected ? "Selected" : "Free"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Dental Problem Note */}
+          <div className="space-y-1.5 pt-2">
+            <label className="text-xs font-semibold text-[#556B4B] block">
+              Symptoms or Clinical Problem (Optional)
+            </label>
+            <textarea
+              rows={3}
+              value={problemDescription}
+              onChange={(e) => setProblemDescription(e.target.value)}
+              placeholder="e.g. Tooth sensitivity, severe molar ache, routine cleaning, crown review..."
+              className="w-full px-4 py-3 rounded-2xl premium-input text-xs sm:text-sm font-medium"
+            />
           </div>
         </div>
 
-        {/* Notes */}
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-[#556B4B]">Dental Problem / Notes (Optional)</label>
-          <textarea
-            rows={3}
-            value={problemDescription}
-            onChange={(e) => setProblemDescription(e.target.value)}
-            placeholder="Tooth pain, routine cleaning, braces consultation..."
-            className="w-full px-4 py-2.5 rounded-xl border border-[#A3B799]/40 bg-white/70 dark:bg-[#1C2618]/70 text-xs focus:outline-none focus:ring-2 focus:ring-[#556B4B]"
-          />
-        </div>
+        {/* Submit Booking Bar */}
+        <div className="p-6 rounded-3xl bg-white dark:bg-[#1C2618] border border-[#4A5D23]/15 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
+          <div className="flex items-center gap-2 text-xs text-[#556B4B] dark:text-[#A3B799]">
+            <ShieldCheck className="w-4 h-4 text-[#4A5D23] shrink-0" />
+            <span>Instant WhatsApp & Email confirmation will be dispatched upon booking.</span>
+          </div>
 
-        <AntigravityButton variant="primary" size="lg" className="w-full mt-4" disabled={submitting}>
-          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm Appointment Booking"}
-        </AntigravityButton>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            type="submit"
+            disabled={submitting}
+            className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-[#4A5D23] hover:bg-[#3D4C1D] text-white font-display font-semibold text-sm transition shadow-lg shadow-[#4A5D23]/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {submitting ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <span>Confirm Appointment Booking</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </motion.button>
+        </div>
       </form>
-    </AppleLiquidCard>
+    </div>
   );
 }
 

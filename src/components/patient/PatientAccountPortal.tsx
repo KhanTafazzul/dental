@@ -411,21 +411,58 @@ function PatientAccountPortalContent() {
         </div>
 
         {/* Top Right Family Switcher & Booking Action */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="flex items-center gap-2 bg-[#0F150D] p-2 rounded-xl border border-white/10">
-            <Users className="w-4 h-4 text-[#A3B799]" />
-            <select
-              value={selectedFamilyId}
-              onChange={(e) => setSelectedFamilyId(e.target.value)}
-              className="bg-transparent text-xs font-bold text-[#F5F7F3] focus:outline-none cursor-pointer"
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+          <div className="flex items-center gap-2 overflow-x-auto p-1.5 rounded-2xl bg-[#0F150D]/80 border border-white/10">
+            {/* Self Circular Button */}
+            <button
+              type="button"
+              onClick={() => setSelectedFamilyId("self")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition cursor-pointer ${
+                selectedFamilyId === "self"
+                  ? "bg-[#4A5D23] text-white shadow-md"
+                  : "text-[#A3B799] hover:text-white"
+              }`}
+              title="Switch to Self"
             >
-              <option value="self" className="bg-[#1C2618] text-white">Select Active Profile ({profile.fullName})</option>
-              {familyMembers.map((fam) => (
-                <option key={fam.id} value={fam.id} className="bg-[#1C2618] text-white">
-                  {fam.fullName} ({fam.relationship})
-                </option>
-              ))}
-            </select>
+              <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center font-bold text-xs text-white">
+                {profile.fullName?.charAt(0) || "S"}
+              </div>
+              <span className="text-xs font-semibold whitespace-nowrap">Self</span>
+            </button>
+
+            {/* Family Members Circular Buttons */}
+            {familyMembers.map((fam) => {
+              const isSelected = selectedFamilyId === fam.id;
+              const initial = fam.fullName?.charAt(0) || "F";
+              return (
+                <button
+                  key={fam.id}
+                  type="button"
+                  onClick={() => setSelectedFamilyId(fam.id)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition cursor-pointer ${
+                    isSelected
+                      ? "bg-[#4A5D23] text-white shadow-md"
+                      : "text-[#A3B799] hover:text-white"
+                  }`}
+                  title={`Switch to ${fam.fullName}`}
+                >
+                  <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center font-bold text-xs text-white">
+                    {initial}
+                  </div>
+                  <span className="text-xs font-semibold whitespace-nowrap truncate max-w-[90px]">{fam.fullName.split(" ")[0]}</span>
+                </button>
+              );
+            })}
+
+            {/* Add Member Shortcut */}
+            <button
+              type="button"
+              onClick={() => setShowAddFamilyModal(true)}
+              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-[#A3B799] hover:text-white transition cursor-pointer shrink-0"
+              title="Add Family Member"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
 
           <AntigravityButton

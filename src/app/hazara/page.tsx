@@ -1,8 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Calendar, Clock, MapPin, Phone, Mail, ArrowLeft, ArrowRight, ShieldCheck, Star, Sparkles, Zap } from 'lucide-react'
+import { Calendar, Clock, MapPin, Phone, Mail, ArrowLeft, ArrowRight, ShieldCheck, Star, Sparkles, CheckCircle2, Award, Stethoscope, ChevronRight } from 'lucide-react'
 import { getAdminSupabase } from '@/lib/supabase'
-import AnimateOnScroll from '@/components/AnimateOnScroll'
 import DentalLogo from '@/components/DentalLogo'
 
 export const metadata: Metadata = {
@@ -14,198 +13,256 @@ export default async function HazaraHome() {
   const supabaseServer = getAdminSupabase()
   const { data: branch } = await supabaseServer
     .from('branches')
-    .select('working_hours')
+    .select('name, working_hours, address, phone, email')
     .eq('slug', 'hazara')
-    .single()
+    .maybeSingle()
 
-  const workingHours = branch?.working_hours || 'Monday – Saturday: 9:00 AM – 6:00 PM (Closed on Sunday)'
+  const { data: doctors } = await supabaseServer
+    .from('doctors')
+    .select('id, name, specialty, picture_url')
+    .limit(4)
+
+  const workingHours = branch?.working_hours || 'Monday – Saturday: 9:00 AM – 7:00 PM (Sunday by Appointment)'
+  const branchAddress = branch?.address || 'Hazara Dental Clinic, Main Boulevard Road, Near Central Square'
+  const branchPhone = branch?.phone || '+91 98200 12345'
+  const branchEmail = branch?.email || 'hazara@flynx.site'
   const currentYear = new Date().getFullYear()
 
   return (
-    <div className="flex-1 flex flex-col justify-between min-h-screen w-full max-w-full font-sans overflow-x-hidden">
-      {/* ═══ HEADER ═══ */}
-      <header className="glass sticky top-0 z-50 animate-fade-in-down bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/50 dark:border-white/10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors duration-200 text-xs font-medium">
-            <ArrowLeft className="w-3.5 h-3.5 text-cyan-600" />
-            Home Gateway
+    <div className="flex-1 flex flex-col justify-between min-h-screen w-full max-w-full font-ui bg-[#FDFBF7] dark:bg-[#0F150D] text-[#2C3325] dark:text-[#F5F7F3] overflow-x-hidden transition-colors">
+      
+      {/* ═══ TOP CLINIC NAVIGATION ═══ */}
+      <header className="sticky top-0 z-50 bg-[#FDFBF7]/85 dark:bg-[#0F150D]/85 backdrop-blur-xl border-b border-[#4A5D23]/15">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between">
+          <Link href="/" className="inline-flex items-center gap-2 text-[#556B4B] hover:text-[#2C3325] dark:hover:text-white transition text-xs font-semibold">
+            <ArrowLeft className="w-3.5 h-3.5 text-[#4A5D23]" />
+            <span>Main Clinic</span>
           </Link>
-          <Link href="/" className="flex items-center gap-2.5" aria-label="Go to homepage">
-            <DentalLogo size={30} />
-            <span className="text-base sm:text-lg font-serif text-slate-900 dark:text-white font-normal">
-              Hazara{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-teal-500 font-semibold">
-                Dental Clinic
+
+          <Link href="/hazara" className="flex items-center gap-2.5" aria-label="Hazara Clinic">
+            <div className="p-1.5 rounded-xl bg-[#4A5D23]/10 dark:bg-white/10">
+              <DentalLogo size={28} />
+            </div>
+            <div>
+              <span className="text-base sm:text-lg font-bold font-display tracking-tight text-[#2C3325] dark:text-white block">
+                Hazara Dental Clinic
               </span>
-            </span>
+              <span className="text-[10px] uppercase font-mono tracking-widest text-[#556B4B] dark:text-[#A3B799]">
+                Specialized Oral Surgery
+              </span>
+            </div>
           </Link>
+
           <Link
             href="/hazara/book"
-            className="px-4 sm:px-5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 rounded-xl transition-all duration-300 shadow-md shadow-cyan-500/15 hover:shadow-lg hover:shadow-cyan-500/25"
+            className="px-4 sm:px-6 py-2.5 text-xs font-bold font-display text-white bg-[#4A5D23] hover:bg-[#3D4C1D] rounded-2xl transition shadow-md shadow-[#4A5D23]/25 flex items-center gap-1.5 cursor-pointer"
           >
-            Book Appointment
+            <span>Book Visit</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
       </header>
 
-      {/* ═══ HERO ═══ */}
-      <main className="flex-1">
-        <section className="relative py-16 sm:py-24 px-4 sm:px-6 text-center overflow-hidden">
-          <div className="absolute inset-0 gradient-hazara -z-10" />
+      {/* ═══ HERO SECTION ═══ */}
+      <main className="flex-1 space-y-16 py-8 sm:py-12">
+        <section className="relative px-4 sm:px-6 max-w-6xl mx-auto">
+          <div className="p-8 sm:p-14 rounded-3xl bg-gradient-to-br from-[#2C3325] via-[#384628] to-[#1C2618] text-white relative overflow-hidden shadow-2xl">
+            {/* Ambient Dental Backdrops */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-[#88B04B]/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-[#4A5D23]/30 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 max-w-4xl mx-auto">
-            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-white/70 backdrop-blur-md border border-cyan-200/60 rounded-full text-cyan-700 text-xs font-semibold tracking-wide shadow-md shadow-cyan-500/10">
-              <Sparkles className="w-3.5 h-3.5 text-cyan-600" />
-              Clinical Precision & Orthodontics
+            <div className="relative z-10 max-w-3xl space-y-6">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-[#E4E7D3]">
+                <Sparkles className="w-3.5 h-3.5 text-[#88B04B]" />
+                Orthodontic & Surgical Excellence
+              </div>
+
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold font-display tracking-tight leading-tight text-white">
+                Advanced Restorative Dental Care at Hazara.
+              </h1>
+
+              <p className="text-sm sm:text-base text-[#E4E7D3]/85 leading-relaxed max-w-2xl font-light">
+                Hazara Dental Clinic provides clinical surgical expertise, porcelain crown fittings, dental implants, and precision braces. Equipped with digital panoramic radiography and hospital-grade sterilization.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3.5 pt-2">
+                <Link
+                  href="/hazara/book"
+                  className="px-8 py-4 rounded-2xl bg-[#88B04B] hover:bg-[#789e3f] text-[#1C2618] font-display font-bold text-sm transition shadow-lg shadow-[#88B04B]/25 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Calendar className="w-4 h-4" /> Schedule Consultation at Hazara
+                </Link>
+                <a
+                  href={`tel:${branchPhone.replace(/\s+/g, '')}`}
+                  className="px-6 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-display font-semibold text-sm transition border border-white/20 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Phone className="w-4 h-4" /> {branchPhone}
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ═══ CLINICAL SERVICES BENTO GRID ═══ */}
+        <section className="px-4 sm:px-6 max-w-6xl mx-auto space-y-8">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <span className="text-xs font-mono font-bold uppercase tracking-widest text-[#4A5D23] dark:text-[#88B04B]">
+              Branch Capabilities
             </span>
-
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-serif text-slate-900 dark:text-white font-normal mt-6 leading-tight tracking-tight">
-              Excellence in Restorative Care &{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-teal-500 to-emerald-500 font-semibold">
-                Dental Surgery
-              </span>
-            </h1>
-
-            <p className="mt-6 text-sm sm:text-base md:text-lg text-slate-600 dark:text-slate-300 font-light max-w-2xl mx-auto leading-relaxed">
-              Hazara Dental Clinic offers advanced restorative and orthodontic dentistry in a clean clinical space. Our specialists combine scientific precision with patient-focused care.
+            <h2 className="text-2xl sm:text-3xl font-bold font-display tracking-tight text-[#2C3325] dark:text-white">
+              Specialized Treatments at Hazara
+            </h2>
+            <p className="text-xs sm:text-sm text-[#556B4B] dark:text-[#A3B799]">
+              Every treatment is performed by qualified surgeons utilizing digital diagnostics and modern anesthesia.
             </p>
+          </div>
 
-            <div className="mt-8 flex flex-col sm:flex-row gap-3.5 justify-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                title: "Orthodontics & Aligners",
+                desc: "Clear aligner therapies and ceramic braces designed for comfortable bite correction.",
+                badge: "Malocclusion",
+              },
+              {
+                title: "Dental Implants",
+                desc: "Titanium root implants with custom zirconia crowns for lifelong chewing restoration.",
+                badge: "Permanent",
+              },
+              {
+                title: "Painless Root Canals",
+                desc: "Microscopic rotary endodontics preserving infected teeth in single or two visits.",
+                badge: "Endodontic",
+              },
+              {
+                title: "Surgical Wisdom Extractions",
+                desc: "Atraumatic impaction removals under local sedation with rapid postoperative healing.",
+                badge: "Maxillofacial",
+              },
+            ].map((srv, idx) => (
+              <div
+                key={idx}
+                className="p-6 rounded-3xl bg-white dark:bg-[#1C2618] border border-[#4A5D23]/15 shadow-sm hover:shadow-md transition space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="px-2.5 py-1 rounded-full bg-[#E4E7D3] dark:bg-[#2C3A27] text-[10px] font-mono font-bold text-[#4A5D23] dark:text-[#88B04B]">
+                    {srv.badge}
+                  </span>
+                  <CheckCircle2 className="w-4 h-4 text-[#4A5D23]" />
+                </div>
+                <h3 className="text-base font-bold font-display text-[#2C3325] dark:text-white">{srv.title}</h3>
+                <p className="text-xs text-[#556B4B] dark:text-[#A3B799] leading-relaxed">{srv.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ═══ BRANCH LOCATION & WORKING HOURS ═══ */}
+        <section className="px-4 sm:px-6 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 sm:p-10 rounded-3xl bg-[#F0F2EB] dark:bg-[#1C2618] border border-[#4A5D23]/20">
+            {/* Left: Schedule & Contact */}
+            <div className="space-y-6">
+              <div>
+                <span className="text-xs font-mono font-bold uppercase tracking-widest text-[#4A5D23] dark:text-[#88B04B]">
+                  Branch Details
+                </span>
+                <h2 className="text-2xl font-bold font-display text-[#2C3325] dark:text-white mt-1">
+                  Visit Hazara Dental Clinic
+                </h2>
+                <p className="text-xs text-[#556B4B] dark:text-[#A3B799] mt-1">
+                  Walk-ins accepted for emergencies. Book in advance to guarantee zero waiting time.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-white dark:bg-[#141F16] border border-[#4A5D23]/15">
+                  <MapPin className="w-5 h-5 text-[#4A5D23] shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-bold font-display text-[#2C3325] dark:text-white">Clinic Address</h4>
+                    <p className="text-xs text-[#556B4B] dark:text-[#A3B799]">{branchAddress}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-white dark:bg-[#141F16] border border-[#4A5D23]/15">
+                  <Clock className="w-5 h-5 text-[#4A5D23] shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-bold font-display text-[#2C3325] dark:text-white">Clinical Hours</h4>
+                    <p className="text-xs text-[#556B4B] dark:text-[#A3B799]">{workingHours}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-white dark:bg-[#141F16] border border-[#4A5D23]/15">
+                  <Phone className="w-5 h-5 text-[#4A5D23] shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-bold font-display text-[#2C3325] dark:text-white">Direct Phone & WhatsApp</h4>
+                    <p className="text-xs text-[#556B4B] dark:text-[#A3B799]">{branchPhone}</p>
+                  </div>
+                </div>
+              </div>
+
               <Link
                 href="/hazara/book"
-                className="px-8 py-3.5 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 shadow-xl shadow-cyan-600/20 hover:shadow-2xl"
+                className="w-full py-4 rounded-2xl bg-[#4A5D23] hover:bg-[#3D4C1D] text-white font-display font-semibold text-sm transition flex items-center justify-center gap-2 cursor-pointer shadow-md"
               >
-                Schedule Consultation
+                <span>Book Hazara Consultation Now</span>
+                <ChevronRight className="w-4 h-4" />
               </Link>
-              <a
-                href="#services"
-                className="px-8 py-3.5 bg-white/80 hover:bg-white text-slate-700 border border-slate-200/80 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300"
-              >
-                Explore Specialties
-              </a>
             </div>
-          </div>
-        </section>
 
-        {/* ═══ INFO GRID ═══ */}
-        <section className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <AnimateOnScroll animation="fade-up" delay={0}>
-              <div className="flex gap-4 items-start p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm">
-                <div className="p-3 bg-cyan-50 dark:bg-cyan-950/40 rounded-xl text-cyan-600 shrink-0">
-                  <Clock className="w-5 h-5" />
+            {/* Right: Hospital Quality & Standards Card */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#141F16] border border-[#4A5D23]/20 flex flex-col justify-between space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-bold font-display text-[#4A5D23] dark:text-[#88B04B]">
+                  <ShieldCheck className="w-5 h-5 text-[#4A5D23]" />
+                  <span>Clinical Sterilization Protocol</span>
                 </div>
-                <div>
-                  <h4 className="font-semibold text-slate-800 dark:text-slate-100 text-sm">Consultation Hours</h4>
-                  <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 font-light leading-relaxed">{workingHours}</p>
+                <h3 className="text-lg font-bold font-display text-[#2C3325] dark:text-white">
+                  Class-B Autoclave & 100% Sealed Instruments
+                </h3>
+                <p className="text-xs text-[#556B4B] dark:text-[#A3B799] leading-relaxed">
+                  Hazara Clinic enforces sterile barriers for every patient. Handpieces, diagnostic mirrors, and surgical kits undergo vacuum thermal sterilization and are only opened in front of you during consultation.
+                </p>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div className="p-3 rounded-2xl bg-[#F0F2EB] dark:bg-[#1C2618]">
+                    <div className="text-xs font-bold text-[#2C3325] dark:text-white">Zero Radiation</div>
+                    <div className="text-[10px] text-[#556B4B]">Digital Sensor X-Rays</div>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-[#F0F2EB] dark:bg-[#1C2618]">
+                    <div className="text-xs font-bold text-[#2C3325] dark:text-white">DPDP 2023</div>
+                    <div className="text-[10px] text-[#556B4B]">Encrypted Patient Data</div>
+                  </div>
                 </div>
               </div>
-            </AnimateOnScroll>
 
-            <AnimateOnScroll animation="fade-up" delay={150}>
-              <div className="flex gap-4 items-start p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm">
-                <div className="p-3 bg-cyan-50 dark:bg-cyan-950/40 rounded-xl text-cyan-600 shrink-0">
-                  <MapPin className="w-5 h-5" />
-                </div>
+              <div className="p-4 rounded-2xl bg-[#E4E7D3]/60 dark:bg-[#1C2618] border border-[#4A5D23]/20 text-xs text-[#2C3325] dark:text-[#E2E8DC] flex items-center justify-between">
                 <div>
-                  <h4 className="font-semibold text-slate-800 dark:text-slate-100 text-sm">Clinic Location</h4>
-                  <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 font-light">Hazara Dental Clinic, Main Clinical Avenue</p>
-                  <p className="text-slate-400 text-xs mt-0.5 font-light">Medical District, Sector B</p>
+                  <div className="font-bold">Need assistance finding us?</div>
+                  <div className="text-[10px] text-[#556B4B]">Google Maps GPS coordinates available.</div>
                 </div>
+                <a
+                  href={`https://maps.google.com/?q=${encodeURIComponent(branchAddress)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1.5 rounded-xl bg-[#4A5D23] text-white text-[11px] font-bold cursor-pointer shrink-0"
+                >
+                  Open Maps
+                </a>
               </div>
-            </AnimateOnScroll>
-
-            <AnimateOnScroll animation="fade-up" delay={300}>
-              <div className="flex gap-4 items-start p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm">
-                <div className="p-3 bg-cyan-50 dark:bg-cyan-950/40 rounded-xl text-cyan-600 shrink-0">
-                  <Phone className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-slate-800 dark:text-slate-100 text-sm">Direct Contact</h4>
-                  <p className="text-slate-600 dark:text-slate-300 text-xs mt-1 font-light">
-                    Phone:{' '}
-                    <a href="tel:+919820012345" className="text-cyan-600 dark:text-cyan-400 font-semibold hover:underline">
-                      +91 98200 12345
-                    </a>
-                  </p>
-                  <p className="text-slate-600 dark:text-slate-300 text-xs mt-0.5 font-light">
-                    Email:{' '}
-                    <a href="mailto:hazara@flynx.site" className="text-cyan-600 dark:text-cyan-400 hover:underline">
-                      hazara@flynx.site
-                    </a>
-                  </p>
-                </div>
-              </div>
-            </AnimateOnScroll>
-          </div>
-        </section>
-
-        {/* ═══ SERVICES ═══ */}
-        <section id="services" className="py-16 px-4 sm:px-6 max-w-6xl mx-auto">
-          <AnimateOnScroll animation="fade-up">
-            <div className="text-center max-w-xl mx-auto mb-12">
-              <span className="text-xs font-semibold uppercase tracking-wider text-cyan-600">Our Clinical Scope</span>
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif text-slate-900 dark:text-white mt-2">Hazara Specialized Treatments</h2>
-              <p className="text-slate-500 text-xs sm:text-sm font-light mt-3 leading-relaxed">
-                Treatment procedures rendered by licensed dental specialists using current diagnostic equipment.
-              </p>
             </div>
-          </AnimateOnScroll>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <AnimateOnScroll animation="fade-up" delay={0}>
-              <div className="p-6 sm:p-8 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-white/10 rounded-2xl shadow-sm">
-                <div className="w-10 h-10 bg-cyan-50 dark:bg-cyan-950/40 rounded-xl flex items-center justify-center text-cyan-600 mb-4">
-                  <Zap className="w-5 h-5" />
-                </div>
-                <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white mb-2">Orthodontic Procedures</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-xs font-light leading-relaxed mb-4">
-                  Alignment corrections using ceramic brackets, modern archwires, or transparent aligner systems.
-                </p>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-cyan-600 bg-cyan-50 dark:bg-cyan-950/30 px-2 py-0.5 rounded border border-cyan-200/60">Specialty</span>
-              </div>
-            </AnimateOnScroll>
-
-            <AnimateOnScroll animation="fade-up" delay={150}>
-              <div className="p-6 sm:p-8 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-white/10 rounded-2xl shadow-sm">
-                <div className="w-10 h-10 bg-cyan-50 dark:bg-cyan-950/40 rounded-xl flex items-center justify-center text-cyan-600 mb-4">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white mb-2">Dental Implants</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-xs font-light leading-relaxed mb-4">
-                  Surgical replacement of tooth roots with titanium fixtures and custom porcelain prosthetic crowns.
-                </p>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-cyan-600 bg-cyan-50 dark:bg-cyan-950/30 px-2 py-0.5 rounded border border-cyan-200/60">Specialty</span>
-              </div>
-            </AnimateOnScroll>
-
-            <AnimateOnScroll animation="fade-up" delay={300}>
-              <div className="p-6 sm:p-8 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-white/10 rounded-2xl shadow-sm">
-                <div className="w-10 h-10 bg-cyan-50 dark:bg-cyan-950/40 rounded-xl flex items-center justify-center text-cyan-600 mb-4">
-                  <Star className="w-5 h-5" />
-                </div>
-                <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white mb-2">Endodontic Care</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-xs font-light leading-relaxed mb-4">
-                  Root canal decontamination procedures to treat infection and preserve healthy natural tooth structure.
-                </p>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-cyan-600 bg-cyan-50 dark:bg-cyan-950/30 px-2 py-0.5 rounded border border-cyan-200/60">General Care</span>
-              </div>
-            </AnimateOnScroll>
           </div>
         </section>
       </main>
 
       {/* ═══ FOOTER ═══ */}
-      <footer className="glass border-t border-slate-200/60 dark:border-white/10 py-8 px-4 text-center text-xs text-slate-500">
+      <footer className="border-t border-[#4A5D23]/15 py-8 px-4 sm:px-6 text-xs text-[#556B4B] dark:text-[#A3B799] bg-[#FDFBF7] dark:bg-[#0F150D]">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>&copy; {currentYear} Hazara Dental Clinic. All rights reserved.</p>
-          <div className="flex items-center gap-4 flex-wrap justify-center font-medium">
-            <Link href="/" className="hover:text-slate-900 dark:hover:text-white transition">Network Home</Link>
-            <Link href="/family" className="hover:text-slate-900 dark:hover:text-white transition">Family Branch</Link>
-            <Link href="/privacy" className="hover:text-slate-900 dark:hover:text-white transition">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-slate-900 dark:hover:text-white transition">Terms of Service</Link>
-            <Link href="/cookies" className="hover:text-slate-900 dark:hover:text-white transition">Cookie Policy</Link>
-            <Link href="/support" className="hover:text-slate-900 dark:hover:text-white transition">Patient Support</Link>
+          <p>© {currentYear} Hazara Dental Clinic • Hazara & Family Dental Care Network</p>
+          <div className="flex items-center gap-4 font-semibold">
+            <Link href="/terms" className="hover:text-[#2C3325] dark:hover:text-white">Terms</Link>
+            <Link href="/privacy" className="hover:text-[#2C3325] dark:hover:text-white">Privacy</Link>
+            <Link href="/dpdp" className="hover:text-[#2C3325] dark:hover:text-white">DPDP Rights</Link>
+            <Link href="/hazara/book" className="hover:text-[#4A5D23]">Book Hazara</Link>
           </div>
         </div>
       </footer>

@@ -977,5 +977,74 @@ html {
   text-transform: uppercase;
 }
 
+/* ═══════════════════════════════════════════
+   PATIENT SIDE DESIGN SYSTEM (pacient-side-degine-skill)
+   ═══════════════════════════════════════════ */
+:root {
+  --font-display: var(--font-display, 'Outfit', sans-serif);
+  --font-ui: var(--font-ui, 'Plus Jakarta Sans', sans-serif);
+  --olive-primary: #4A5D23;
+  --olive-dark: #2C3325;
+  --olive-soft: #E4E7D3;
+  --olive-canvas: #F0F2EB;
+  --dental-alabaster: #FDFBF7;
+}
 
+.font-display {
+  font-family: var(--font-display), sans-serif;
+}
 
+.font-ui {
+  font-family: var(--font-ui), sans-serif;
+}
+
+@keyframes floatDental {
+  0% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-14px) rotate(2deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+
+.hero-3d-element {
+  animation: floatDental 6s ease-in-out infinite;
+}
+
+@keyframes dentalPulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.04); opacity: 1; }
+}
+
+.dental-pulse {
+  animation: dentalPulse 4s ease-in-out infinite;
+}
+
+.dental-card-glow {
+  box-shadow: 0 10px 30px -10px rgba(74, 93, 35, 0.15);
+}
+
+.dark .dental-card-glow {
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+.premium-input {
+  background-color: #f0f2eb;
+  border: 1.5px solid transparent;
+  transition: all 0.25s ease;
+  outline: none;
+}
+
+.dark .premium-input {
+  background-color: #141f17;
+  border-color: rgba(74, 93, 35, 0.2);
+}
+
+.premium-input:focus {
+  border-color: #4a5d23;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(74, 93, 35, 0.12);
+}
+
+.dark .premium-input:focus {
+  background-color: #1a281e;
+  border-color: #88b04b;
+  box-shadow: 0 0 0 4px rgba(136, 176, 75, 0.2);
+}

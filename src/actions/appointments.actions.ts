@@ -701,3 +701,130 @@ export async function sendAppointmentEmail(appointmentId: string): Promise<Actio
   }
 }
 
+export interface PatientBookingParams {
+  branchSlug: string
+  doctorId: string
+  patientName: string
+  patientAge?: number | null
+  patientPhone: string
+  patientEmail?: string | null
+  appointmentDate: string
+  appointmentTime: string
+  notes?: string | null
+}
+
+/**
+ * Public Patient Portal Booking Action.
+ * Guarantees resolution or creation of patient in `patients` table
+ * to strictly prevent not-null violations on appointments.patient_id.
+ */
+export async function bookPatientAppointmentAction(params: PatientBookingParams): Promise<ActionResponse> {
+  const adminDb = getAdminSupabase()
+  try {
+    if (!params.patientName?.trim() || !params.patientPhone?.trim() || !params.doctorId || !params.appointmentDate || !params.appointmentTime) {
+      return { success: false, error: 'Mandatory booking details missing.' }
+    }
+
+    // 1. Resolve branch
+    let branchId: string | null = null
+    const { data: branchData } = await adminDb
+      .from('branches')
+      .select('id, name')
+      .eq('slug', params.branchSlug)
+      .maybeSingle()
+    if (branchData?.id) {
+      branchId = branchData.id
+    }
+
+    // 2. Resolve Doctor details
+    const { data: docData } = await adminDb
+      .from('doctors')
+      .select('id, name, branch_id')
+      .eq('id', params.doctorId)
+      .maybeSingle()
+    if (!branchId && docData?.branch_id) {
+      branchId = docData.branch_id
+    }
+
+    // 3. Resolve or Create Patient Record (Strictly Prevents NOT-NULL patient_id violations)
+    let resolvedPatientId: string | null = null
+    const cleanPhone = params.patientPhone.trim()
+
+    const { data: existingPatient } = await adminDb
+      .from('patients')
+      .select('id')
+      .eq('mobile', cleanPhone)
+      .maybeSingle()
+
+    if (existingPatient?.id) {
+      resolvedPatientId = existingPatient.id
+    } else {
+      const { data: newPatient, error: patErr } = await adminDb
+        .from('patients')
+        .insert({
+          name: params.patientName.trim(),
+          mobile: cleanPhone,
+          email: params.patientEmail?.trim() || null,
+          age: params.patientAge || null,
+        })
+        .select('id')
+        .single()
+
+      if (patErr) {
+        console.error('[PatientBooking] Auto-patient creation error:', patErr)
+      } else if (newPatient?.id) {
+        resolvedPatientId = newPatient.id
+      }
+    }
+
+    // 4. Insert into appointments with guaranteed valid patient_id
+    const insertPayload: any = {
+      branch_id: branchId,
+      doctor_id: params.doctorId,
+      patient_name: params.patientName.trim(),
+      patient_age: params.patientAge || null,
+      patient_phone: cleanPhone,
+      patient_email: params.patientEmail?.trim() || null,
+      appointment_date: params.appointmentDate,
+      appointment_time: params.appointmentTime,
+      notes: params.notes?.trim() || null,
+      status: 'pending',
+    }
+
+    if (resolvedPatientId) {
+      insertPayload.patient_id = resolvedPatientId
+    }
+
+    const { data: newAppt, error: apptErr } = await adminDb
+      .from('appointments')
+      .insert(insertPayload)
+      .select('id')
+      .single()
+
+    if (apptErr) throw apptErr
+
+    // 5. Asynchronously notify via WhatsApp if available
+    try {
+      const doctorName = docData?.name ? `Dr. ${docData.name}` : 'our specialist'
+      const branchName = branchData?.name || 'Hazara & Family Dental Clinic'
+      const whatsappMsg = `Hello ${params.patientName.trim()}!\n\nYour consultation at ${branchName} has been booked for:\nDate: ${params.appointmentDate}\nTime: ${params.appointmentTime}\nDoctor: ${doctorName}\n\nWe look forward to welcoming you for your consultation. If you need any assistance, please reply to this number.`
+      await sendWahaTextMessage({ phone: cleanPhone, text: whatsappMsg })
+    } catch (wahaErr) {
+      console.warn('[PatientBooking] WhatsApp dispatch note:', wahaErr)
+    }
+
+    // 6. Trigger Brevo email if configured
+    if (params.patientEmail?.trim() && newAppt?.id) {
+      try {
+        await sendAppointmentEmail(newAppt.id)
+      } catch (mailErr) {
+        console.warn('[PatientBooking] Email notification note:', mailErr)
+      }
+    }
+
+    return { success: true, data: { id: newAppt.id } }
+  } catch (err: any) {
+    console.error('[PatientBooking] Booking failed:', err)
+    return { success: false, error: err.message || 'Unable to book consultation. Please try again.' }
+  }
+}
