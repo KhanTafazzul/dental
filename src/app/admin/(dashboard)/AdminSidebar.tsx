@@ -14,13 +14,14 @@ import DentalLogo from '@/components/DentalLogo'
 import { useTheme } from '@/components/ThemeContext'
 
 const NAV_ITEMS = [
-  { href: '/admin',            icon: LayoutDashboard, label: 'Dashboard & Appts' },
-  { href: '/admin/doctors',    icon: Users,           label: 'Doctor Roster' },
-  { href: '/admin/finances',   icon: CircleDollarSign,label: 'Finances & Revenue' },
-  { href: '/admin/inventory',  icon: Package,         label: 'Inventory & Stock' },
-  { href: '/admin/complaints', icon: LifeBuoy,        label: 'Complaints & Support' },
-  { href: '/admin/messaging',  icon: MessageSquare,   label: 'Patient Messaging' },
-  { href: '/admin/settings',   icon: Settings,        label: 'System Settings' },
+  { href: '/admin',               icon: LayoutDashboard, label: 'Dashboard & Appts' },
+  { href: '/admin/prescriptions', icon: FileText,        label: 'Patient Prescriptions' },
+  { href: '/admin/doctors',       icon: Users,           label: 'Doctor Roster' },
+  { href: '/admin/finances',      icon: CircleDollarSign,label: 'Finances & Revenue' },
+  { href: '/admin/inventory',     icon: Package,         label: 'Inventory & Stock' },
+  { href: '/admin/complaints',    icon: LifeBuoy,        label: 'Complaints & Support' },
+  { href: '/admin/messaging',     icon: MessageSquare,   label: 'Patient Messaging' },
+  { href: '/admin/settings',      icon: Settings,        label: 'System Settings' },
 ]
 
 export default function AdminSidebar() {

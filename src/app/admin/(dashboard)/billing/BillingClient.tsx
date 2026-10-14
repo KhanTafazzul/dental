@@ -447,11 +447,11 @@ export default function BillingClient({ initialAppointments, initialTreatments }
         grandTotal
       )
 
-      if (!invoiceRes.success || !invoiceRes.invoiceId) {
+      const invoiceId = invoiceRes.invoiceId || invoiceRes.data?.invoiceId
+
+      if (!invoiceRes.success || !invoiceId) {
         throw new Error(invoiceRes.error || 'Failed to save invoice records.')
       }
-
-      const invoiceId = invoiceRes.invoiceId
       const treatmentDiscountVal = treatmentDiscountAmount
       const medicineDiscountVal = medicineDiscountAmount
       const totalDiscountSaved = discountAmount

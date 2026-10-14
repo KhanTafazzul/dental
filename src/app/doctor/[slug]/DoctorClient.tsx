@@ -601,8 +601,9 @@ export default function DoctorClient({
         discountPercent,
         grandTotal
       )
-      if (res.success && res.invoiceId) {
-        setGeneratedInvoiceId(res.invoiceId)
+      const invoiceId = res.invoiceId || res.data?.invoiceId
+      if (res.success && invoiceId) {
+        setGeneratedInvoiceId(invoiceId)
         alert('Bill generated and attached to patient report successfully!')
       } else {
         alert(res.error || 'Failed to generate bill')
