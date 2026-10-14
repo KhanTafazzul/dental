@@ -32,68 +32,86 @@ async function run() {
     return;
   }
 
-  const connection = await mysql.createConnection({
-    host,
-    port,
-    user,
-    password,
-    database,
-    ssl: {
-      minVersion: 'TLSv1.2',
-      rejectUnauthorized: true
-    }
-  });
+  let connection;
+  try {
+    connection = await mysql.createConnection({
+      host,
+      port,
+      user,
+      password,
+      database,
+      ssl: {
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: true
+      }
+    });
 
-  const migrations = [
-    {
-      name: 'medicines.tablets_per_patch',
-      sql: 'ALTER TABLE medicines ADD COLUMN tablets_per_patch INT NOT NULL DEFAULT 10'
-    },
-    {
-      name: 'medicine_batches.cost_price',
-      sql: 'ALTER TABLE medicine_batches ADD COLUMN cost_price DECIMAL(10, 2) NOT NULL DEFAULT 0.00'
-    },
-    {
-      name: 'medicine_batches.branch_slug',
-      sql: "ALTER TABLE medicine_batches ADD COLUMN branch_slug VARCHAR(50) NOT NULL DEFAULT 'hazara'"
-    },
-    {
-      name: 'medicine_batches.mrp',
-      sql: 'ALTER TABLE medicine_batches ADD COLUMN mrp DECIMAL(10, 2) NOT NULL DEFAULT 0.00'
-    }
-  ];
+    const migrations = [
+      {
+        name: 'medicines.tablets_per_patch',
+        sql: 'ALTER TABLE medicines ADD COLUMN tablets_per_patch INT NOT NULL DEFAULT 10'
+      },
+      {
+        name: 'medicine_batches.cost_price',
+        sql: 'ALTER TABLE medicine_batches ADD COLUMN cost_price DECIMAL(10, 2) NOT NULL DEFAULT 0.00'
+      },
+      {
+        name: 'medicine_batches.branch_slug',
+        sql: "ALTER TABLE medicine_batches ADD COLUMN branch_slug VARCHAR(50) NOT NULL DEFAULT 'hazara'"
+      },
+      {
+        name: 'medicine_batches.mrp',
+        sql: 'ALTER TABLE medicine_batches ADD COLUMN mrp DECIMAL(10, 2) NOT NULL DEFAULT 0.00'
+      }
+    ];
 
-  let hasErrors = false;
+    let hasErrors = false;
+    const failedMigrations = [];
 
-  for (const m of migrations) {
-    try {
-      console.log(`Applying migration: ${m.name}...`);
-      await connection.query(m.sql);
-      console.log(`- Succeeded: ${m.name}`);
-    } catch (err) {
-      if (err.message.includes('Duplicate column') || err.message.includes('already exists')) {
-        console.log(`- Column already exists: ${m.name}`);
-        if (m.name === 'medicines.tablets_per_patch') {
-          try {
-            await connection.query('ALTER TABLE medicines ALTER COLUMN tablets_per_patch SET DEFAULT 10');
-            console.log(`- Updated default to 10 for existing column ${m.name}`);
-          } catch (alterErr) {
-            console.warn(`- Could not update default for ${m.name}:`, alterErr.message);
+    for (const m of migrations) {
+      try {
+        console.log(`Applying migration: ${m.name}...`);
+        await connection.query(m.sql);
+        console.log(`- Succeeded: ${m.name}`);
+      } catch (err) {
+        const isDuplicate =
+          err.errno === 1060 ||
+          err.code === 'ER_DUP_FIELDNAME' ||
+          err.message.includes('Duplicate column') ||
+          err.message.includes('already exists');
+
+        if (isDuplicate) {
+          console.log(`- Column already exists: ${m.name}`);
+          if (m.name === 'medicines.tablets_per_patch') {
+            try {
+              await connection.query('ALTER TABLE medicines ALTER COLUMN tablets_per_patch SET DEFAULT 10');
+              console.log(`- Updated default to 10 for existing column ${m.name}`);
+            } catch (alterErr) {
+              console.warn(`- Could not update default for ${m.name}:`, alterErr.message);
+            }
           }
+        } else {
+          hasErrors = true;
+          failedMigrations.push({ name: m.name, error: err.message });
+          console.error(`- Failed to apply ${m.name}:`, err.message);
         }
-      } else {
-        hasErrors = true;
-        console.error(`- Failed to apply ${m.name}:`, err.message);
       }
     }
-  }
 
-  await connection.end();
-
-  if (hasErrors) {
-    console.error('Migration finished with errors.');
-    process.exit(1);
+    if (hasErrors) {
+      console.error(`Migration finished with ${failedMigrations.length} failure(s):`, failedMigrations);
+      process.exitCode = 1;
+    } else {
+      console.log('All migrations applied successfully.');
+    }
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
   }
 }
 
-run();
+run().catch(err => {
+  console.error('Fatal migration error:', err);
+  process.exit(1);
+});
