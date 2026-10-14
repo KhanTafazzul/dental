@@ -17,8 +17,10 @@ import {
 } from 'firebase/auth'
 import { ENV } from '@/config/env'
 
+const isConfigured = Boolean(ENV.FIREBASE_API_KEY && !ENV.FIREBASE_API_KEY.includes('placeholder'))
+
 const firebaseConfig = {
-  apiKey: ENV.FIREBASE_API_KEY,
+  apiKey: isConfigured ? ENV.FIREBASE_API_KEY : 'AIzaSyDummyKeyForBuildPrerender123456789',
   authDomain: ENV.FIREBASE_AUTH_DOMAIN || 'falix-cde0c.firebaseapp.com',
   projectId: ENV.FIREBASE_PROJECT_ID || 'falix-cde0c',
   storageBucket: ENV.FIREBASE_STORAGE_BUCKET || 'falix-cde0c.firebasestorage.app',
@@ -27,7 +29,7 @@ const firebaseConfig = {
   measurementId: ENV.FIREBASE_MEASUREMENT_ID || 'G-8945NCMBQB',
 }
 
-if (!firebaseConfig.apiKey && typeof window !== 'undefined') {
+if (!isConfigured && typeof window !== 'undefined') {
   console.warn('[Firebase] Notice: NEXT_PUBLIC_FIREBASE_API_KEY is not configured.')
 }
 
@@ -37,7 +39,7 @@ export const googleProvider = new GoogleAuthProvider()
 googleProvider.setCustomParameters({ prompt: 'select_account' })
 
 export async function loginWithEmail(email: string, pass: string) {
-  if (!firebaseConfig.apiKey) {
+  if (!isConfigured) {
     return { user: null, error: 'Firebase authentication is not configured. Missing API key.' }
   }
   try {
@@ -49,7 +51,7 @@ export async function loginWithEmail(email: string, pass: string) {
 }
 
 export async function registerWithEmail(email: string, pass: string) {
-  if (!firebaseConfig.apiKey) {
+  if (!isConfigured) {
     return { user: null, error: 'Firebase authentication is not configured. Missing API key.' }
   }
   try {
@@ -61,7 +63,7 @@ export async function registerWithEmail(email: string, pass: string) {
 }
 
 export async function loginWithGoogle() {
-  if (!firebaseConfig.apiKey) {
+  if (!isConfigured) {
     return { user: null, error: 'Firebase authentication is not configured. Missing API key.' }
   }
   try {
