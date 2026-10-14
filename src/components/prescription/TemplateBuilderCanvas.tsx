@@ -3,9 +3,10 @@
 import React, { useState, useRef } from 'react'
 import { Rnd } from 'react-rnd'
 import { Plus, Image as ImageIcon, Trash2, Move, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
-import type { BoundingField, CustomFont, PatientBillingData } from './types'
-import { CANVAS_WIDTH, CANVAS_HEIGHT, PRESET_FIELDS } from './types'
+import type { BoundingField, CustomFont, PatientBillingData, PrintOptions } from './types'
+import { CANVAS_WIDTH, CANVAS_HEIGHT, PRESET_FIELDS, DEFAULT_PRINT_OPTIONS } from './types'
 import FieldSettingsPopover from './FieldSettingsPopover'
+import { Printer, Stethoscope, User, Pill } from 'lucide-react'
 
 interface TemplateBuilderCanvasProps {
   backgroundImage: string | null
@@ -13,8 +14,10 @@ interface TemplateBuilderCanvasProps {
   customFonts: CustomFont[]
   billingData?: PatientBillingData
   isBillingMode?: boolean
+  printOptions?: PrintOptions
   onUpdateFields: (fields: BoundingField[]) => void
   onSetBackgroundImage: (base64: string | null) => void
+  onUpdatePrintOptions?: (opts: PrintOptions) => void
 }
 
 export default function TemplateBuilderCanvas({
@@ -23,11 +26,14 @@ export default function TemplateBuilderCanvas({
   customFonts,
   billingData,
   isBillingMode = false,
+  printOptions = DEFAULT_PRINT_OPTIONS,
   onUpdateFields,
   onSetBackgroundImage,
+  onUpdatePrintOptions,
 }: TemplateBuilderCanvasProps) {
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
   const [zoomScale, setZoomScale] = useState<number>(0.85)
+  const [presetCategory, setPresetCategory] = useState<'all' | 'doctor' | 'patient' | 'medicines'>('all')
   const bgInputRef = useRef<HTMLInputElement>(null)
 
   const selectedField = fields.find(f => f.id === selectedFieldId)
@@ -99,16 +105,41 @@ export default function TemplateBuilderCanvas({
       return billingData.notes || `[ Clinical Notes Area ]`
     }
 
+    if (field.key === 'doctorName') return billingData.doctorName || 'Dr. Doctor Name'
+    if (field.key === 'doctorMobile') return billingData.doctorMobile || '+91 98765 43210'
+    if (field.key === 'doctorEmail') return billingData.doctorEmail || 'doctor@dentalclinic.com'
+    if (field.key === 'doctorDegree') return billingData.doctorDegree || 'BDS, MDS - Oral Surgery'
+    if (field.key === 'doctorRegNo') return billingData.doctorRegNo || 'REG-2024-8891'
+    if (field.key === 'clinicName') return billingData.clinicName || 'HOSPITAL NAME'
+    if (field.key === 'clinicAddress') return billingData.clinicAddress || 'Clinic Address'
+    if (field.key === 'email') return billingData.email || 'patient@example.com'
+    if (field.key === 'gender') return billingData.gender || 'M'
+
     const val = (billingData as any)[field.key]
     return val !== undefined && val !== '' ? String(val) : `[ ${field.name} ]`
   }
+
+  // Filter presets based on selected category tab
+  const filteredPresets = PRESET_FIELDS.filter(preset => {
+    if (presetCategory === 'all') return true
+    if (presetCategory === 'doctor') {
+      return ['doctorName', 'doctorMobile', 'doctorEmail', 'doctorDegree', 'doctorRegNo', 'clinicName', 'clinicAddress'].includes(preset.key)
+    }
+    if (presetCategory === 'patient') {
+      return ['patientName', 'age', 'date', 'mobile', 'email', 'gender'].includes(preset.key)
+    }
+    if (presetCategory === 'medicines') {
+      return ['medicines', 'notes'].includes(preset.key)
+    }
+    return true
+  })
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 w-full h-full min-h-[600px] overflow-hidden select-none">
       
       {/* ─── LEFT SIDEBAR: FIELD & CANVAS TOOLBOX (Builder Mode Only) ─── */}
       {!isBillingMode && (
-        <aside className="w-full lg:w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl p-5 flex flex-col gap-5 shrink-0 shadow-sm overflow-y-auto">
+        <aside className="w-full lg:w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl p-5 flex flex-col gap-4.5 shrink-0 shadow-sm overflow-y-auto">
           
           {/* Background Upload Section */}
           <div className="space-y-2">
@@ -151,27 +182,112 @@ export default function TemplateBuilderCanvas({
             )}
           </div>
 
-          {/* Preset Bounding Boxes */}
+          {/* 2. Print Output Settings (Requirement: Option to print background and/or text with tick boxes) */}
+          <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Printer className="w-3.5 h-3.5 text-[#4A5D23]" /> 2. Print Settings
+              </span>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#4A5D23]/10 text-[#4A5D23] dark:text-[#A3B799]">
+                {printOptions.printBackground && printOptions.printText
+                  ? 'Both (Full)'
+                  : printOptions.printText
+                    ? 'Text Only'
+                    : printOptions.printBackground
+                      ? 'Pad Only'
+                      : 'None'}
+              </span>
+            </div>
+
+            <div className="space-y-1.5 pt-0.5">
+              <label className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 cursor-pointer select-none hover:border-[#4A5D23] transition">
+                <input
+                  type="checkbox"
+                  checked={printOptions.printBackground}
+                  onChange={e => onUpdatePrintOptions?.({ ...printOptions, printBackground: e.target.checked })}
+                  className="w-4 h-4 accent-[#4A5D23] rounded cursor-pointer"
+                />
+                <div className="text-[11px] leading-tight">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 block">Print Background Pad</span>
+                  <span className="text-[10px] text-slate-400">Blank letterhead image graphic</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 cursor-pointer select-none hover:border-[#4A5D23] transition">
+                <input
+                  type="checkbox"
+                  checked={printOptions.printText}
+                  onChange={e => onUpdatePrintOptions?.({ ...printOptions, printText: e.target.checked })}
+                  className="w-4 h-4 accent-[#4A5D23] rounded cursor-pointer"
+                />
+                <div className="text-[11px] leading-tight">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 block">Print Text Data</span>
+                  <span className="text-[10px] text-slate-400">Where boxes are placed only</span>
+                </div>
+              </label>
+            </div>
+
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal pt-0.5">
+              {printOptions.printText && !printOptions.printBackground ? (
+                <span className="text-[#4A5D23] dark:text-[#A3B799] font-medium">
+                  ★ Text-only active: When placed, only text data will print at box coordinates (for pre-printed stationery).
+                </span>
+              ) : printOptions.printText && printOptions.printBackground ? (
+                <span>✓ Full mode: Prints background letterhead graphic together with patient &amp; doctor text data.</span>
+              ) : (
+                <span>Tick boxes to customize print output.</span>
+              )}
+            </p>
+          </div>
+
+          {/* 3. Preset Bounding Boxes (Requirement: doctor name, mobile, email, etc.) */}
           <div className="space-y-2">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-              2. Add Bounding Boxes
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              {PRESET_FIELDS.map(preset => {
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                3. Add Bounding Boxes
+              </span>
+              {/* Category Filter Tabs */}
+              <div className="flex gap-1 text-[10px]">
+                <button
+                  type="button"
+                  onClick={() => setPresetCategory('all')}
+                  className={`px-1.5 py-0.5 rounded cursor-pointer ${presetCategory === 'all' ? 'bg-[#4A5D23] text-white font-bold' : 'text-slate-400 hover:text-slate-700'}`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPresetCategory('doctor')}
+                  className={`px-1.5 py-0.5 rounded cursor-pointer ${presetCategory === 'doctor' ? 'bg-[#4A5D23] text-white font-bold' : 'text-slate-400 hover:text-slate-700'}`}
+                >
+                  Doctor
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPresetCategory('patient')}
+                  className={`px-1.5 py-0.5 rounded cursor-pointer ${presetCategory === 'patient' ? 'bg-[#4A5D23] text-white font-bold' : 'text-slate-400 hover:text-slate-700'}`}
+                >
+                  Patient
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5 max-h-52 overflow-y-auto pr-1">
+              {filteredPresets.map(preset => {
                 const isAdded = fields.some(f => f.key === preset.key)
                 return (
                   <button
                     key={preset.key}
                     type="button"
                     onClick={() => handleAddField(preset)}
-                    className={`p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
+                    className={`p-2 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
                       isAdded
                         ? 'border-[#4A5D23] bg-[#4A5D23]/10 text-[#4A5D23] dark:text-[#A3B799]'
                         : 'border-slate-200 dark:border-white/10 hover:border-[#4A5D23] bg-slate-50 dark:bg-white/5 text-slate-700 dark:text-slate-300'
                     }`}
                   >
-                    <span className="truncate">{preset.name}</span>
-                    <Plus className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate text-[11px]">{preset.name}</span>
+                    <Plus className="w-3 h-3 shrink-0" />
                   </button>
                 )
               })}
@@ -179,9 +295,9 @@ export default function TemplateBuilderCanvas({
             <button
               type="button"
               onClick={() => handleAddField()}
-              className="w-full py-2.5 px-3 rounded-xl bg-[#4A5D23] hover:bg-[#3B4A1C] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer mt-2"
+              className="w-full py-2 px-3 rounded-xl bg-[#4A5D23] hover:bg-[#3B4A1C] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer mt-1"
             >
-              <Plus className="w-4 h-4" /> Add Custom Field Box
+              <Plus className="w-3.5 h-3.5" /> Add Custom Field Box
             </button>
           </div>
 
@@ -271,11 +387,20 @@ export default function TemplateBuilderCanvas({
         >
           {/* Background Image Layer */}
           {backgroundImage ? (
-            <img
-              src={backgroundImage}
-              alt="Prescription Background Pad"
-              className="absolute inset-0 w-full h-full object-fill pointer-events-none select-none"
-            />
+            <>
+              <img
+                src={backgroundImage}
+                alt="Prescription Background Pad"
+                className={`absolute inset-0 w-full h-full object-fill pointer-events-none select-none transition-opacity duration-200 ${
+                  !printOptions.printBackground ? 'opacity-25 filter grayscale' : 'opacity-100'
+                }`}
+              />
+              {!printOptions.printBackground && (
+                <div className="absolute top-2 right-2 px-2.5 py-1 rounded-lg bg-amber-500/90 text-white text-[10px] font-bold shadow-sm pointer-events-none z-20 flex items-center gap-1">
+                  <span>★ Text-Only Pad Mode (Background will NOT print)</span>
+                </div>
+              )}
+            </>
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300 dark:text-slate-600 border-2 border-dashed border-slate-200 dark:border-white/10 m-8 rounded-2xl pointer-events-none">
               <ImageIcon className="w-16 h-16 mb-2 opacity-40" />

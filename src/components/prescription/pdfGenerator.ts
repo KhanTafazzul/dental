@@ -1,6 +1,6 @@
 import { PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib'
 import fontkit from '@pdf-lib/fontkit'
-import type { TemplateConfig, PatientBillingData } from './types'
+import type { TemplateConfig, PatientBillingData, PrintOptions } from './types'
 import { CANVAS_WIDTH, CANVAS_HEIGHT, PDF_WIDTH, PDF_HEIGHT } from './types'
 import { precompressImageForPdf } from '@/lib/utils/imageCompressor'
 
@@ -34,20 +34,26 @@ function base64ToUint8Array(base64: string): Uint8Array {
 /**
  * Main PDF Generation Engine using pdf-lib and @pdf-lib/fontkit
  * Includes 150 DPI image pre-compression for letterhead logos & backgrounds (slashing ~80% file size)
+ * Supports printOptions: { printBackground: boolean, printText: boolean }
  */
 export async function generatePrescriptionPdf(
   template: TemplateConfig,
-  billingData: PatientBillingData
+  billingData: PatientBillingData,
+  printOptions?: Partial<PrintOptions>
 ): Promise<{ pdfBytes: Uint8Array; blob: Blob }> {
+  // Determine print background & text preferences (fallback to template setting or default true)
+  const shouldPrintBackground = printOptions?.printBackground ?? (template.printOptions?.printBackground ?? true)
+  const shouldPrintText = printOptions?.printText ?? (template.printOptions?.printText ?? true)
+
   // 1. Initialize new PDFDocument and register fontkit
   const pdfDoc = await PDFDocument.create()
   pdfDoc.registerFontkit(fontkit)
 
   const page = pdfDoc.addPage([PDF_WIDTH, PDF_HEIGHT])
 
-  // 2. Load and embed backgroundImage if present
+  // 2. Load and embed backgroundImage if enabled and present
   // CRITICAL OPTIMIZATION: Pre-compress image to 150 DPI before embedding to cut 80% weight
-  if (template.backgroundImage) {
+  if (shouldPrintBackground && template.backgroundImage) {
     try {
       let finalImgDataUrl = template.backgroundImage
 
@@ -119,101 +125,110 @@ export async function generatePrescriptionPdf(
   const scaleX = PDF_WIDTH / CANVAS_WIDTH
   const scaleY = PDF_HEIGHT / CANVAS_HEIGHT
 
-  // 4. Loop through fields array and map coordinates
-  for (const field of template.fields) {
-    const font = fontCache.get(field.fontFamily) || helvetica
-    const fontSizePt = field.fontSize * scaleY
-    const textColor = hexToRgb(field.color || '#1e293b')
+  // 4. Loop through fields array and map coordinates (only if shouldPrintText is true)
+  if (shouldPrintText) {
+    for (const field of template.fields) {
+      const font = fontCache.get(field.fontFamily) || helvetica
+      const fontSizePt = field.fontSize * scaleY
+      const textColor = hexToRgb(field.color || '#1e293b')
 
-    // Convert DOM coordinates to pdf-lib points (Y-axis starts from bottom left)
-    const pdfX = field.x * scaleX
-    const pdfFieldYTop = PDF_HEIGHT - field.y * scaleY
-    const pdfFieldHeightPt = field.height * scaleY
-    const pdfFieldWidthPt = field.width * scaleX
-    const bottomBoundary = pdfFieldYTop - pdfFieldHeightPt
+      // Convert DOM coordinates to pdf-lib points (Y-axis starts from bottom left)
+      const pdfX = field.x * scaleX
+      const pdfFieldYTop = PDF_HEIGHT - field.y * scaleY
+      const pdfFieldHeightPt = field.height * scaleY
+      const pdfFieldWidthPt = field.width * scaleX
+      const bottomBoundary = pdfFieldYTop - pdfFieldHeightPt
 
-    // Baseline text placement inside top of box
-    const initialTextY = pdfFieldYTop - fontSizePt * 0.85
+      // Baseline text placement inside top of box
+      const initialTextY = pdfFieldYTop - fontSizePt * 0.85
 
-    if (field.key === 'medicines') {
-      // For the "Medicines" box, loop through the added medicines array.
-      // Draw each medicine on a new line. Calculate line height using box fontSize.
-      // Stop drawing or add "..." if Y-coordinate exceeds bottom boundary.
-      let currentY = initialTextY
-      const lineHeight = fontSizePt * 1.35
-      const meds = billingData.medicines || []
+      if (field.key === 'medicines') {
+        // For the "Medicines" box, loop through the added medicines array.
+        let currentY = initialTextY
+        const lineHeight = fontSizePt * 1.35
+        const meds = billingData.medicines || []
 
-      for (let i = 0; i < meds.length; i++) {
-        const item = meds[i]
-        const medText = typeof item === 'string'
-          ? `${i + 1}. ${item}`
-          : `${i + 1}. ${item.name} ${item.dosage ? `(${item.dosage})` : ''} ${item.frequency ? `- ${item.frequency}` : ''} ${item.duration ? `[${item.duration}]` : ''}`
+        for (let i = 0; i < meds.length; i++) {
+          const item = meds[i]
+          const medText = typeof item === 'string'
+            ? `${i + 1}. ${item}`
+            : `${i + 1}. ${item.name} ${item.dosage ? `(${item.dosage})` : ''} ${item.frequency ? `- ${item.frequency}` : ''} ${item.duration ? `[${item.duration}]` : ''}`
 
-        // Check if next line would exceed the bottom boundary
-        if (currentY - fontSizePt < bottomBoundary) {
-          page.drawText('...', {
+          // Check if next line would exceed the bottom boundary
+          if (currentY - fontSizePt < bottomBoundary) {
+            page.drawText('...', {
+              x: pdfX,
+              y: currentY,
+              size: fontSizePt,
+              font: font,
+              color: textColor,
+            })
+            break
+          }
+
+          page.drawText(medText, {
             x: pdfX,
             y: currentY,
             size: fontSizePt,
             font: font,
             color: textColor,
+            maxWidth: pdfFieldWidthPt,
           })
-          break
+
+          currentY -= lineHeight
+        }
+      } else if (field.key === 'notes') {
+        // Notes multi-line rendering
+        const notesText = billingData.notes || ''
+        const lines = notesText.split('\n')
+        let currentY = initialTextY
+        const lineHeight = fontSizePt * 1.3
+
+        for (const line of lines) {
+          if (currentY - fontSizePt < bottomBoundary) {
+            page.drawText('...', { x: pdfX, y: currentY, size: fontSizePt, font, color: textColor })
+            break
+          }
+          page.drawText(line, {
+            x: pdfX,
+            y: currentY,
+            size: fontSizePt,
+            font: font,
+            color: textColor,
+            maxWidth: pdfFieldWidthPt,
+          })
+          currentY -= lineHeight
+        }
+      } else {
+        // Standard single line field
+        let val = ''
+        if (field.key === 'patientName') val = billingData.patientName
+        else if (field.key === 'age') val = billingData.age
+        else if (field.key === 'date') val = billingData.date
+        else if (field.key === 'mobile') val = billingData.mobile
+        else if (field.key === 'email') val = billingData.email || ''
+        else if (field.key === 'gender') val = billingData.gender || ''
+        else if (field.key === 'doctorName') val = billingData.doctorName || ''
+        else if (field.key === 'doctorMobile') val = billingData.doctorMobile || ''
+        else if (field.key === 'doctorEmail') val = billingData.doctorEmail || ''
+        else if (field.key === 'doctorDegree') val = billingData.doctorDegree || ''
+        else if (field.key === 'doctorRegNo') val = billingData.doctorRegNo || ''
+        else if (field.key === 'clinicName') val = billingData.clinicName || ''
+        else if (field.key === 'clinicAddress') val = billingData.clinicAddress || ''
+        else if ((billingData as any)[field.key] !== undefined) {
+          val = String((billingData as any)[field.key])
         }
 
-        page.drawText(medText, {
-          x: pdfX,
-          y: currentY,
-          size: fontSizePt,
-          font: font,
-          color: textColor,
-          maxWidth: pdfFieldWidthPt,
-        })
-
-        currentY -= lineHeight
-      }
-    } else if (field.key === 'notes') {
-      // Notes multi-line rendering
-      const notesText = billingData.notes || ''
-      const lines = notesText.split('\n')
-      let currentY = initialTextY
-      const lineHeight = fontSizePt * 1.3
-
-      for (const line of lines) {
-        if (currentY - fontSizePt < bottomBoundary) {
-          page.drawText('...', { x: pdfX, y: currentY, size: fontSizePt, font, color: textColor })
-          break
+        if (val) {
+          page.drawText(val, {
+            x: pdfX,
+            y: initialTextY,
+            size: fontSizePt,
+            font: font,
+            color: textColor,
+            maxWidth: pdfFieldWidthPt,
+          })
         }
-        page.drawText(line, {
-          x: pdfX,
-          y: currentY,
-          size: fontSizePt,
-          font: font,
-          color: textColor,
-          maxWidth: pdfFieldWidthPt,
-        })
-        currentY -= lineHeight
-      }
-    } else {
-      // Standard single line field
-      let val = ''
-      if (field.key === 'patientName') val = billingData.patientName
-      else if (field.key === 'age') val = billingData.age
-      else if (field.key === 'date') val = billingData.date
-      else if (field.key === 'mobile') val = billingData.mobile
-      else if ((billingData as any)[field.key] !== undefined) {
-        val = String((billingData as any)[field.key])
-      }
-
-      if (val) {
-        page.drawText(val, {
-          x: pdfX,
-          y: initialTextY,
-          size: fontSizePt,
-          font: font,
-          color: textColor,
-          maxWidth: pdfFieldWidthPt,
-        })
       }
     }
   }
@@ -251,11 +266,12 @@ export async function uploadPrescriptionToCloud(params: {
   doctorId?: string
   appointmentId?: string
   channels?: { whatsapp: boolean; email: boolean }
+  printOptions?: Partial<PrintOptions>
 }) {
-  const { template, billingData, patientId, doctorId, appointmentId, channels } = params
+  const { template, billingData, patientId, doctorId, appointmentId, channels, printOptions } = params
 
   // 1. Generate local pre-compressed PDF
-  const { blob } = await generatePrescriptionPdf(template, billingData)
+  const { blob } = await generatePrescriptionPdf(template, billingData, printOptions)
   const pdfBase64 = await blobToBase64(blob)
 
   // Map medicine objects to clean strings to prevent [object Object] in summaries and timeline
@@ -302,9 +318,10 @@ export async function uploadPrescriptionToCloud(params: {
  */
 export async function printPrescriptionPdf(
   template: TemplateConfig,
-  billingData: PatientBillingData
+  billingData: PatientBillingData,
+  printOptions?: Partial<PrintOptions>
 ): Promise<Blob> {
-  const { blob } = await generatePrescriptionPdf(template, billingData)
+  const { blob } = await generatePrescriptionPdf(template, billingData, printOptions)
   const blobUrl = URL.createObjectURL(blob)
 
   const iframe = document.createElement('iframe')
@@ -341,9 +358,10 @@ export async function printPrescriptionPdf(
 export async function downloadPrescriptionPdf(
   template: TemplateConfig,
   billingData: PatientBillingData,
-  filename = 'Prescription.pdf'
+  filename = 'Prescription.pdf',
+  printOptions?: Partial<PrintOptions>
 ): Promise<Blob> {
-  const { blob } = await generatePrescriptionPdf(template, billingData)
+  const { blob } = await generatePrescriptionPdf(template, billingData, printOptions)
   const blobUrl = URL.createObjectURL(blob)
 
   const a = document.createElement('a')

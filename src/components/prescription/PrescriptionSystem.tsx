@@ -15,7 +15,7 @@ import {
   HardDrive
 } from 'lucide-react'
 import type { TemplateConfig, PatientBillingData, CustomFont } from './types'
-import { DEFAULT_TEMPLATE_CONFIG, createDefaultBillingData, PRESET_FIELDS } from './types'
+import { DEFAULT_TEMPLATE_CONFIG, createDefaultBillingData, PRESET_FIELDS, DEFAULT_PRINT_OPTIONS } from './types'
 import FontInjector from './FontInjector'
 import FontManagerModal from './FontManagerModal'
 import TemplateBuilderCanvas from './TemplateBuilderCanvas'
@@ -35,6 +35,13 @@ export default function PrescriptionSystem({ embedded = false }: PrescriptionSys
   const [billingDrawerOpen, setBillingDrawerOpen] = useState(false)
   const [loaded, setLoaded] = useState(false)
 
+  // Ensure billing drawer is always closed when in builder or archive mode (prevents popup appearing aside)
+  useEffect(() => {
+    if (mode !== 'billing') {
+      setBillingDrawerOpen(false)
+    }
+  }, [mode])
+
   // Core Central State (Requirement: Core Architecture & State)
   const [templateConfig, setTemplateConfig] = useState<TemplateConfig>(DEFAULT_TEMPLATE_CONFIG)
 
@@ -52,6 +59,7 @@ export default function PrescriptionSystem({ embedded = false }: PrescriptionSys
             backgroundImage: typeof parsed.backgroundImage === 'string' ? parsed.backgroundImage : null,
             fields: parsed.fields,
             customFonts: Array.isArray(parsed.customFonts) ? parsed.customFonts : [],
+            printOptions: parsed.printOptions || DEFAULT_PRINT_OPTIONS,
           })
           setLoaded(true)
           return
@@ -65,6 +73,7 @@ export default function PrescriptionSystem({ embedded = false }: PrescriptionSys
     setTemplateConfig({
       backgroundImage: null,
       customFonts: [],
+      printOptions: DEFAULT_PRINT_OPTIONS,
       fields: PRESET_FIELDS.map(f => ({ ...f, id: crypto.randomUUID() })),
     })
     setLoaded(true)
@@ -121,6 +130,7 @@ export default function PrescriptionSystem({ embedded = false }: PrescriptionSys
             backgroundImage: typeof parsed.backgroundImage === 'string' ? parsed.backgroundImage : null,
             fields: parsed.fields,
             customFonts: Array.isArray(parsed.customFonts) ? parsed.customFonts : [],
+            printOptions: parsed.printOptions || DEFAULT_PRINT_OPTIONS,
           })
           alert('Template imported successfully.')
         } else {
@@ -139,6 +149,7 @@ export default function PrescriptionSystem({ embedded = false }: PrescriptionSys
       const defaultConfig: TemplateConfig = {
         backgroundImage: null,
         customFonts: [],
+        printOptions: DEFAULT_PRINT_OPTIONS,
         fields: PRESET_FIELDS.map(f => ({ ...f, id: crypto.randomUUID() })),
       }
       setTemplateConfig(defaultConfig)
@@ -197,7 +208,10 @@ export default function PrescriptionSystem({ embedded = false }: PrescriptionSys
         <div className="flex items-center p-1 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
           <button
             type="button"
-            onClick={() => setMode('builder')}
+            onClick={() => {
+              setMode('builder')
+              setBillingDrawerOpen(false)
+            }}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
               mode === 'builder'
                 ? 'bg-[#4A5D23] text-white shadow-sm'
@@ -226,7 +240,10 @@ export default function PrescriptionSystem({ embedded = false }: PrescriptionSys
 
           <button
             type="button"
-            onClick={() => setMode('archive')}
+            onClick={() => {
+              setMode('archive')
+              setBillingDrawerOpen(false)
+            }}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
               mode === 'archive'
                 ? 'bg-[#4A5D23] text-white shadow-sm'
@@ -304,8 +321,10 @@ export default function PrescriptionSystem({ embedded = false }: PrescriptionSys
             customFonts={templateConfig.customFonts}
             billingData={billingData}
             isBillingMode={mode === 'billing'}
+            printOptions={templateConfig.printOptions || DEFAULT_PRINT_OPTIONS}
             onUpdateFields={fields => setTemplateConfig(prev => ({ ...prev, fields }))}
             onSetBackgroundImage={base64 => setTemplateConfig(prev => ({ ...prev, backgroundImage: base64 }))}
+            onUpdatePrintOptions={opts => setTemplateConfig(prev => ({ ...prev, printOptions: opts }))}
           />
         </main>
       )}
