@@ -49,7 +49,7 @@ export default function DpdpModal({ isOpen, onClose, defaultLang = 'en' }: DpdpM
       });
 
       if (res.success) {
-        setTicketId(res.ticketId);
+        setTicketId(res.ticketId || null);
       } else {
         setErrorMsg('Failed to submit request. Please try again.');
       }

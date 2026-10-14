@@ -11,6 +11,7 @@
 import { getAdminSupabase } from '@/lib/supabase'
 import { queryTiDB } from '@/lib/tidb'
 import { updateTag } from 'next/cache'
+import { requireAdmin, requireAdminOrDoctor } from '@/actions/auth.actions'
 import type { ActionResponse, InvoiceDetails, InvoiceItem } from '@/types/common.types'
 
 // ─── Treatments CRUD ──────────────────────────────────────────────────────────
@@ -42,6 +43,7 @@ export async function addTreatment(
   price: number,
   cost: number = 0
 ): Promise<ActionResponse> {
+  await requireAdmin()
   if (!name || name.trim() === '') return { success: false, error: 'Procedure name is required.' }
   if (isNaN(price) || price < 0) return { success: false, error: 'Price must be a positive number.' }
   if (isNaN(cost) || cost < 0) return { success: false, error: 'Cost must be a positive number.' }
@@ -72,6 +74,7 @@ export async function updateTreatmentPrice(
   price: number,
   cost: number = 0
 ): Promise<ActionResponse> {
+  await requireAdmin()
   if (!id) return { success: false, error: 'Procedure ID is required.' }
   if (isNaN(price) || price < 0) return { success: false, error: 'Price must be a positive number.' }
   if (isNaN(cost) || cost < 0) return { success: false, error: 'Cost must be a positive number.' }
@@ -96,6 +99,7 @@ export async function updateTreatmentPrice(
  * @param id - Treatment UUID
  */
 export async function deleteTreatment(id: string): Promise<ActionResponse> {
+  await requireAdmin()
   if (!id) return { success: false, error: 'Treatment ID is required.' }
 
   const adminDb = getAdminSupabase()
@@ -119,6 +123,7 @@ export async function updateAppointmentFinances(
   amountCharged: number,
   treatmentCost: number
 ): Promise<ActionResponse> {
+  await requireAdminOrDoctor()
   const adminDb = getAdminSupabase()
   try {
     const { data, error } = await adminDb
@@ -154,6 +159,7 @@ export async function createInvoice(
   medicineDiscountPercent: number = 0,
   total: number
 ): Promise<ActionResponse<{ invoiceId: string }>> {
+  await requireAdminOrDoctor()
   const adminDb = getAdminSupabase()
   try {
     // 1. Fetch appointment with branch slug
@@ -232,8 +238,19 @@ export async function createInvoice(
         for (const batch of batches) {
           if (remainingQty <= 0) break
           const deduct = Math.min(Number(batch.stock), remainingQty)
-          await queryTiDB('UPDATE medicine_batches SET stock = stock - ? WHERE id = ?', [deduct, batch.id])
-          remainingQty -= deduct
+          const updateResult: any = await queryTiDB(
+            'UPDATE medicine_batches SET stock = stock - ? WHERE id = ? AND stock >= ?',
+            [deduct, batch.id, deduct]
+          )
+          if (updateResult?.affectedRows > 0) {
+            remainingQty -= deduct
+          }
+        }
+
+        if (remainingQty > 0) {
+          // Rollback the created invoice if stock is insufficient
+          await adminDb.from('invoices').delete().eq('id', invoiceId)
+          throw new Error(`Insufficient stock for medicine "${item.name}". Remaining unsatisfied quantity: ${remainingQty}`)
         }
 
         let { error: itemErr } = await adminDb.from('invoice_items').insert({
@@ -260,7 +277,10 @@ export async function createInvoice(
           })
           itemErr = retry.error
         }
-        if (itemErr) throw itemErr
+        if (itemErr) {
+          await adminDb.from('invoices').delete().eq('id', invoiceId)
+          throw itemErr
+        }
 
       } else if (item.type === 'treatment') {
         const { data: treatData } = await adminDb
@@ -293,7 +313,10 @@ export async function createInvoice(
           })
           itemErr = retry.error
         }
-        if (itemErr) throw itemErr
+        if (itemErr) {
+          await adminDb.from('invoices').delete().eq('id', invoiceId)
+          throw itemErr
+        }
 
       } else if (item.type === 'custom') {
         let { error: itemErr } = await adminDb.from('invoice_items').insert({
@@ -317,15 +340,23 @@ export async function createInvoice(
           })
           itemErr = retry.error
         }
-        if (itemErr) throw itemErr
+        if (itemErr) {
+          await adminDb.from('invoices').delete().eq('id', invoiceId)
+          throw itemErr
+        }
       }
     }
 
     // 5. Mark appointment as completed
-    await adminDb
+    const { error: statusErr } = await adminDb
       .from('appointments')
       .update({ status: 'completed' })
       .eq('id', appointmentId)
+
+    if (statusErr) console.error('[Billing] Failed to mark appointment completed:', statusErr)
+
+    updateTag('financial-analytics')
+    updateTag('inventory-stats')
 
     return { success: true, data: { invoiceId } }
   } catch (err: any) {
@@ -343,6 +374,7 @@ export async function createInvoice(
 export async function getInvoiceDetails(
   invoiceId: string
 ): Promise<ActionResponse<InvoiceDetails>> {
+  await requireAdminOrDoctor()
   const adminDb = getAdminSupabase()
   try {
     const { data: invoice, error } = await adminDb
@@ -375,10 +407,10 @@ export async function getInvoiceDetails(
     const rawSubtotal = Number((invoice as any).subtotal || 0)
     const grandTotal = Number((invoice as any).total || 0)
     const treatmentDiscPercent = Number(
-      (invoice as any).treatment_discount_percentage || (invoice as any).discount_percentage || 0
+      (invoice as any).treatment_discount_percentage ?? (invoice as any).discount_percentage ?? 0
     )
     const medicineDiscPercent = Number(
-      (invoice as any).medicine_discount_percentage || (invoice as any).discount_percentage || 0
+      (invoice as any).medicine_discount_percentage ?? (invoice as any).discount_percentage ?? 0
     )
 
     const treatmentItems = rawItems.filter(i => i.type === 'treatment' || i.type === 'custom')
@@ -430,6 +462,7 @@ export async function triggerDeliverAndCleanup(
   appointmentId: string,
   invoiceId: string
 ): Promise<ActionResponse> {
+  await requireAdminOrDoctor()
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY

@@ -4,13 +4,26 @@ from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
-from config import BREVO_API_KEY, BREVO_SENDER_EMAIL
+from config import BREVO_API_KEY, BREVO_SENDER_EMAIL, WAHA_API_KEY
 from chatbot_engine import process_incoming_message
 from waha_client import send_waha_message
 from scheduler import start_scheduler, send_morning_appointment_reminders
+from fastapi import HTTPException
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("main")
+
+def verify_internal_auth(request: Request):
+    expected = (WAHA_API_KEY or "").strip()
+    if not expected:
+        return
+    token = (
+        request.headers.get("x-api-key")
+        or request.query_params.get("token")
+        or request.headers.get("authorization", "").replace("Bearer ", "").strip()
+    )
+    if token != expected:
+        raise HTTPException(status_code=401, detail="Unauthorized API access")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -47,6 +60,13 @@ async def waha_webhook_route(request: Request, background_tasks: BackgroundTasks
     if request.method in ["GET", "HEAD", "OPTIONS"]:
         return {"status": "online", "message": "WAHA Webhook endpoint is active and listening"}
 
+    # If webhook token security is configured, validate matching token
+    expected_key = (WAHA_API_KEY or "").strip()
+    if expected_key:
+        token = request.query_params.get("token") or request.headers.get("x-api-key")
+        if token and token != expected_key:
+            return JSONResponse({"status": "unauthorized"}, status_code=401)
+
     try:
         payload = await request.json()
     except Exception:
@@ -74,8 +94,9 @@ async def waha_webhook_route(request: Request, background_tasks: BackgroundTasks
     return {"status": "received", "chatId": from_chat_id}
 
 @app.post("/trigger-reminders")
-async def trigger_reminders_manual():
+async def trigger_reminders_manual(request: Request):
     """Endpoint to trigger today's morning appointment reminders manually or via cron."""
+    verify_internal_auth(request)
     result = await send_morning_appointment_reminders()
     return {"status": "success", "result": result}
 
@@ -85,6 +106,7 @@ async def notify_reschedule(request: Request):
     Endpoint called when doctor or admin reschedules an appointment:
     Sends WhatsApp message via WAHA AND Email notification via Brevo/Resend.
     """
+    verify_internal_auth(request)
     try:
         body = await request.json()
         patient_name = body.get("patientName", "Valued Patient")

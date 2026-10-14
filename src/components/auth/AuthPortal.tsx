@@ -51,6 +51,7 @@ function AuthPortalForm({ initialMode = "login" }: { initialMode?: "login" | "re
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
+  const [verifiedPhone, setVerifiedPhone] = useState<string | null>(null);
   const [otpStatusMsg, setOtpStatusMsg] = useState<string | null>(null);
 
   const [dpdpConsent, setDpdpConsent] = useState(true);
@@ -109,13 +110,17 @@ function AuthPortalForm({ initialMode = "login" }: { initialMode?: "login" | "re
       setError("Please enter the complete 6-digit verification code received on WhatsApp.");
       return;
     }
+    const targetMobile = mobile.trim();
     setVerifyingOtp(true);
     setError(null);
     try {
-      const res = await verifyWahaOtpAction(mobile, otpInput);
+      const res = await verifyWahaOtpAction(targetMobile, otpInput);
       if (res.success) {
-        setOtpVerified(true);
-        setOtpStatusMsg("Mobile number successfully verified.");
+        if (mobile.trim() === targetMobile) {
+          setOtpVerified(true);
+          setVerifiedPhone(targetMobile);
+          setOtpStatusMsg("Mobile number successfully verified.");
+        }
       } else {
         setError(res.error || "Invalid or expired verification code.");
       }
@@ -164,7 +169,7 @@ function AuthPortalForm({ initialMode = "login" }: { initialMode?: "login" | "re
         setError("Please provide your mobile number for appointment reminders.");
         return;
       }
-      if (!otpVerified) {
+      if (!otpVerified || verifiedPhone !== mobile.trim()) {
         setError("Verification Required: Please verify your mobile number via the 6-digit WhatsApp OTP code prior to account registration.");
         return;
       }
@@ -366,6 +371,7 @@ function AuthPortalForm({ initialMode = "login" }: { initialMode?: "login" | "re
                   onChange={(e) => {
                     setMobile(e.target.value);
                     setOtpVerified(false);
+                    setVerifiedPhone(null);
                     setOtpSent(false);
                   }}
                   placeholder="e.g. 9820012345"

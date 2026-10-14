@@ -6,7 +6,7 @@
  * Automatically handles channel subscription, events, and clean teardown on unmount.
  */
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 
@@ -37,6 +37,11 @@ export function useSupabaseRealtime<T extends { [key: string]: any } = { [key: s
   onData,
   enabled = true,
 }: RealtimeOptions<T>) {
+  const onDataRef = useRef(onData)
+  useEffect(() => {
+    onDataRef.current = onData
+  }, [onData])
+
   useEffect(() => {
     if (!enabled) return
 
@@ -52,7 +57,7 @@ export function useSupabaseRealtime<T extends { [key: string]: any } = { [key: s
           filter,
         },
         (payload: RealtimePostgresChangesPayload<T>) => {
-          onData(payload)
+          onDataRef.current(payload)
         }
       )
       .subscribe()
@@ -60,5 +65,5 @@ export function useSupabaseRealtime<T extends { [key: string]: any } = { [key: s
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [table, schema, event, filter, enabled, onData])
+  }, [table, schema, event, filter, enabled])
 }

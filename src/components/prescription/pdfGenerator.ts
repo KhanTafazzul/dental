@@ -65,10 +65,17 @@ export async function generatePrescriptionPdf(
       const imgBytes = base64ToUint8Array(finalImgDataUrl)
       let embeddedImg
       if (finalImgDataUrl.startsWith('data:image/png')) {
-        embeddedImg = await pdfDoc.embedPng(imgBytes)
+        try {
+          embeddedImg = await pdfDoc.embedPng(imgBytes)
+        } catch {
+          embeddedImg = await pdfDoc.embedJpg(imgBytes)
+        }
       } else {
-        // Default to JPG for image/jpeg or general data URLs
-        embeddedImg = await pdfDoc.embedJpg(imgBytes)
+        try {
+          embeddedImg = await pdfDoc.embedJpg(imgBytes)
+        } catch {
+          embeddedImg = await pdfDoc.embedPng(imgBytes)
+        }
       }
       page.drawImage(embeddedImg, {
         x: 0,
@@ -216,7 +223,7 @@ export async function generatePrescriptionPdf(
     useObjectStreams: true,
     addDefaultPage: false,
   })
-  const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' })
+  const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' })
 
   return { pdfBytes, blob }
 }
@@ -251,6 +258,15 @@ export async function uploadPrescriptionToCloud(params: {
   const { blob } = await generatePrescriptionPdf(template, billingData)
   const pdfBase64 = await blobToBase64(blob)
 
+  // Map medicine objects to clean strings to prevent [object Object] in summaries and timeline
+  const medStrings = (billingData.medicines || []).map(m =>
+    typeof m === 'string'
+      ? m
+      : [m.name, m.dosage && `(${m.dosage})`, m.frequency && `- ${m.frequency}`, m.duration && `[${m.duration}]`]
+          .filter(Boolean)
+          .join(' ')
+  )
+
   // 2. Dispatch to backend API pipeline
   const response = await fetch('/api/prescriptions', {
     method: 'POST',
@@ -267,9 +283,9 @@ export async function uploadPrescriptionToCloud(params: {
       visitDate: billingData.date,
       diagnosisSummary: {
         notes: billingData.notes,
-        medicines: billingData.medicines,
+        medicines: medStrings,
       },
-      medicines: billingData.medicines,
+      medicines: medStrings,
       channels: channels || { whatsapp: true, email: true },
     }),
   })

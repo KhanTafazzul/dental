@@ -38,6 +38,7 @@ export interface PatientBillingData {
   gender: string;
   date: string;
   mobile: string;
+  doctorId?: string;
   doctorName?: string;
   medicines: (MedicineEntry | string)[]; // Supports string or structured object
   notes?: string;
@@ -78,7 +79,7 @@ export const PRESET_FIELDS: Omit<BoundingField, 'id'>[] = [
   { name: 'Clinical Notes', key: 'notes',     x: 40,  y: 620, width: 680, height: 120, color: '#475569', fontFamily: 'Arial', fontSize: 12 },
 ];
 
-export const DEFAULT_BILLING_DATA: PatientBillingData = {
+export const createDefaultBillingData = (): PatientBillingData => ({
   patientName: '',
   age: '',
   gender: 'M',
@@ -87,7 +88,10 @@ export const DEFAULT_BILLING_DATA: PatientBillingData = {
   doctorName: '',
   medicines: [],
   notes: '',
-};
+});
+
+export const DEFAULT_BILLING_DATA: PatientBillingData = createDefaultBillingData();
+
 
 export const DEFAULT_TEMPLATE_CONFIG: TemplateConfig = {
   backgroundImage: null,

@@ -126,7 +126,7 @@ export class BackblazeB2Service {
       const adminDb = getAdminSupabase()
       const fallbackKey = key.replace(/\//g, '_')
 
-      const { error: uploadErr } = await adminDb.storage
+      let { error: uploadErr } = await adminDb.storage
         .from('reports')
         .upload(fallbackKey, buffer, {
           contentType: 'application/pdf',
@@ -136,10 +136,15 @@ export class BackblazeB2Service {
       if (uploadErr) {
         // Try creating bucket if missing
         await adminDb.storage.createBucket('reports', { public: false })
-        await adminDb.storage.from('reports').upload(fallbackKey, buffer, {
+        const retry = await adminDb.storage.from('reports').upload(fallbackKey, buffer, {
           contentType: 'application/pdf',
           upsert: true,
         })
+        uploadErr = retry.error
+      }
+
+      if (uploadErr) {
+        throw uploadErr
       }
 
       return {
@@ -192,7 +197,7 @@ export class BackblazeB2Service {
     // ── Graceful Fallback: Supabase Presigned URL ──
     try {
       const adminDb = getAdminSupabase()
-      const cleanKey = key.replace(/^prescriptions\//, '').replace(/\//g, '_')
+      const cleanKey = key.replace(/\//g, '_')
       
       const { data, error } = await adminDb.storage
         .from('reports')

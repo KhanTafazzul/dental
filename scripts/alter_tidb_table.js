@@ -63,6 +63,8 @@ async function run() {
     }
   ];
 
+  let hasErrors = false;
+
   for (const m of migrations) {
     try {
       console.log(`Applying migration: ${m.name}...`);
@@ -71,13 +73,27 @@ async function run() {
     } catch (err) {
       if (err.message.includes('Duplicate column') || err.message.includes('already exists')) {
         console.log(`- Column already exists: ${m.name}`);
+        if (m.name === 'medicines.tablets_per_patch') {
+          try {
+            await connection.query('ALTER TABLE medicines ALTER COLUMN tablets_per_patch SET DEFAULT 10');
+            console.log(`- Updated default to 10 for existing column ${m.name}`);
+          } catch (alterErr) {
+            console.warn(`- Could not update default for ${m.name}:`, alterErr.message);
+          }
+        }
       } else {
+        hasErrors = true;
         console.error(`- Failed to apply ${m.name}:`, err.message);
       }
     }
   }
 
   await connection.end();
+
+  if (hasErrors) {
+    console.error('Migration finished with errors.');
+    process.exit(1);
+  }
 }
 
 run();

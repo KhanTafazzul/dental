@@ -15,6 +15,7 @@
  */
 
 import { getAdminSupabase } from '@/lib/supabase'
+import { requireAdmin } from '@/actions/auth.actions'
 import { sendNotification } from '@/lib/messaging'
 import {
   sendWahaTextMessage,
@@ -27,17 +28,37 @@ import type { ActionResponse } from '@/types/common.types'
 // ─── Campaigns & Broadcasts ───────────────────────────────────────────────────
 
 /**
- * Dispatches a broadcast notification to all registered patients.
+ * Dispatches a broadcast notification to registered patients, optionally filtered by branch.
  */
 export async function sendBroadcastCampaignAction(
   targetBranch: string,
   messageBody: string,
   attachmentUrl?: string
 ): Promise<ActionResponse<{ count: number }>> {
+  await requireAdmin()
   const adminDb = getAdminSupabase()
   try {
-    const { data: patients, error } = await adminDb.from('patients').select('*')
-    if (error) throw error
+    let patients: any[] = []
+    if (targetBranch && targetBranch !== 'all') {
+      const { data: branchAppts, error: apptErr } = await adminDb
+        .from('appointments')
+        .select('patient_id, branches!inner(slug)')
+        .eq('branches.slug', targetBranch)
+      if (apptErr) throw apptErr
+      const patientIds = Array.from(new Set((branchAppts || []).map((a: any) => a.patient_id).filter(Boolean)))
+      if (patientIds.length > 0) {
+        const { data: filteredPatients, error: pErr } = await adminDb
+          .from('patients')
+          .select('*')
+          .in('id', patientIds)
+        if (pErr) throw pErr
+        patients = filteredPatients || []
+      }
+    } else {
+      const { data, error } = await adminDb.from('patients').select('*')
+      if (error) throw error
+      patients = data || []
+    }
 
     let count = 0
     if (patients && patients.length > 0) {
@@ -66,6 +87,7 @@ export async function sendBroadcastCampaignAction(
  * Triggers reminder notifications for all appointments scheduled for today.
  */
 export async function triggerSameDayRemindersAction(): Promise<ActionResponse<{ count: number }>> {
+  await requireAdmin()
   const adminDb = getAdminSupabase()
   const today = new Date().toISOString().split('T')[0]
   try {
@@ -107,6 +129,7 @@ export async function triggerSameDayRemindersAction(): Promise<ActionResponse<{ 
  * Sends automated birthday congratulations to patients born on today's date.
  */
 export async function triggerBirthdayWishesAction(): Promise<ActionResponse<{ count: number }>> {
+  await requireAdmin()
   const adminDb = getAdminSupabase()
   try {
     const { data: patients, error } = await adminDb.from('patients').select('*')
@@ -142,6 +165,7 @@ export async function triggerBirthdayWishesAction(): Promise<ActionResponse<{ co
  * Fetches recent message audit logs from the database.
  */
 export async function getMessageLogsAction(): Promise<ActionResponse<any[]>> {
+  await requireAdmin()
   const adminDb = getAdminSupabase()
   try {
     const { data, error } = await adminDb
@@ -166,6 +190,7 @@ export async function getMessageLogsAction(): Promise<ActionResponse<any[]>> {
  * Triggers the automated daily appointment schedule digest sent to all doctors.
  */
 export async function triggerDoctorMorningDigestAction() {
+  await requireAdmin()
   try {
     const result = await sendDailyDoctorAppointmentDigest()
     return result
@@ -182,6 +207,7 @@ export async function testWahaWhatsAppAction(
   phone: string = DEFAULT_TARGET_TEST_NUMBER,
   text: string = ''
 ) {
+  await requireAdmin()
   try {
     const sampleMsg = text || `[SYSTEM TEST] Testing WAHA WhatsApp GOWS engine integration.\nTarget: ${phone}`
     const result = await sendWahaTextMessage({ phone, text: sampleMsg })

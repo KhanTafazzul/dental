@@ -12,6 +12,7 @@
  */
 
 import { getAdminSupabase } from '@/lib/supabase'
+import { requireAdmin } from '@/actions/auth.actions'
 import type { ActionResponse } from '@/types/common.types'
 
 // ─── DPDP Act 2023 Subject Rights ─────────────────────────────────────────────
@@ -49,7 +50,11 @@ export async function submitDpdpRequest(params: DpdpRequestParams) {
       })
 
     if (error) {
-      console.warn('[DPDP] dpdp_requests insert warning:', error.message)
+      console.error('[DPDP] dpdp_requests insert error:', error.message)
+      return {
+        success: false,
+        error: 'Unable to submit your DPDP request at this time. Please try again.',
+      }
     }
 
     return {
@@ -61,10 +66,8 @@ export async function submitDpdpRequest(params: DpdpRequestParams) {
   } catch (err: any) {
     console.error('[DPDP] submitDpdpRequest error:', err)
     return {
-      success: true,
-      ticketId,
-      submittedAt: timestamp,
-      message: `Request logged under Reference ID: ${ticketId}. DPO SLA: 72 Hours.`,
+      success: false,
+      error: 'An unexpected error occurred while processing your request. Please try again.',
     }
   }
 }
@@ -73,8 +76,12 @@ export async function submitDpdpRequest(params: DpdpRequestParams) {
  * Permanently removes a patient's account and profile records under DPDP Right to Erasure.
  */
 export async function deletePatientAccount(email: string, reason?: string) {
+  const trimmedEmail = (email || '').trim().toLowerCase()
+  if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+    return { success: false, error: 'A valid email address is required for account closure.' }
+  }
+
   const adminDb = getAdminSupabase()
-  const trimmedEmail = email.trim().toLowerCase()
   const timestamp = new Date().toISOString()
   const ticketId = `DEL-2026-${Math.floor(100000 + Math.random() * 900000)}`
 
@@ -85,7 +92,11 @@ export async function deletePatientAccount(email: string, reason?: string) {
       .eq('email', trimmedEmail)
 
     if (deleteErr) {
-      console.warn('[DPDP] Patient record delete warning:', deleteErr.message)
+      console.error('[DPDP] Patient record delete error:', deleteErr.message)
+      return {
+        success: false,
+        error: `Failed to erase account record: ${deleteErr.message}`,
+      }
     }
 
     await adminDb
@@ -108,9 +119,8 @@ export async function deletePatientAccount(email: string, reason?: string) {
   } catch (err: any) {
     console.error('[DPDP] deletePatientAccount error:', err)
     return {
-      success: true,
-      ticketId,
-      message: 'Account deletion process completed.',
+      success: false,
+      error: err.message || 'Account deletion could not be completed.',
     }
   }
 }
@@ -150,7 +160,11 @@ export async function submitSupportTicket(params: SupportTicketParams) {
       })
 
     if (error) {
-      console.warn('[Support] Ticket insert warning:', error.message)
+      console.error('[Support] Ticket insert error:', error.message)
+      return {
+        success: false,
+        error: 'Failed to register support ticket. Please try again.',
+      }
     }
 
     return {
@@ -162,10 +176,8 @@ export async function submitSupportTicket(params: SupportTicketParams) {
   } catch (err: any) {
     console.error('[Support] submitSupportTicket error:', err)
     return {
-      success: true,
-      ticketId,
-      submittedAt: timestamp,
-      message: `Support ticket logged under Reference ID: ${ticketId}.`,
+      success: false,
+      error: 'An unexpected error occurred while creating your support ticket.',
     }
   }
 }
@@ -176,6 +188,7 @@ export async function submitSupportTicket(params: SupportTicketParams) {
  * Fetches all complaints and DPDP inquiries for the admin dashboard.
  */
 export async function getComplaintsAction() {
+  await requireAdmin()
   const adminDb = getAdminSupabase()
   try {
     const { data, error } = await adminDb
@@ -185,7 +198,7 @@ export async function getComplaintsAction() {
 
     if (error || !data) {
       console.error('[Complaints] Error fetching complaints:', error)
-      return { success: true, data: [] }
+      return { success: false, error: error?.message || 'Failed to fetch complaints records.', data: [] }
     }
 
     const processedDbData = data.map((item: any) => {
@@ -236,6 +249,7 @@ export async function updateComplaintStatusAction(
   status: string,
   adminNotes?: string
 ): Promise<ActionResponse<{ ticketId: string; status: string }>> {
+  await requireAdmin()
   const adminDb = getAdminSupabase()
   try {
     const { error } = await adminDb
@@ -248,7 +262,8 @@ export async function updateComplaintStatusAction(
       .eq('ticket_id', ticketId)
 
     if (error) {
-      console.warn('[Complaints] Update complaint status warning:', error.message)
+      console.error('[Complaints] Update complaint status error:', error.message)
+      return { success: false, error: error.message }
     }
 
     return { success: true, data: { ticketId, status } }

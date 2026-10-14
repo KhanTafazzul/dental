@@ -1,11 +1,13 @@
 import re
 import logging
-from datetime import date
+from datetime import datetime, date, timezone, timedelta
 from supabase import create_client, Client
 from config import SUPABASE_URL, SUPABASE_KEY
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("database")
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 _supabase_instance = None
 
@@ -90,6 +92,16 @@ def get_doctors_by_branch(branch_id: str) -> list:
         logger.error(f"Error fetching doctors for branch {branch_id}: {err}")
         return []
 
+def normalize_time_slot(t_str: str) -> str:
+    """Normalizes '14:00:00', '14:00', or '02:00 PM' to 'HH:MM' (24-hour)."""
+    t_clean = t_str.strip().upper()
+    for fmt in ("%I:%M %p", "%I:%M%p", "%H:%M:%S", "%H:%M"):
+        try:
+            return datetime.strptime(t_clean, fmt).strftime("%H:%M")
+        except ValueError:
+            continue
+    return t_clean[:5]
+
 def get_available_time_slots(doctor_id: str, date_str: str) -> list:
     """
     100% Dynamic: Calculates available time slots for a doctor on a specific date.
@@ -104,7 +116,7 @@ def get_available_time_slots(doctor_id: str, date_str: str) -> list:
 
     client = get_supabase()
     if not client:
-        return all_slots
+        return []
 
     try:
         res = client.from_("appointments") \
@@ -119,22 +131,14 @@ def get_available_time_slots(doctor_id: str, date_str: str) -> list:
             for item in res.data:
                 raw_time = item.get("appointment_time")
                 if raw_time:
-                    booked_times.append(str(raw_time).strip())
+                    booked_times.append(normalize_time_slot(str(raw_time)))
 
-        available = []
-        for slot in all_slots:
-            is_booked = False
-            for bt in booked_times:
-                if slot in bt or bt in slot or (len(bt) >= 5 and bt[:5] in slot):
-                    is_booked = True
-                    break
-            if not is_booked:
-                available.append(slot)
-
+        booked_set = set(booked_times)
+        available = [slot for slot in all_slots if normalize_time_slot(slot) not in booked_set]
         return available
     except Exception as err:
         logger.error(f"Error calculating time slots for doctor {doctor_id} on {date_str}: {err}")
-        return all_slots
+        return []
 
 def create_appointment(
     patient_id: str,
@@ -178,7 +182,7 @@ def get_today_appointments() -> list:
     if not client:
         return []
 
-    today_str = date.today().isoformat()
+    today_str = datetime.now(IST).date().isoformat()
     try:
         res = client.from_("appointments") \
             .select("id, appointment_date, appointment_time, status, patient_id, doctor_id, branch_id, patients(name, mobile, email), doctors(name), branches(name, address)") \
@@ -202,7 +206,7 @@ def get_patient_upcoming_appointments(phone: str) -> list:
     if not last10:
         return []
     
-    today_str = date.today().isoformat()
+    today_str = datetime.now(IST).date().isoformat()
     try:
         patients = get_patients_by_phone(phone)
         if not patients:

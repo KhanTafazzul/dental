@@ -9,6 +9,7 @@
  */
 
 import { getAdminSupabase } from '@/lib/supabase'
+import { requireAdmin } from '@/actions/auth.actions'
 import { fetchServerFinancialAnalytics, fetchServerInventoryStats } from '@/lib/analytics'
 import { updateTag } from 'next/cache'
 import type { ActionResponse, AttendanceStatus } from '@/types/common.types'
@@ -49,12 +50,18 @@ export async function upsertMonthlyElectricity(
   monthYear: string,
   bill: number
 ): Promise<ActionResponse> {
+  await requireAdmin()
+  const sanitizedBranchId = await resolveBranchId(branchId)
+  if (!sanitizedBranchId) {
+    return { success: false, error: 'Invalid or missing branch identifier.' }
+  }
+
   const adminDb = getAdminSupabase()
   try {
     const { data: existing } = await adminDb
       .from('monthly_expenses')
       .select('id')
-      .eq('branch_id', branchId)
+      .eq('branch_id', sanitizedBranchId)
       .eq('month_year', monthYear)
       .maybeSingle()
 
@@ -65,13 +72,15 @@ export async function upsertMonthlyElectricity(
         .eq('id', existing.id)
         .select()
       if (error) throw error
+      updateTag('financial-analytics')
       return { success: true, data }
     } else {
       const { data, error } = await adminDb
         .from('monthly_expenses')
-        .insert({ branch_id: branchId, month_year: monthYear, electricity_bill: bill })
+        .insert({ branch_id: sanitizedBranchId, month_year: monthYear, electricity_bill: bill })
         .select()
       if (error) throw error
+      updateTag('financial-analytics')
       return { success: true, data }
     }
   } catch (err: any) {
@@ -94,6 +103,7 @@ export async function addHelperBoy(
   sundayEnabled: boolean,
   branchId: string
 ): Promise<ActionResponse> {
+  await requireAdmin()
   const adminDb = getAdminSupabase()
   try {
     const { data, error } = await adminDb
@@ -120,6 +130,7 @@ export async function addHelperBoy(
  * Permanently deletes a helper boy record.
  */
 export async function deleteHelperBoy(helperId: string): Promise<ActionResponse> {
+  await requireAdmin()
   const adminDb = getAdminSupabase()
   try {
     const { error } = await adminDb.from('helper_boys').delete().eq('id', helperId)
@@ -146,6 +157,7 @@ export async function updateHelperAttendance(
   shift: number,
   status: AttendanceStatus
 ): Promise<ActionResponse> {
+  await requireAdmin()
   const adminDb = getAdminSupabase()
   try {
     const { data, error } = await adminDb
@@ -174,6 +186,7 @@ export async function updateDoctorAttendance(
   date: string,
   status: AttendanceStatus
 ): Promise<ActionResponse> {
+  await requireAdmin()
   const adminDb = getAdminSupabase()
   try {
     const { data, error } = await adminDb
@@ -203,6 +216,7 @@ export async function addExtraExpense(
   date: string,
   branchId: string
 ): Promise<ActionResponse> {
+  await requireAdmin()
   if (!note || note.trim() === '') {
     return { success: false, error: 'A description/note is compulsory for extra expenses.' }
   }
@@ -234,6 +248,7 @@ export async function updateExtraExpense(
   date: string,
   branchId: string
 ): Promise<ActionResponse> {
+  await requireAdmin()
   if (!note || note.trim() === '') {
     return { success: false, error: 'A description/note is compulsory for extra expenses.' }
   }
@@ -260,10 +275,12 @@ export async function updateExtraExpense(
  * Deletes an extra expense record.
  */
 export async function deleteExtraExpense(id: string): Promise<ActionResponse> {
+  await requireAdmin()
   const adminDb = getAdminSupabase()
   try {
     const { error } = await adminDb.from('extra_expenses').delete().eq('id', id)
     if (error) throw error
+    updateTag('financial-analytics')
     return { success: true }
   } catch (err: any) {
     console.error('[Finances] Error deleting extra expense:', err)
@@ -282,6 +299,7 @@ export async function getFinancialAnalyticsAction(
   selectedBranch: string = 'all',
   selectedYear: number = new Date().getFullYear()
 ): Promise<ActionResponse> {
+  await requireAdmin()
   try {
     const data = await fetchServerFinancialAnalytics(selectedBranch, selectedYear)
     return { success: true, data }
@@ -297,6 +315,7 @@ export async function getFinancialAnalyticsAction(
 export async function getInventoryStatsAction(
   branchSlug: string = 'hazara'
 ): Promise<ActionResponse> {
+  await requireAdmin()
   try {
     const data = await fetchServerInventoryStats(branchSlug)
     return { success: true, data }

@@ -89,6 +89,17 @@ Animations must be smooth and purposeful to reduce anxiety and enhance the premi
   .hero-3d-element {
     animation: float 6s ease-in-out infinite;
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-3d-element {
+      animation: none;
+    }
+    .reveal-element {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+  }
   ```
 
 ### B. The "Fade-In-Up" (Scroll Reveal)
@@ -213,10 +224,5 @@ Animations must be smooth and purposeful to reduce anxiety and enhance the premi
     Route: /register
     Description: New patient sign-up and onboarding form.
 
-### what skill you have to use are
-
-/ui-ux-pro-max-skill
-/motion-framer
-/minimalist-ui
-/design-taste-frontend
-and redisign ervrything do not usse from last or current degine redegine whole thing
+### Design Authority & Implementation Guidelines
+The typography, color palettes, spacing scales, and layout rules specified in this document are authoritative for all patient-facing routes. When creating or updating patient pages, strictly adhere to these specifications while maintaining existing functional endpoints and accessibility standards.

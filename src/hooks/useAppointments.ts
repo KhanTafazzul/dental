@@ -15,21 +15,21 @@ export interface UseAppointmentsOptions {
 }
 
 export function useAppointments({
-  initialAppointments = [],
+  initialAppointments,
   cacheKey = 'admin_appointments',
 }: UseAppointmentsOptions = {}) {
-  const [appointments, setAppointments] = useState<Appointment[]>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = getClientCache<Appointment[]>(cacheKey)
-      if (cached && cached.length > 0) return cached
-    }
-    return initialAppointments
-  })
+  const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments || [])
 
+  // Synchronize or load cache after hydration to avoid SSR mismatch
   useEffect(() => {
-    if (initialAppointments && initialAppointments.length > 0) {
+    if (initialAppointments !== undefined) {
       setAppointments(initialAppointments)
       saveClientCache(cacheKey, initialAppointments)
+    } else {
+      const cached = getClientCache<Appointment[]>(cacheKey)
+      if (cached && cached.length > 0) {
+        setAppointments(cached)
+      }
     }
   }, [initialAppointments, cacheKey])
 

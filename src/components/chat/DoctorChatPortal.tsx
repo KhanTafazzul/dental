@@ -64,21 +64,23 @@ const LEGACY_EMOJI_MAP: Record<string, string> = {
   '👀': 'Reviewed',
 }
 
-function sanitizeMessageReactions(msg: ChatMessage): ChatMessage {
-  if (!msg.reactions || typeof msg.reactions !== 'object') {
-    return { ...msg, reactions: {} }
+function sanitizeMessageReactions(msg: any): ChatMessage | null {
+  if (!msg || typeof msg !== 'object' || !msg.id) {
+    return null
   }
 
   const sanitized: Record<string, string[]> = {}
-  for (const [key, senders] of Object.entries(msg.reactions)) {
-    if (!Array.isArray(senders) || senders.length === 0) continue
+  if (msg.reactions && typeof msg.reactions === 'object') {
+    for (const [key, senders] of Object.entries(msg.reactions)) {
+      if (!Array.isArray(senders) || senders.length === 0) continue
 
-    // Map legacy emoji to clinical tag if possible; otherwise only accept if in CLINICAL_TAGS
-    const validKey = CLINICAL_TAGS.includes(key) ? key : LEGACY_EMOJI_MAP[key]
+      // Map legacy emoji to clinical tag if possible; otherwise only accept if in CLINICAL_TAGS
+      const validKey = CLINICAL_TAGS.includes(key) ? key : LEGACY_EMOJI_MAP[key]
 
-    if (validKey && CLINICAL_TAGS.includes(validKey)) {
-      const existing = sanitized[validKey] || []
-      sanitized[validKey] = Array.from(new Set([...existing, ...senders]))
+      if (validKey && CLINICAL_TAGS.includes(validKey)) {
+        const existing = sanitized[validKey] || []
+        sanitized[validKey] = Array.from(new Set([...existing, ...senders]))
+      }
     }
   }
 
@@ -105,7 +107,10 @@ export default function DoctorChatPortal({
         try {
           const parsed = JSON.parse(saved)
           if (Array.isArray(parsed)) {
-            return parsed.map(sanitizeMessageReactions)
+            const valid = parsed
+              .map(sanitizeMessageReactions)
+              .filter((m): m is ChatMessage => m !== null)
+            if (valid.length > 0) return valid
           }
         } catch (e) {}
       }
@@ -605,6 +610,7 @@ export default function DoctorChatPortal({
                               key={emoji}
                               type="button"
                               onClick={() => handleToggleReaction(msg.id, emoji)}
+                              aria-pressed={hasReacted}
                               className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] shadow-sm cursor-pointer transition-colors ${
                                 hasReacted
                                   ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'

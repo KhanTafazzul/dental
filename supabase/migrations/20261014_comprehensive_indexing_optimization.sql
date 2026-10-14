@@ -40,15 +40,20 @@ CREATE INDEX IF NOT EXISTS idx_appointments_created_at ON public.appointments (c
 
 -- 5. PRESCRIPTIONS TABLE INDEXES (WYSIWYG & B2 ARCHIVE MODULE)
 -- Instant timeline queries for repeat patients, doctor review drawers, and B2 key audits
-CREATE INDEX IF NOT EXISTS idx_prescriptions_patient_id ON public.prescriptions (patient_id);
-CREATE INDEX IF NOT EXISTS idx_prescriptions_patient_visit ON public.prescriptions (patient_id, visit_number DESC);
-CREATE INDEX IF NOT EXISTS idx_prescriptions_doctor_id ON public.prescriptions (doctor_id);
-CREATE INDEX IF NOT EXISTS idx_prescriptions_appointment_id ON public.prescriptions (appointment_id);
-CREATE INDEX IF NOT EXISTS idx_prescriptions_created_at ON public.prescriptions (created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_prescriptions_patient_phone ON public.prescriptions (patient_phone);
-CREATE INDEX IF NOT EXISTS idx_prescriptions_patient_name_lower ON public.prescriptions (lower(patient_name));
-CREATE INDEX IF NOT EXISTS idx_prescriptions_delivery_status ON public.prescriptions USING gin (delivery_status);
-CREATE INDEX IF NOT EXISTS idx_prescriptions_diagnosis_summary ON public.prescriptions USING gin (diagnosis_summary);
+DO $$ 
+BEGIN 
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'prescriptions') THEN 
+        CREATE INDEX IF NOT EXISTS idx_prescriptions_patient_id ON public.prescriptions (patient_id);
+        CREATE INDEX IF NOT EXISTS idx_prescriptions_patient_visit ON public.prescriptions (patient_id, visit_number DESC);
+        CREATE INDEX IF NOT EXISTS idx_prescriptions_doctor_id ON public.prescriptions (doctor_id);
+        CREATE INDEX IF NOT EXISTS idx_prescriptions_appointment_id ON public.prescriptions (appointment_id);
+        CREATE INDEX IF NOT EXISTS idx_prescriptions_created_at ON public.prescriptions (created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_prescriptions_patient_phone ON public.prescriptions (patient_phone);
+        CREATE INDEX IF NOT EXISTS idx_prescriptions_patient_name_lower ON public.prescriptions (lower(patient_name));
+        CREATE INDEX IF NOT EXISTS idx_prescriptions_delivery_status ON public.prescriptions USING gin (delivery_status);
+        CREATE INDEX IF NOT EXISTS idx_prescriptions_diagnosis_summary ON public.prescriptions USING gin (diagnosis_summary);
+    END IF; 
+END $$;
 
 -- 6. INVOICES & BILLING TABLE INDEXES
 -- Speeds up financial summaries, patient billing statements, and appointment invoice checks

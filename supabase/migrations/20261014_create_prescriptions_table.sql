@@ -49,15 +49,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.prescriptions ENABLE ROW LEVEL SECURITY;
 
--- Policies for public and admin access
+-- Restrict to authenticated clinic staff; service role bypasses RLS
 DROP POLICY IF EXISTS "Allow public read access to prescriptions" ON public.prescriptions;
-CREATE POLICY "Allow public read access to prescriptions" ON public.prescriptions
-    FOR SELECT USING (true);
-
 DROP POLICY IF EXISTS "Allow public insert of prescriptions" ON public.prescriptions;
-CREATE POLICY "Allow public insert of prescriptions" ON public.prescriptions
-    FOR INSERT WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Allow admin full access to prescriptions" ON public.prescriptions;
-CREATE POLICY "Allow admin full access to prescriptions" ON public.prescriptions
+
+CREATE POLICY "Allow authenticated full access to prescriptions" ON public.prescriptions
     FOR ALL TO authenticated USING (true);

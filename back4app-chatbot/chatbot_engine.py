@@ -134,8 +134,8 @@ async def process_incoming_message(from_phone: str, text_body: str) -> dict:
         await send_waha_message(from_phone, msg)
         return {"status": "processed", "action": "reports"}
 
-    # 6. Appointment Flow Trigger: @appointment, appointment, @appoint, @book, book
-    is_appointment_trigger = any(kw in lower_text for kw in ["@appointment", "appointment", "@appoint", "@book", "book"])
+    # 6. Appointment Flow Trigger: @appointment, appointment, @appoint, @book, book (word-boundary matched)
+    is_appointment_trigger = bool(re.search(r'(?:^|\s)(?:@appointment|appointment|@appoint|@book|book)(?:$|\s)', lower_text))
     
     if current_state == "IDLE" and is_appointment_trigger:
         # Step 1: Query registered patient profiles for this phone number from Supabase
@@ -259,10 +259,19 @@ async def process_incoming_message(from_phone: str, text_body: str) -> dict:
         elif lower_text == "2" or lower_text == "tomorrow":
             selected_date = tomorrow_str
         else:
-            # Try parsing custom date string YYYY-MM-DD or DD/MM/YYYY
-            date_match = re.search(r'\d{4}-\d{2}-\d{2}', text)
+            # Try parsing custom date string YYYY-MM-DD
+            date_match = re.search(r'\b\d{4}-\d{2}-\d{2}\b', text)
             if date_match:
-                selected_date = date_match.group(0)
+                candidate_date = date_match.group(0)
+                try:
+                    parsed_d = date.fromisoformat(candidate_date)
+                    if parsed_d < date.today():
+                        await send_waha_message(from_phone, "⚠️ Selected date cannot be in the past. Please enter today or a future date in format YYYY-MM-DD.")
+                        return {"status": "retry"}
+                    selected_date = candidate_date
+                except ValueError:
+                    await send_waha_message(from_phone, "⚠️ Invalid calendar date entered. Please enter a valid date in format YYYY-MM-DD.")
+                    return {"status": "retry"}
             else:
                 await send_waha_message(from_phone, "⚠️ Please select 1 (Today), 2 (Tomorrow), or enter date in format YYYY-MM-DD.")
                 return {"status": "retry"}

@@ -27,7 +27,19 @@ export function formatINR(amount: number | string | null | undefined): string {
  */
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return '—'
-  const d = typeof date === 'string' ? new Date(date) : date
+  let d: Date
+  if (typeof date === 'string') {
+    // If format is YYYY-MM-DD, parse as calendar date to avoid UTC midnight timezone shifts
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      const [year, month, day] = date.split('-').map(Number)
+      d = new Date(year, month - 1, day)
+    } else {
+      d = new Date(date)
+    }
+  } else {
+    d = date
+  }
+
   if (isNaN(d.getTime())) return String(date)
   return d.toLocaleDateString('en-IN', {
     day: 'numeric',

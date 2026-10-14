@@ -122,13 +122,15 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (dbError) {
+    if (dbError || !prescriptionRecord) {
       console.error('[Prescriptions API] Database insertion error:', dbError)
-      // Even if database record insertion encounters an error, return presignedUrl so user workflow isn't blocked
+      return NextResponse.json(
+        { success: false, error: dbError?.message || 'Failed to save prescription record in database.' },
+        { status: 500 }
+      )
     }
 
-    const fallbackId = `rx_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-    const prescriptionId = prescriptionRecord?.id || fallbackId;
+    const prescriptionId = prescriptionRecord.id
 
     // 8. Trigger Asynchronous Background Multi-Channel Dispatch (Non-Blocking)
     // Runs in the background without freezing UI response
@@ -156,12 +158,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      prescription: prescriptionRecord || {
-        id: prescriptionId,
-        visit_number: visitNumber,
-        b2_object_key: objectKey,
-        created_at: new Date().toISOString(),
-      },
+      prescription: prescriptionRecord,
       presignedUrl,
       compression: {
         originalSizeBytes: compression.originalSizeBytes,
@@ -197,8 +194,13 @@ export async function GET(req: NextRequest) {
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
 
-    if (patientSearch) {
-      query = query.or(`patient_name.ilike.%${patientSearch}%,patient_phone.ilike.%${patientSearch}%`)
+    const sanitizedSearch = patientSearch.replace(/[,()]/g, '').trim()
+    if (sanitizedSearch) {
+      query = query.or(`patient_name.ilike.%${sanitizedSearch}%,patient_phone.ilike.%${sanitizedSearch}%`)
+    }
+
+    if (deliveryStatus) {
+      query = query.eq('delivery_status', deliveryStatus)
     }
 
     if (doctorId) {

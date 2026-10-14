@@ -27,12 +27,19 @@ const firebaseConfig = {
   measurementId: ENV.FIREBASE_MEASUREMENT_ID || 'G-8945NCMBQB',
 }
 
+if (!firebaseConfig.apiKey && typeof window !== 'undefined') {
+  console.warn('[Firebase] Notice: NEXT_PUBLIC_FIREBASE_API_KEY is not configured.')
+}
+
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp()
 export const auth = getAuth(app)
 export const googleProvider = new GoogleAuthProvider()
 googleProvider.setCustomParameters({ prompt: 'select_account' })
 
 export async function loginWithEmail(email: string, pass: string) {
+  if (!firebaseConfig.apiKey) {
+    return { user: null, error: 'Firebase authentication is not configured. Missing API key.' }
+  }
   try {
     const res = await signInWithEmailAndPassword(auth, email, pass)
     return { user: res.user, error: null }
@@ -42,6 +49,9 @@ export async function loginWithEmail(email: string, pass: string) {
 }
 
 export async function registerWithEmail(email: string, pass: string) {
+  if (!firebaseConfig.apiKey) {
+    return { user: null, error: 'Firebase authentication is not configured. Missing API key.' }
+  }
   try {
     const res = await createUserWithEmailAndPassword(auth, email, pass)
     return { user: res.user, error: null }
@@ -51,6 +61,9 @@ export async function registerWithEmail(email: string, pass: string) {
 }
 
 export async function loginWithGoogle() {
+  if (!firebaseConfig.apiKey) {
+    return { user: null, error: 'Firebase authentication is not configured. Missing API key.' }
+  }
   try {
     const res = await signInWithPopup(auth, googleProvider)
     return { user: res.user, error: null }

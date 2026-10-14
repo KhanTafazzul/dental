@@ -319,6 +319,7 @@ export default function TemplateBuilderCanvas({
             return (
               <Rnd
                 key={field.id}
+                scale={zoomScale}
                 size={{ width: field.width, height: field.height }}
                 position={{ x: field.x, y: field.y }}
                 onDragStart={() => setSelectedFieldId(field.id)}

@@ -6,7 +6,7 @@ from waha_client import send_waha_message
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("scheduler")
 
-scheduler = AsyncIOScheduler()
+scheduler = AsyncIOScheduler(timezone="Asia/Kolkata")
 
 async def send_morning_appointment_reminders():
     """

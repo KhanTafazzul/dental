@@ -196,7 +196,13 @@ export default function DoctorsClient({ initialDoctors, branches }: DoctorsClien
     setLoading(true)
     setError(null)
 
-    if (phone.trim() && !otpVerified) {
+    if (!phone.trim()) {
+      setError('Doctor WhatsApp mobile number is required.')
+      setLoading(false)
+      return
+    }
+
+    if (!otpVerified && (!editingDoctor || phone.trim() !== editingDoctor.phone?.trim())) {
       setError('Please verify the doctor WhatsApp mobile number using the 6-digit WAHA OTP before saving.')
       setLoading(false)
       return

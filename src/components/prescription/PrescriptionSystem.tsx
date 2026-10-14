@@ -15,7 +15,7 @@ import {
   HardDrive
 } from 'lucide-react'
 import type { TemplateConfig, PatientBillingData, CustomFont } from './types'
-import { DEFAULT_TEMPLATE_CONFIG, DEFAULT_BILLING_DATA, PRESET_FIELDS } from './types'
+import { DEFAULT_TEMPLATE_CONFIG, createDefaultBillingData, PRESET_FIELDS } from './types'
 import FontInjector from './FontInjector'
 import FontManagerModal from './FontManagerModal'
 import TemplateBuilderCanvas from './TemplateBuilderCanvas'
@@ -33,12 +33,13 @@ export default function PrescriptionSystem({ embedded = false }: PrescriptionSys
   const [mode, setMode] = useState<'builder' | 'billing' | 'archive'>('builder')
   const [fontModalOpen, setFontModalOpen] = useState(false)
   const [billingDrawerOpen, setBillingDrawerOpen] = useState(false)
+  const [loaded, setLoaded] = useState(false)
 
   // Core Central State (Requirement: Core Architecture & State)
   const [templateConfig, setTemplateConfig] = useState<TemplateConfig>(DEFAULT_TEMPLATE_CONFIG)
 
   // Doctor Patient Billing Data State
-  const [billingData, setBillingData] = useState<PatientBillingData>(DEFAULT_BILLING_DATA)
+  const [billingData, setBillingData] = useState<PatientBillingData>(createDefaultBillingData())
 
   // Load saved template from localStorage on mount
   useEffect(() => {
@@ -47,7 +48,12 @@ export default function PrescriptionSystem({ embedded = false }: PrescriptionSys
       if (saved) {
         const parsed = JSON.parse(saved)
         if (parsed && Array.isArray(parsed.fields)) {
-          setTemplateConfig(parsed)
+          setTemplateConfig({
+            backgroundImage: typeof parsed.backgroundImage === 'string' ? parsed.backgroundImage : null,
+            fields: parsed.fields,
+            customFonts: Array.isArray(parsed.customFonts) ? parsed.customFonts : [],
+          })
+          setLoaded(true)
           return
         }
       }
@@ -61,16 +67,18 @@ export default function PrescriptionSystem({ embedded = false }: PrescriptionSys
       customFonts: [],
       fields: PRESET_FIELDS.map(f => ({ ...f, id: crypto.randomUUID() })),
     })
+    setLoaded(true)
   }, [])
 
-  // Persist template changes to localStorage
+  // Persist template changes to localStorage only after initial load finishes
   useEffect(() => {
+    if (!loaded) return
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(templateConfig))
     } catch (e) {
       console.warn('Notice saving prescription template to storage:', e)
     }
-  }, [templateConfig])
+  }, [templateConfig, loaded])
 
   // Custom Font Handlers
   function handleAddFont(font: CustomFont) {
@@ -109,7 +117,11 @@ export default function PrescriptionSystem({ embedded = false }: PrescriptionSys
       try {
         const parsed = JSON.parse(ev.target?.result as string)
         if (parsed && Array.isArray(parsed.fields)) {
-          setTemplateConfig(parsed)
+          setTemplateConfig({
+            backgroundImage: typeof parsed.backgroundImage === 'string' ? parsed.backgroundImage : null,
+            fields: parsed.fields,
+            customFonts: Array.isArray(parsed.customFonts) ? parsed.customFonts : [],
+          })
           alert('Template imported successfully.')
         } else {
           alert('Invalid template JSON file format.')
@@ -156,7 +168,7 @@ export default function PrescriptionSystem({ embedded = false }: PrescriptionSys
         billingData={billingData}
         onClose={() => setBillingDrawerOpen(false)}
         onChangeBillingData={setBillingData}
-        onResetBillingData={() => setBillingData(DEFAULT_BILLING_DATA)}
+        onResetBillingData={() => setBillingData(createDefaultBillingData())}
       />
 
       {/* ─── TOP CONTROL TOOLBAR ─── */}
@@ -172,7 +184,11 @@ export default function PrescriptionSystem({ embedded = false }: PrescriptionSys
               WYSIWYG Prescription Template Mapper &amp; Billing System
             </h2>
             <p className="text-[11px] text-slate-400">
-              {mode === 'builder' ? 'Template Builder Mode (Admin Canvas)' : 'Billing Mode (Doctor Data Entry & Silent Print)'}
+              {mode === 'builder'
+                ? 'Template Builder Mode (Admin Canvas)'
+                : mode === 'billing'
+                  ? 'Billing Mode (Doctor Data Entry & Silent Print)'
+                  : 'B2 Cloud Vault & Master Log'}
             </p>
           </div>
         </div>

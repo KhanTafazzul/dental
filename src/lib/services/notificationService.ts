@@ -13,6 +13,9 @@ import { SERVER_ENV } from '@/config/env'
 import { getAdminSupabase } from '@/lib/supabase'
 import { formatWahaChatId, sendWahaTextMessage } from '@/lib/waha'
 
+const escapeHtml = (s: unknown) =>
+  String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
+
 export interface PrescriptionNotificationPayload {
   prescriptionId: string
   patientName: string
@@ -302,15 +305,15 @@ export class NotificationService {
             <p class="subtitle">Official Medical Consultation & Digital Prescription</p>
           </div>
           <div class="content">
-            <p>Dear <strong>${patientName}</strong>,</p>
-            <p>Thank you for consulting with <strong>${doctorName}</strong> on <strong>${visitDate}</strong>. Your official digital prescription has been generated and securely archived.</p>
+            <p>Dear <strong>${escapeHtml(patientName)}</strong>,</p>
+            <p>Thank you for consulting with <strong>${escapeHtml(doctorName)}</strong> on <strong>${escapeHtml(visitDate)}</strong>. Your official digital prescription has been generated and securely archived.</p>
             
             ${
               medicines.length > 0
                 ? `<div class="card">
                     <strong style="color: #4A5D23; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Prescribed Medications</strong>
                     <ul class="med-list">
-                      ${medicines.map((m) => `<li>${m}</li>`).join('')}
+                      ${medicines.map((m) => `<li>${escapeHtml(m)}</li>`).join('')}
                     </ul>
                   </div>`
                 : ''
@@ -447,8 +450,8 @@ export class NotificationService {
           subject: `New Prescription Logged: ${patientName} (${visitDate})`,
           html: `
             <div style="font-family: sans-serif; padding: 20px;">
-              <h2>Dr. ${doctorName},</h2>
-              <p>A new digital prescription has been logged and archived for <strong>${patientName}</strong> on <strong>${visitDate}</strong>.</p>
+              <h2>Dr. ${escapeHtml(doctorName)},</h2>
+              <p>A new digital prescription has been logged and archived for <strong>${escapeHtml(patientName)}</strong> on <strong>${escapeHtml(visitDate)}</strong>.</p>
               <p><a href="${presignedUrl}" style="background: #4A5D23; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px;">View Prescription PDF</a></p>
             </div>
           `,

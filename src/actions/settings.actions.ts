@@ -38,7 +38,13 @@ export async function updateAdminSecurityPassword(
   newPassword: string
 ): Promise<ActionResponse> {
   try {
-    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123'
+    const adminPassword = process.env.ADMIN_PASSWORD
+    if (!adminPassword) {
+      return {
+        success: false,
+        error: 'Server configuration error: ADMIN_PASSWORD environment variable is not set.',
+      }
+    }
 
     if (currentPassword !== adminPassword) {
       return {

@@ -4,9 +4,23 @@ import { sendWahaTextMessage, DEFAULT_TARGET_TEST_NUMBER } from '@/lib/waha'
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}))
-    const phone = body.phone || body.targetNumber || DEFAULT_TARGET_TEST_NUMBER
-    const text = body.text || body.message || 'Official notification test: WAHA WhatsApp GOWS engine integration verified.'
-    const session = body.session || 'default'
+    const phone = (body.phone || body.targetNumber)?.toString().trim()
+    const text = (body.text || body.message)?.toString().trim()
+    const session = (body.session || 'default')?.toString().trim()
+
+    if (!phone) {
+      return NextResponse.json(
+        { success: false, error: 'Recipient phone number is required.' },
+        { status: 400 }
+      )
+    }
+
+    if (!text) {
+      return NextResponse.json(
+        { success: false, error: 'Message text is required.' },
+        { status: 400 }
+      )
+    }
 
     const result = await sendWahaTextMessage({
       phone,

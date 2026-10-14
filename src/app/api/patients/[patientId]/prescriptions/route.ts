@@ -24,6 +24,17 @@ export async function GET(
       )
     }
 
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    if (!UUID_REGEX.test(patientId)) {
+      return NextResponse.json({
+        success: true,
+        patientId,
+        isRepeatPatient: false,
+        totalVisits: 0,
+        prescriptions: [],
+      })
+    }
+
     const adminDb = getAdminSupabase()
 
     // Query all prescriptions for this patient ordered by visit_number descending

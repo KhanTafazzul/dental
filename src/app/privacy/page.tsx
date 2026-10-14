@@ -11,6 +11,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   const currentYear = new Date().getFullYear()
+  const EFFECTIVE_DATE = 'January 1, 2026'
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col justify-between overflow-x-hidden w-full max-w-full">
@@ -32,7 +33,7 @@ export default function PrivacyPage() {
             <ShieldCheck className="w-4 h-4" /> Statutory Privacy Notice • DPDP Act 2023 & DPDP Rules 2025
           </div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-white">Privacy and Data Protection Notice</h1>
-          <p className="text-xs text-slate-400">Effective Date: January 1, {currentYear} • Issued by Data Protection Officer (DPO)</p>
+          <p className="text-xs text-slate-400">Effective Date: {EFFECTIVE_DATE} • Issued by Data Protection Officer (DPO)</p>
         </div>
 
         <div className="bg-slate-900 border border-white/10 rounded-3xl p-6 sm:p-10 space-y-8 text-xs sm:text-sm text-slate-300 leading-relaxed shadow-2xl">

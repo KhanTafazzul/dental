@@ -58,8 +58,8 @@ async function saveProfileImage(file: File): Promise<string> {
 export async function addDoctor(formData: FormData): Promise<ActionResponse> {
   const adminDb = getAdminSupabase()
 
-  const name = formData.get('name') as string
-  const email = formData.get('email') as string
+  const name = (formData.get('name') as string)?.trim()
+  const email = (formData.get('email') as string)?.trim()
   const specialty = formData.get('specialty') as string
   const branchId = formData.get('branch_id') as string
   const imageFile = formData.get('picture') as File | null
@@ -67,16 +67,18 @@ export async function addDoctor(formData: FormData): Promise<ActionResponse> {
   const fixedSalary = parseFloat(formData.get('fixed_salary') as string || '0')
   const profitPercentage = parseFloat(formData.get('profit_percentage') as string || '0')
   const profitSharingTarget = (formData.get('profit_sharing_target') as string) || 'both'
-  const password = (formData.get('password') as string) || 'doctor123'
-  const slug =
-    (formData.get('slug') as string) ||
-    name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-
-  const phone = (formData.get('phone') as string) || null
+  const password = (formData.get('password') as string)?.trim() || 'doctor123'
 
   if (!name || !email) {
     return { success: false, error: 'Doctor name and email are required.' }
   }
+
+  const slug =
+    ((formData.get('slug') as string) ||
+      name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')) ||
+    `doc-${Date.now()}`
+
+  const phone = (formData.get('phone') as string) || null
 
   try {
     let pictureUrl = ''
@@ -88,7 +90,7 @@ export async function addDoctor(formData: FormData): Promise<ActionResponse> {
       .from('doctors')
       .insert({
         name,
-        email: email.trim().toLowerCase(),
+        email: email.toLowerCase(),
         phone: phone ? phone.trim() : null,
         specialty: specialty || null,
         branch_id: branchId || null,
@@ -120,8 +122,8 @@ export async function updateDoctor(formData: FormData): Promise<ActionResponse> 
   const adminDb = getAdminSupabase()
 
   const id = formData.get('id') as string
-  const name = formData.get('name') as string
-  const email = formData.get('email') as string
+  const name = (formData.get('name') as string)?.trim()
+  const email = (formData.get('email') as string)?.trim()
   const specialty = formData.get('specialty') as string
   const branchId = formData.get('branch_id') as string
   const imageFile = formData.get('picture') as File | null
@@ -130,13 +132,19 @@ export async function updateDoctor(formData: FormData): Promise<ActionResponse> 
   const fixedSalary = parseFloat(formData.get('fixed_salary') as string || '0')
   const profitPercentage = parseFloat(formData.get('profit_percentage') as string || '0')
   const profitSharingTarget = (formData.get('profit_sharing_target') as string) || 'both'
-  const password = (formData.get('password') as string) || 'doctor123'
-  const slug =
-    (formData.get('slug') as string) ||
-    name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-  const phone = (formData.get('phone') as string) || null
+  const passwordInput = (formData.get('password') as string)?.trim()
 
   if (!id) return { success: false, error: 'Doctor ID is required for update.' }
+  if (!name || !email) {
+    return { success: false, error: 'Doctor name and email are required.' }
+  }
+
+  const slug =
+    ((formData.get('slug') as string) ||
+      name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')) ||
+    `doc-${Date.now()}`
+
+  const phone = (formData.get('phone') as string) || null
 
   try {
     let pictureUrl = currentPictureUrl
@@ -144,22 +152,28 @@ export async function updateDoctor(formData: FormData): Promise<ActionResponse> 
       pictureUrl = await saveProfileImage(imageFile)
     }
 
+    const updatePayload: Record<string, any> = {
+      name,
+      email: email.toLowerCase(),
+      phone: phone ? phone.trim() : null,
+      specialty: specialty || null,
+      branch_id: branchId || null,
+      picture_url: pictureUrl || null,
+      compensation_type: compensationType,
+      fixed_salary: fixedSalary,
+      profit_percentage: profitPercentage,
+      profit_sharing_target: profitSharingTarget,
+      slug,
+    }
+
+    // Only update password if explicitly provided by admin; do not overwrite with fallback
+    if (passwordInput) {
+      updatePayload.password = passwordInput
+    }
+
     const { data, error } = await adminDb
       .from('doctors')
-      .update({
-        name,
-        email: email.trim().toLowerCase(),
-        phone: phone ? phone.trim() : null,
-        specialty: specialty || null,
-        branch_id: branchId || null,
-        picture_url: pictureUrl || null,
-        compensation_type: compensationType,
-        fixed_salary: fixedSalary,
-        profit_percentage: profitPercentage,
-        profit_sharing_target: profitSharingTarget,
-        password,
-        slug,
-      })
+      .update(updatePayload)
       .eq('id', id)
       .select()
 

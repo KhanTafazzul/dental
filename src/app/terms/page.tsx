@@ -12,6 +12,7 @@ import { LegalDocSkeleton } from "@/components/skeletons/LegalDocSkeleton";
 
 function TermsContent() {
   const currentYear = new Date().getFullYear();
+  const EFFECTIVE_DATE = "January 1, 2026";
 
   return (
     <div className="min-h-screen bg-[#F5F7F3] dark:bg-[#0F150D] text-[#1C2618] dark:text-[#E2E8DC] blueprint-grid flex flex-col justify-between transition-colors overflow-x-hidden w-full max-w-full">
@@ -38,7 +39,7 @@ function TermsContent() {
             Terms and Conditions of Clinical Service
           </h1>
           <p className="text-xs text-[#556B4B] dark:text-[#A3B799]">
-            Effective Date: January 1, {currentYear} • Governed by the Dentists Act, 1948 and Digital Personal Data Protection Act, 2023
+            Effective Date: {EFFECTIVE_DATE} • Governed by the Dentists Act, 1948 and Digital Personal Data Protection Act, 2023
           </p>
         </div>
 

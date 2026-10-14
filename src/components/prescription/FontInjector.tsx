@@ -30,9 +30,10 @@ export default function FontInjector({ fonts }: FontInjectorProps) {
           woff: 'woff',
         }
         const fmt = formatMap[font.format] ?? 'truetype'
+        const safeName = font.name.replace(/[\\'"]/g, '')
         return `
 @font-face {
-  font-family: '${font.name}';
+  font-family: '${safeName}';
   src: url('${font.base64Data}') format('${fmt}');
   font-display: swap;
 }`

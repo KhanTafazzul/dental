@@ -267,4 +267,7 @@ export interface OtpRecord {
   code: string
   expiresAt: number
   verified: boolean
+  attempts?: number
+  lastRequestedAt?: number
 }
+

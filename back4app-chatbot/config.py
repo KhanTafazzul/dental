@@ -20,5 +20,7 @@ BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL", "")
 REGISTER_URL = os.getenv("REGISTER_URL", "https://dental.flynx.site/register")
 
 # Port for FastAPI Server
-raw_port = (os.getenv("PORT") or "").strip()
-PORT = int(raw_port) if raw_port.isdigit() else 8080
+try:
+    PORT = int((os.getenv("PORT") or "").strip())
+except (ValueError, TypeError):
+    PORT = 8080

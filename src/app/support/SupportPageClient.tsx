@@ -79,7 +79,7 @@ export default function SupportPageClient() {
       });
 
       if (res.success) {
-        setTicketId(res.ticketId);
+        setTicketId(res.ticketId || null);
       } else {
         setErrorMsg('Failed to submit support ticket. Please try again.');
       }

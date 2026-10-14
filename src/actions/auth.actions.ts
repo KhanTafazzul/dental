@@ -9,10 +9,64 @@
  */
 
 import { cookies } from 'next/headers'
-import { signToken } from '@/lib/auth'
+import { signToken, verifyToken } from '@/lib/auth'
 import { getAdminSupabase } from '@/lib/supabase'
 import { COOKIES } from '@/constants/routes'
 import type { ActionResponse } from '@/types/common.types'
+
+// ─── Session Verification Helpers ─────────────────────────────────────────────
+
+/**
+ * Verifies whether the active request has a valid admin session cookie.
+ */
+export async function verifyAdminSession(): Promise<boolean> {
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get(COOKIES.ADMIN_TOKEN)?.value
+    const val = await verifyToken(token)
+    return val === 'admin'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Verifies whether the active request has a valid doctor session cookie.
+ */
+export async function verifyDoctorSession(): Promise<string | null> {
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get(COOKIES.DOCTOR_TOKEN)?.value
+    return await verifyToken(token)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Enforces admin authorization for Server Actions. Throws an Error if unauthorized.
+ */
+export async function requireAdmin(): Promise<void> {
+  const isAdmin = await verifyAdminSession()
+  if (!isAdmin) {
+    throw new Error('Unauthorized: Admin privilege required.')
+  }
+}
+
+/**
+ * Enforces admin or doctor authorization.
+ */
+export async function requireAdminOrDoctor(): Promise<{ role: 'admin' | 'doctor'; doctorSlug?: string }> {
+  if (await verifyAdminSession()) {
+    return { role: 'admin' }
+  }
+  const doctorSlug = await verifyDoctorSession()
+  if (doctorSlug) {
+    return { role: 'doctor', doctorSlug }
+  }
+  throw new Error('Unauthorized: Clinic staff authorization required.')
+}
+
 
 // ─── Admin Auth ───────────────────────────────────────────────────────────────
 
@@ -113,11 +167,15 @@ export async function loginDoctorUniversal(
   const adminDb = getAdminSupabase()
   try {
     const trimmed = identifier.trim()
+    const sanitized = trimmed.replace(/[,()]/g, '')
+    if (!sanitized) {
+      return { success: false, error: 'Please enter a valid Name or Email.' }
+    }
 
     const { data: doctors, error } = await adminDb
       .from('doctors')
       .select('id, name, slug, email, password')
-      .or(`slug.eq.${trimmed.toLowerCase()},email.ilike.${trimmed},name.ilike.%${trimmed}%`)
+      .or(`slug.eq.${sanitized.toLowerCase()},email.ilike.${sanitized},name.ilike.%${sanitized}%`)
 
     if (error || !doctors || doctors.length === 0) {
       return { success: false, error: 'No doctor found with that Name or Email.' }

@@ -123,7 +123,7 @@ export default function BillingDrawer({
         template,
         billingData,
         patientId: billingData.patientId || crypto.randomUUID(),
-        doctorId: billingData.doctorName,
+        doctorId: billingData.doctorId || undefined,
         channels: { whatsapp: true, email: true },
       })
 

@@ -14,7 +14,12 @@ import { getAdminSupabase } from '@/lib/supabase'
 import { sendNotification } from '@/lib/messaging'
 import { sendWahaTextMessage } from '@/lib/waha'
 import { isPhoneVerifiedBackend } from '@/actions/otp.actions'
+import { requireAdminOrDoctor, verifyAdminSession } from '@/actions/auth.actions'
 import type { ActionResponse, AppointmentStatus } from '@/types/common.types'
+
+const escapeHtml = (s: unknown) =>
+  String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
+
 
 // ─── Helper: Save image to Supabase Storage ──────────────────────────────────
 
@@ -64,6 +69,7 @@ export async function updateAppointmentStatus(
   id: string,
   status: AppointmentStatus
 ): Promise<ActionResponse> {
+  await requireAdminOrDoctor()
   const adminDb = getAdminSupabase()
   try {
     const { data, error } = await adminDb
@@ -99,7 +105,9 @@ export async function bookOfflineAppointment(formData: FormData): Promise<Action
   const appointmentDate = formData.get('appointmentDate') as string
   const appointmentTime = formData.get('appointmentTime') as string
   const problemDescription = formData.get('problemDescription') as string
-  const skipOtpBypass = formData.get('skipOtp') === 'true'
+  const skipOtpRequested = formData.get('skipOtp') === 'true'
+  const isAdmin = await verifyAdminSession()
+  const skipOtpBypass = skipOtpRequested && isAdmin
 
   try {
     // 1. OTP verification check (backend-enforced)
@@ -196,6 +204,7 @@ export async function postponeAppointmentAction(
   newDate: string,
   newTime: string
 ): Promise<ActionResponse> {
+  await requireAdminOrDoctor()
   const adminDb = getAdminSupabase()
   try {
     const { data: updated, error: updateErr } = await adminDb
@@ -254,6 +263,7 @@ export interface ReappointmentParams {
  * Sends WhatsApp notification via WAHA on success.
  */
 export async function scheduleReappointment(params: ReappointmentParams): Promise<ActionResponse> {
+  await requireAdminOrDoctor()
   const adminDb = getAdminSupabase()
   try {
     const days = params.followUpDays || 5
@@ -267,26 +277,41 @@ export async function scheduleReappointment(params: ReappointmentParams): Promis
     const teethLabel = params.targetTeeth ? ` (${params.targetTeeth})` : ''
     const reasonText = `Multi-Visit Reappointment${teethLabel}: ${params.treatmentNotes || 'Follow-up dental procedure'}`
 
+    // Resolve patient ID if available
+    let patientId: string | null = null
+    const cleanEmail = (params.patientEmail || '').trim().toLowerCase()
+    const cleanPhone = (params.patientPhone || '').trim()
+    if (cleanEmail || cleanPhone) {
+      const { data: pData } = await adminDb
+        .from('patients')
+        .select('id')
+        .or(`email.eq.${cleanEmail},mobile.eq.${cleanPhone}`)
+        .maybeSingle()
+      if (pData?.id) patientId = pData.id
+    }
+
+    const insertPayload: Record<string, any> = {
+      doctor_id: params.doctorId || null,
+      branch_id: params.branchId || null,
+      appointment_date: dateStr,
+      appointment_time: '11:00 AM',
+      status: 'confirmed',
+      problem_description: reasonText,
+    }
+    if (patientId) {
+      insertPayload.patient_id = patientId
+    }
+
     const { data: newAppt, error } = await adminDb
       .from('appointments')
-      .insert({
-        patient_name: params.patientName,
-        phone: params.patientPhone,
-        email: params.patientEmail || '',
-        doctor_id: params.doctorId || null,
-        doctor_name: params.doctorName || 'Assigned Dentist',
-        branch_id: params.branchId || null,
-        appointment_date: dateStr,
-        appointment_time: '11:00 AM',
-        status: 'confirmed',
-        reason: reasonText,
-        treatment: params.treatmentNotes || 'Tooth Reappointment',
-        notes: `Scheduled ${days}-day follow-up for ${params.targetTeeth || 'procedure'}`,
-      })
+      .insert(insertPayload)
       .select()
       .single()
 
-    if (error) console.warn('[Appointments] Reappointment insert notice:', error)
+    if (error) {
+      console.error('[Appointments] Reappointment insert error:', error)
+      throw error
+    }
 
     const messageBody =
       `[REAPPOINTMENT CONFIRMATION - HAZARA & FAMILY DENTAL CLINICS]\n\n` +
@@ -322,6 +347,7 @@ export async function scheduleReappointment(params: ReappointmentParams): Promis
  * Saves uploaded patient files, updates appointment, and sends WhatsApp notification.
  */
 export async function sendPatientReport(formData: FormData): Promise<ActionResponse> {
+  await requireAdminOrDoctor()
   const adminDb = getAdminSupabase()
 
   const appointmentId = formData.get('appointmentId') as string
@@ -435,6 +461,7 @@ export async function sendPatientReport(formData: FormData): Promise<ActionRespo
 
 /** Creates a mobile-camera capture ticket for a branch. */
 export async function createCaptureTicket(branchId: string, appointmentId: string): Promise<ActionResponse> {
+  await requireAdminOrDoctor()
   const adminDb = getAdminSupabase()
   try {
     const { error } = await adminDb
@@ -451,6 +478,7 @@ export async function createCaptureTicket(branchId: string, appointmentId: strin
 
 /** Clears the mobile-camera capture ticket for a branch. */
 export async function clearCaptureTicket(branchId: string): Promise<ActionResponse> {
+  await requireAdminOrDoctor()
   const adminDb = getAdminSupabase()
   try {
     const { error } = await adminDb
@@ -476,12 +504,17 @@ export async function uploadMobilePrescription(formData: FormData): Promise<Acti
   try {
     const { data: branch, error: branchErr } = await adminDb
       .from('branches')
-      .select('camera_passcode')
+      .select('id, camera_passcode, active_capture_appointment_id')
       .eq('slug', branchSlug)
       .single()
 
     if (branchErr || !branch) throw new Error('Branch not found')
-    if (branch.camera_passcode !== passcode) throw new Error('Unauthorized: Invalid passcode')
+    if (!branch.camera_passcode || !passcode || branch.camera_passcode !== passcode) {
+      throw new Error('Unauthorized: Invalid passcode')
+    }
+    if (branch.active_capture_appointment_id && branch.active_capture_appointment_id !== appointmentId) {
+      throw new Error('Unauthorized: No active capture ticket for this appointment')
+    }
 
     const imageUrl = await saveProfileImage(photoFile)
 
@@ -536,7 +569,7 @@ export async function validateCameraPasscode(
       .single()
 
     if (error || !data) throw new Error('Branch not found')
-    if (data.camera_passcode === passcode) return { success: true }
+    if (data.camera_passcode && passcode && data.camera_passcode === passcode) return { success: true }
     return { success: false, error: 'Incorrect passcode.' }
   } catch (err: any) {
     console.error('[Appointments] Error validating passcode:', err)
@@ -550,6 +583,7 @@ export async function validateCameraPasscode(
  * Sends a booking confirmation email to the assigned doctor via Brevo.
  */
 export async function sendAppointmentEmail(appointmentId: string): Promise<ActionResponse> {
+  await requireAdminOrDoctor()
   const adminDb = getAdminSupabase()
   try {
     const { data: appt, error: apptErr } = await adminDb
@@ -576,13 +610,13 @@ export async function sendAppointmentEmail(appointmentId: string): Promise<Actio
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
         <h2 style="color: #0f766e; border-bottom: 2px solid #0f766e; padding-bottom: 10px;">New Appointment Details</h2>
-        <p>Hello Dr. <strong>${doctor.name}</strong>,</p>
-        <p>A new appointment has been scheduled at <strong>${branch.name}</strong>.</p>
+        <p>Hello Dr. <strong>${escapeHtml(doctor.name)}</strong>,</p>
+        <p>A new appointment has been scheduled at <strong>${escapeHtml(branch.name)}</strong>.</p>
         <table style="width: 100%; border-collapse: collapse;">
-          <tr><td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold;">Patient:</td><td style="padding: 10px; border: 1px solid #e5e7eb;">${patient.name}</td></tr>
-          <tr><td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold;">Date:</td><td style="padding: 10px; border: 1px solid #e5e7eb;">${appt.appointment_date}</td></tr>
-          <tr><td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold;">Time:</td><td style="padding: 10px; border: 1px solid #e5e7eb;">${appt.appointment_time}</td></tr>
-          <tr><td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold;">Problem:</td><td style="padding: 10px; border: 1px solid #e5e7eb;">${problemText}</td></tr>
+          <tr><td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold;">Patient:</td><td style="padding: 10px; border: 1px solid #e5e7eb;">${escapeHtml(patient?.name || 'Patient')}</td></tr>
+          <tr><td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold;">Date:</td><td style="padding: 10px; border: 1px solid #e5e7eb;">${escapeHtml(appt.appointment_date)}</td></tr>
+          <tr><td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold;">Time:</td><td style="padding: 10px; border: 1px solid #e5e7eb;">${escapeHtml(appt.appointment_time)}</td></tr>
+          <tr><td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold;">Problem:</td><td style="padding: 10px; border: 1px solid #e5e7eb;">${escapeHtml(problemText)}</td></tr>
         </table>
       </div>
     `
@@ -603,13 +637,14 @@ export async function sendAppointmentEmail(appointmentId: string): Promise<Actio
     })
 
     if (!response.ok) {
-      const resText = await response.text()
-      throw new Error(`Brevo Error: ${resText}`)
+      const errText = await response.text()
+      throw new Error(`Brevo API responded with ${response.status}: ${errText}`)
     }
 
     return { success: true }
   } catch (err: any) {
-    console.error('[Appointments] Error in sendAppointmentEmail:', err)
-    return { success: false, error: err.message || 'Failed to send email to doctor.' }
+    console.error('[Appointments] Error sending appointment email:', err)
+    return { success: false, error: err.message || 'Failed to send appointment email.' }
   }
 }
+

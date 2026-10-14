@@ -463,14 +463,17 @@ export async function processWahaIncomingWebhook(payload: Record<string, unknown
           replyText += `\nHelpline: ${dbBranches[0].phone}`
         }
       } else {
+        const defaultHelpline = process.env.CLINIC_PHONE || ''
         replyText = 
-          `[CLINIC BRANCHES]\n` +
-          `Hazara Dental Clinic: Main Clinical Avenue, Medical District\nFamily Dental Clinic: Plaza Block, Commercial Center\nHelpline: +91 98200 12345`
+          `[CLINIC BRANCHES]\n\n` +
+          `• Hazara Dental Clinic\n• Family Dental Clinic\n` +
+          (defaultHelpline ? `\nHelpline: ${defaultHelpline}` : `\nPlease visit our patient portal to view branch contact details.`)
       }
     } else if (lowerText === '4' || lowerText.includes('emergency')) {
+      const emergencyPhone = process.env.CLINIC_EMERGENCY_PHONE || process.env.CLINIC_PHONE || ''
       replyText = 
         `[DENTAL EMERGENCY SUPPORT]\n\n` +
-        `If you are experiencing severe oral pain, traumatic dental injury, or uncontrolled bleeding, please contact our emergency line at +91 98200 12345 immediately or report to the nearest hospital trauma center.`
+        `If you are experiencing severe oral pain, traumatic dental injury, or uncontrolled bleeding, please ${emergencyPhone ? `contact our clinical helpline at ${emergencyPhone} immediately or ` : ''}report directly to the nearest hospital trauma center.`
     } else {
       replyText = 
         `Thank you for contacting Hazara & Family Dental Clinics.\n` +

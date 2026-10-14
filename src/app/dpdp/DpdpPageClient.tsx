@@ -63,7 +63,7 @@ function DpdpPageClientContent() {
       });
 
       if (res.success) {
-        setTicketId(res.ticketId);
+        setTicketId(res.ticketId || null);
       } else {
         setErrorMsg("Failed to process request. Please try again.");
       }
@@ -143,9 +143,9 @@ function DpdpPageClientContent() {
           <AppleLiquidCard variant="light" className="p-8 space-y-6 text-xs leading-relaxed">
             <div className="space-y-2">
               <h2 className="text-sm font-bold text-[#1C2618] dark:text-[#F5F7F3] flex items-center gap-2">
-                <FileText className="w-4 h-4 text-[#556B4B]" /> {"1. Data Collection & Purpose"}
+                <FileText className="w-4 h-4 text-[#556B4B]" /> {t.privacyPolicyTitle || "1. Data Collection & Purpose"}
               </h2>
-              <p className="text-[#556B4B]">{t.consentNoticeText || "Personal and health data (Name, DOB, Phone, Dental History, X-Rays) are processed exclusively for appointment scheduling, diagnosis, treatment, and billing."}</p>
+              <p className="text-[#556B4B]">{t.privacyText || "Personal and health data (Name, DOB, Phone, Dental History, X-Rays) are processed exclusively for appointment scheduling, diagnosis, treatment, and billing."}</p>
             </div>
 
             <div className="space-y-2">

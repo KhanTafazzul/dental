@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { getAdminSupabase } from '@/lib/supabase'
 import { Shield, Users, Camera, ArrowRight, Sparkles, Stethoscope } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata = {
   title: 'Administration Directory | Dental Clinics',
   description: 'Centralized access portal for clinic administration, doctor portals, and mobile diagnostics.',
@@ -12,15 +14,16 @@ export default async function AdministrationDirectoryPage() {
   const adminDb = getAdminSupabase()
   let doctors: any[] = []
 
-  try {
-    const { data } = await adminDb
-      .from('doctors')
-      .select('id, name, slug, specialty')
-      .order('name', { ascending: true })
-    doctors = data || []
-  } catch (err) {
-    console.error('Error fetching doctors for gateway:', err)
+  const { data, error } = await adminDb
+    .from('doctors')
+    .select('id, name, slug, specialty')
+    .order('name', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching doctors for gateway:', error)
+    throw new Error(`Failed to load clinic doctors: ${error.message}`)
   }
+  doctors = data || []
 
   return (
     <div className="flex-1 flex flex-col justify-between min-h-screen relative overflow-hidden bg-slate-950 text-slate-100 font-sans">

@@ -72,7 +72,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 Something went wrong in {this.props.componentName || 'this section'}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {this.state.error?.message || 'An unexpected rendering error occurred. Your other tabs and data are safe.'}
+                An unexpected rendering error occurred. Please try again.
               </p>
             </div>
 

@@ -17,23 +17,27 @@ export function CookieConsentBanner() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const savedConsent = localStorage.getItem("meity_dpdp_cookie_consent");
-      if (!savedConsent) {
-        setIsVisible(true);
-      } else {
-        try {
-          const parsed = JSON.parse(savedConsent);
-          setFunctionalConsent(Boolean(parsed.functional));
-          setAnalyticsConsent(Boolean(parsed.analytics));
-        } catch {
-          // Default fallback
+      try {
+        const savedConsent = localStorage.getItem("meity_dpdp_cookie_consent");
+        if (!savedConsent) {
+          setIsVisible(true);
+        } else {
+          try {
+            const parsed = JSON.parse(savedConsent);
+            setFunctionalConsent(Boolean(parsed.functional));
+            setAnalyticsConsent(Boolean(parsed.analytics));
+          } catch {
+            // Default fallback
+          }
         }
+      } catch {
+        // Fallback if local storage access is restricted by browser policy
+        setIsVisible(true);
       }
     }
   }, []);
 
   const saveConsentState = (functional: boolean, analytics: boolean) => {
-    if (typeof window === "undefined") return;
     const consentPayload = {
       necessary: true,
       functional,
@@ -41,8 +45,16 @@ export function CookieConsentBanner() {
       timestamp: new Date().toISOString(),
       framework: "MEITY DPDP 2023 Rules 2025",
     };
-    localStorage.setItem("meity_dpdp_cookie_consent", JSON.stringify(consentPayload));
-    window.dispatchEvent(new CustomEvent("meity_dpdp_cookie_consent_changed", { detail: consentPayload }));
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("meity_dpdp_cookie_consent", JSON.stringify(consentPayload));
+        window.dispatchEvent(new CustomEvent("meity_dpdp_cookie_consent_changed", { detail: consentPayload }));
+      } catch (err) {
+        console.warn("Could not persist cookie consent to localStorage:", err);
+      }
+    }
+
     setIsVisible(false);
     setShowModal(false);
   };

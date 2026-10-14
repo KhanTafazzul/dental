@@ -52,6 +52,9 @@ export default function DoctorPastPrescriptionsDrawer({
   const fetchHistory = useCallback(async () => {
     if (!patientId) return
     setLoading(true)
+    setPrescriptions([])
+    setSelectedRx(null)
+    setCopiedMedIndex(null)
     try {
       const res = await fetch(`/api/patients/${patientId}/prescriptions`)
       const data = await res.json()
