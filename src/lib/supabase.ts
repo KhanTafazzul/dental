@@ -1,20 +1,30 @@
+/**
+ * @file lib/supabase.ts
+ * @description Supabase client initialization (client-side and admin server-side).
+ *
+ * All environment variables are sourced through the central validated config module `@/config/env`.
+ */
+
 import { createClient } from '@supabase/supabase-js'
+import { ENV, SERVER_ENV } from '@/config/env'
 
-// Safe defaults for Vercel deployment & production client operations
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jmifnlqtcfdctvldukdw.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptaWZubHF0Y2ZkY3R2bGR1a2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MTAyMjIsImV4cCI6MjA5ODQ4NjIyMn0.zXLzoVaIKDnpSa-rW8wTWhlSefysJOCq4GoiUHhROK8'
+// Public client for browser / client-side operations (Anon Key)
+export const supabase = createClient(
+  ENV.SUPABASE_URL || 'https://jmifnlqtcfdctvldukdw.supabase.co',
+  ENV.SUPABASE_ANON_KEY
+)
 
-// Public client for client-side operations
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)  
-
-// Server-side admin client using service role key
+/**
+ * Returns a Supabase client with the service role key for admin/server-side operations.
+ * Must only be called in Server Actions, Route Handlers, or SSR server code.
+ */
 export const getAdminSupabase = () => {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key'
-  return createClient(supabaseUrl, serviceRoleKey, {
+  const serviceRoleKey = SERVER_ENV.SUPABASE_SERVICE_ROLE_KEY || ENV.SUPABASE_ANON_KEY
+  return createClient(ENV.SUPABASE_URL || 'https://jmifnlqtcfdctvldukdw.supabase.co', serviceRoleKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
-      detectSessionInUrl: false
-    }
+      detectSessionInUrl: false,
+    },
   })
 }

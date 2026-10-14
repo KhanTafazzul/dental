@@ -5,7 +5,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}))
     const phone = body.phone || body.targetNumber || DEFAULT_TARGET_TEST_NUMBER
-    const text = body.text || body.message || '👋 Hello! Testing WAHA WhatsApp GOWS engine integration.'
+    const text = body.text || body.message || 'Official notification test: WAHA WhatsApp GOWS engine integration verified.'
     const session = body.session || 'default'
 
     const result = await sendWahaTextMessage({

@@ -7,6 +7,8 @@ import { AppleLiquidCard } from "@/components/ui/AppleLiquidCard";
 import { TelemetryBadge } from "@/components/ui/TelemetryBadge";
 import { AntigravityButton } from "@/components/ui/AntigravityButton";
 
+import Link from "next/link";
+
 export function CookieConsentBanner() {
   const [isVisible, setIsVisible] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -79,7 +81,10 @@ export function CookieConsentBanner() {
               </div>
 
               <p className="text-[11px] text-[#A3B799] leading-relaxed">
-                We process strictly necessary cookies for scheduling & clinic security. Non-essential cookies are disabled until explicitly accepted per Section 5 of DPDP Act 2023.
+                This clinical portal deploys strictly necessary cookies for cryptographic session integrity and patient triage. In accordance with Section 5 of the DPDP Act 2023, non-essential cookies require affirmative consent.{" "}
+                <Link href="/cookies" className="text-[#F5F7F3] underline font-medium hover:text-white transition">
+                  Statutory Cookie Disclosures
+                </Link>
               </p>
 
               <div className="flex items-center gap-2 pt-1">

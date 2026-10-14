@@ -238,7 +238,7 @@ function BookingFormContent({ branchSlug }: BookingFormProps) {
   }
 
   return (
-    <AppleLiquidCard variant="light" className="p-6 sm:p-8 space-y-6">
+    <AppleLiquidCard variant="light" className="p-4 sm:p-8 space-y-6 w-full max-w-full overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[#A3B799]/30 pb-4">
         <div>

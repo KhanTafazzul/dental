@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import {
   X,
   Printer,
@@ -12,14 +11,15 @@ import {
   Phone,
   Calendar,
   Pill,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
   FileText,
-  UserCheck,
-  RotateCcw,
-  Sparkles,
-  CheckCircle2
+  Send,
+  CloudUpload,
 } from 'lucide-react'
 import type { PatientBillingData, MedicineEntry, TemplateConfig } from './types'
-import { printPrescriptionPdf, downloadPrescriptionPdf } from './pdfGenerator'
+import { printPrescriptionPdf, downloadPrescriptionPdf, uploadPrescriptionToCloud } from './pdfGenerator'
 
 interface BillingDrawerProps {
   isOpen: boolean
@@ -38,22 +38,17 @@ export default function BillingDrawer({
   onChangeBillingData,
   onResetBillingData,
 }: BillingDrawerProps) {
-  const [medName, setMedName] = useState('')
-  const [medDosage, setMedDosage] = useState('')
-  const [medFreq, setMedFreq] = useState('1-0-1')
-  const [medDuration, setMedDuration] = useState('5 days')
+  const [medicineInput, setMedicineInput] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
-  // Add Medicine Chip (Prescription Medicine)
+  // Append new medicine to array (Requirement 3)
   function handleAddMedicine() {
-    if (!medName.trim()) return
+    if (!medicineInput.trim()) return
 
     const newMed: MedicineEntry = {
       id: crypto.randomUUID(),
-      name: medName.trim(),
-      dosage: medDosage.trim(),
-      frequency: medFreq.trim(),
-      duration: medDuration.trim(),
+      name: medicineInput.trim(),
     }
 
     onChangeBillingData({
@@ -61,512 +56,344 @@ export default function BillingDrawer({
       medicines: [...billingData.medicines, newMed],
     })
 
-    setMedName('')
-    setMedDosage('')
+    setMedicineInput('')
   }
 
-  // Handle Enter Key inside medicine input
-  function handleMedKeyDown(e: React.KeyboardEvent) {
+  // Handle Enter key for rapid medicine entry
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') {
       e.preventDefault()
       handleAddMedicine()
     }
   }
 
-  // Remove Medicine Chip
-  function handleRemoveMedicine(id: string) {
+  // Remove medicine from array
+  function handleRemoveMedicine(index: number) {
+    const updated = [...billingData.medicines]
+    updated.splice(index, 1)
     onChangeBillingData({
       ...billingData,
-      medicines: billingData.medicines.filter(m => m.id !== id),
+      medicines: updated,
     })
   }
 
-  // Print Action
-  async function handlePrint() {
+  // Requirement 4: Generate Bill & Print (Silent print trick via hidden iframe)
+  async function handleGenerateBillAndPrint() {
+    setIsGenerating(true)
+    setStatusMessage(null)
     try {
-      setIsGenerating(true)
-      await printPrescriptionPdf(template, billingData)
-    } catch (err) {
-      console.error('Print Error:', err)
-      alert('Failed to generate printable prescription PDF.')
+      const pdfBlob = await printPrescriptionPdf(template, billingData)
+      setStatusMessage({ text: 'Bill generated successfully. Print dialog triggered.', type: 'success' })
+      console.log('Generated PDF Blob for backend attachment:', pdfBlob)
+    } catch (err: any) {
+      console.error('Print generation error:', err)
+      setStatusMessage({ text: err.message || 'Failed to generate printable bill.', type: 'error' })
     } finally {
       setIsGenerating(false)
     }
   }
 
-  // Download Action
-  async function handleDownload() {
+  // Download PDF
+  async function handleDownloadBill() {
+    setIsGenerating(true)
+    setStatusMessage(null)
     try {
-      setIsGenerating(true)
       const filename = `Prescription_${billingData.patientName.replace(/\s+/g, '_') || 'Patient'}_${billingData.date.replace(/\//g, '-')}.pdf`
       await downloadPrescriptionPdf(template, billingData, filename)
-    } catch (err) {
-      console.error('Download Error:', err)
-      alert('Failed to download prescription PDF.')
+      setStatusMessage({ text: 'Prescription PDF downloaded successfully.', type: 'success' })
+    } catch (err: any) {
+      console.error('Download error:', err)
+      setStatusMessage({ text: err.message || 'Failed to download PDF.', type: 'error' })
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  // Cloud Sync to Backblaze B2 & Multi-Channel Dispatch (WAHA + Email)
+  async function handleCloudSyncAndDispatch() {
+    if (!billingData.patientName) {
+      setStatusMessage({ text: 'Please enter patient name before saving.', type: 'error' })
+      return
+    }
+
+    setIsGenerating(true)
+    setStatusMessage(null)
+    try {
+      const res = await uploadPrescriptionToCloud({
+        template,
+        billingData,
+        patientId: billingData.patientId || crypto.randomUUID(),
+        doctorId: billingData.doctorName,
+        channels: { whatsapp: true, email: true },
+      })
+
+      if (res.success) {
+        setStatusMessage({
+          text: `Prescription saved to Backblaze B2 vault & queued for WhatsApp dispatch! (Visit #${res.prescription?.visit_number || 1})`,
+          type: 'success',
+        })
+      } else {
+        setStatusMessage({
+          text: res.error || 'Notice: Upload recorded with fallback.',
+          type: 'error',
+        })
+      }
+    } catch (err: any) {
+      console.error('Cloud sync error:', err)
+      setStatusMessage({ text: err.message || 'Failed to sync to cloud.', type: 'error' })
     } finally {
       setIsGenerating(false)
     }
   }
 
   return (
-    <AnimatePresence>
+    <>
+      {/* Backdrop overlay */}
       {isOpen && (
-        <motion.div
-          initial={{ x: '100%' }}
-          animate={{ x: 0 }}
-          exit={{ x: '100%' }}
-          transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-          style={{
-            position: 'fixed',
-            top: 0,
-            right: 0,
-            bottom: 0,
-            width: 500,
-            maxWidth: '100vw',
-            background: '#ffffff',
-            boxShadow: '-10px 0 40px rgba(74, 93, 35, 0.18)',
-            zIndex: 100,
-            display: 'flex',
-            flexDirection: 'column',
-            borderLeft: '1px solid #E4E7D3',
-            borderRadius: '24px 0 0 24px',
-            overflow: 'hidden',
-            fontFamily: 'var(--font-plus-jakarta), "Plus Jakarta Sans", sans-serif',
-          }}
-        >
-          {/* Drawer Header */}
-          <div
-            style={{
-              padding: '20px 24px',
-              borderBottom: '1px solid #E4E7D3',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: '#4A5D23',
-              color: '#ffffff',
-              borderRadius: '24px 0 0 0',
-            }}
-          >
-            <div>
-              <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, fontFamily: 'var(--font-outfit), Outfit, sans-serif' }}>
-                Patient Billing &amp; Rx Entry
-              </h2>
-              <p style={{ fontSize: 11, margin: '2px 0 0', opacity: 0.9 }}>
-                Auto-synced with bill &amp; prescription PDF exporter
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              style={{
-                background: 'rgba(255,255,255,0.2)',
-                border: 'none',
-                borderRadius: 10,
-                padding: 6,
-                color: '#fff',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-              title="Close Drawer"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-        {/* Drawer Body Scroll Area */}
         <div
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '20px 24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 20,
-          }}
-        >
-          {/* Patient Personal Info Section */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#0891b2', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <User size={13} /> Patient Details
-            </span>
+          onClick={onClose}
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity lg:hidden"
+        />
+      )}
 
-            {/* Patient Name */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Patient Name *</label>
+      {/* Requirement 3: Sliding Billing Drawer
+          Styling: fixed, top: 0, right: 0, height: 100vh, width: 400px, z-index: 50
+          Animation: Tailwind translate-x-full when closed, translate-x-0 when open, transition-transform duration-300 */}
+      <aside
+        className={`fixed top-0 right-0 h-screen w-[400px] max-w-full z-50 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-white/10 shadow-2xl flex flex-col transition-transform duration-300 transform ${
+          isOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        {/* Drawer Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200 dark:border-white/10 bg-[#4A5D23] text-white">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center">
+              <FileText className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold tracking-tight">Prescription & Billing Drawer</h2>
+              <p className="text-[11px] text-white/80">Doctor data entry & print engine</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+            aria-label="Close billing drawer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Status Notification Callout */}
+        {statusMessage && (
+          <div
+            className={`mx-5 mt-4 p-3 rounded-xl text-xs flex items-center gap-2 ${
+              statusMessage.type === 'success'
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                : 'bg-rose-50 dark:bg-rose-950/30 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+            }`}
+          >
+            {statusMessage.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 shrink-0" />
+            )}
+            <span>{statusMessage.text}</span>
+          </div>
+        )}
+
+        {/* Drawer Form Body */}
+        <div className="p-6 overflow-y-auto flex-1 space-y-5 text-xs text-slate-700 dark:text-slate-200">
+          
+          {/* Standard Input: Patient Name */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400">
+              Patient Name
+            </label>
+            <div className="relative">
+              <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 value={billingData.patientName}
                 onChange={e => onChangeBillingData({ ...billingData, patientName: e.target.value })}
-                placeholder="e.g. Rajesh Kumar"
-                style={{
-                  padding: '9px 12px',
-                  borderRadius: 10,
-                  border: '1px solid #cbd5e1',
-                  fontSize: 13,
-                  outline: 'none',
-                  background: '#f8fafc',
-                }}
+                placeholder="e.g. Rahul Sharma"
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs focus:outline-none focus:border-[#4A5D23] font-medium"
+              />
+            </div>
+          </div>
+
+          {/* Standard Inputs: Age & Date in Grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400">
+                Age
+              </label>
+              <input
+                type="text"
+                value={billingData.age}
+                onChange={e => onChangeBillingData({ ...billingData, age: e.target.value })}
+                placeholder="e.g. 28"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs focus:outline-none focus:border-[#4A5D23] font-medium"
               />
             </div>
 
-            {/* Age & Gender Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Age</label>
-                <input
-                  type="text"
-                  value={billingData.age}
-                  onChange={e => onChangeBillingData({ ...billingData, age: e.target.value })}
-                  placeholder="e.g. 34 Yrs"
-                  style={{
-                    padding: '9px 12px',
-                    borderRadius: 10,
-                    border: '1px solid #cbd5e1',
-                    fontSize: 13,
-                    outline: 'none',
-                    background: '#f8fafc',
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Gender</label>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {['M', 'F', 'O'].map(g => (
-                    <button
-                      key={g}
-                      onClick={() => onChangeBillingData({ ...billingData, gender: g })}
-                      style={{
-                        flex: 1,
-                        padding: '8px 0',
-                        borderRadius: 8,
-                        border: billingData.gender === g ? '1.5px solid #0891b2' : '1px solid #cbd5e1',
-                        background: billingData.gender === g ? '#ecfeff' : '#ffffff',
-                        color: billingData.gender === g ? '#0891b2' : '#64748b',
-                        fontWeight: 600,
-                        fontSize: 12,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {g === 'M' ? 'Male' : g === 'F' ? 'Female' : 'Other'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Date & Mobile */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Calendar size={12} /> Date
-                </label>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400">
+                Date
+              </label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-400" />
                 <input
                   type="text"
                   value={billingData.date}
                   onChange={e => onChangeBillingData({ ...billingData, date: e.target.value })}
-                  style={{
-                    padding: '9px 12px',
-                    borderRadius: 10,
-                    border: '1px solid #cbd5e1',
-                    fontSize: 13,
-                    outline: 'none',
-                    background: '#f8fafc',
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Phone size={12} /> Mobile
-                </label>
-                <input
-                  type="text"
-                  value={billingData.mobile}
-                  onChange={e => onChangeBillingData({ ...billingData, mobile: e.target.value })}
-                  placeholder="e.g. 9876543210"
-                  style={{
-                    padding: '9px 12px',
-                    borderRadius: 10,
-                    border: '1px solid #cbd5e1',
-                    fontSize: 13,
-                    outline: 'none',
-                    background: '#f8fafc',
-                  }}
+                  placeholder="DD/MM/YYYY"
+                  className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs focus:outline-none focus:border-[#4A5D23] font-medium"
                 />
               </div>
             </div>
+          </div>
 
-            {/* Doctor Name */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <UserCheck size={12} /> Doctor Name
-              </label>
+          {/* Standard Input: Mobile */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400">
+              Mobile Number
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
               <input
-                type="text"
-                value={billingData.doctorName}
-                onChange={e => onChangeBillingData({ ...billingData, doctorName: e.target.value })}
-                placeholder="e.g. Dr. A. K. Sharma, MDS"
-                style={{
-                  padding: '9px 12px',
-                  borderRadius: 10,
-                  border: '1px solid #cbd5e1',
-                  fontSize: 13,
-                  outline: 'none',
-                  background: '#f8fafc',
-                }}
+                type="tel"
+                value={billingData.mobile}
+                onChange={e => onChangeBillingData({ ...billingData, mobile: e.target.value })}
+                placeholder="+91 98200 12345"
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs focus:outline-none focus:border-[#4A5D23] font-medium"
               />
             </div>
           </div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '4px 0' }} />
+          {/* Medicine Entry (Requirement 3: Dynamic List) */}
+          <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-white/10">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <Pill className="w-3.5 h-3.5 text-[#4A5D23]" /> Medicine Entry
+              </label>
+              <span className="text-[10px] text-slate-400">Hit Enter or click Add</span>
+            </div>
 
-          {/* Medicines Entry Section */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#0891b2', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Pill size={13} /> Prescribed Medicines ({billingData.medicines.length})
-            </span>
-
-            {/* Add Medicine Inputs */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: '#f8fafc', padding: 12, borderRadius: 12, border: '1px solid #e2e8f0' }}>
+            <div className="flex gap-2">
               <input
                 type="text"
-                value={medName}
-                onChange={e => setMedName(e.target.value)}
-                onKeyDown={handleMedKeyDown}
-                placeholder="Medicine Name (e.g. Amoxicillin)"
-                style={{
-                  padding: '8px 10px',
-                  borderRadius: 8,
-                  border: '1px solid #cbd5e1',
-                  fontSize: 13,
-                  outline: 'none',
-                  background: '#ffffff',
-                }}
+                value={medicineInput}
+                onChange={e => setMedicineInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="e.g. Amoxicillin 500mg (1-0-1 x 5 days)"
+                className="flex-1 px-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs focus:outline-none focus:border-[#4A5D23]"
               />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-                <input
-                  type="text"
-                  value={medDosage}
-                  onChange={e => setMedDosage(e.target.value)}
-                  onKeyDown={handleMedKeyDown}
-                  placeholder="Dosage (500mg)"
-                  style={{
-                    padding: '6px 8px',
-                    borderRadius: 6,
-                    border: '1px solid #cbd5e1',
-                    fontSize: 12,
-                    outline: 'none',
-                    background: '#ffffff',
-                  }}
-                />
-                <select
-                  value={medFreq}
-                  onChange={e => setMedFreq(e.target.value)}
-                  style={{
-                    padding: '6px 8px',
-                    borderRadius: 6,
-                    border: '1px solid #cbd5e1',
-                    fontSize: 12,
-                    outline: 'none',
-                    background: '#ffffff',
-                  }}
-                >
-                  <option value="1-0-1">1-0-1 (BD)</option>
-                  <option value="1-1-1">1-1-1 (TDS)</option>
-                  <option value="1-0-0">1-0-0 (OD AM)</option>
-                  <option value="0-0-1">0-0-1 (OD PM)</option>
-                  <option value="SOS">SOS (As needed)</option>
-                </select>
-                <input
-                  type="text"
-                  value={medDuration}
-                  onChange={e => setMedDuration(e.target.value)}
-                  onKeyDown={handleMedKeyDown}
-                  placeholder="Duration (5 days)"
-                  style={{
-                    padding: '6px 8px',
-                    borderRadius: 6,
-                    border: '1px solid #cbd5e1',
-                    fontSize: 12,
-                    outline: 'none',
-                    background: '#ffffff',
-                  }}
-                />
-              </div>
               <button
+                type="button"
                 onClick={handleAddMedicine}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  background: '#0891b2',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontWeight: 600,
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 4,
-                  marginTop: 2,
-                }}
+                disabled={!medicineInput.trim()}
+                className="px-3.5 py-2 rounded-xl bg-[#4A5D23] hover:bg-[#3B4A1C] text-white text-xs font-bold transition disabled:opacity-40 cursor-pointer flex items-center gap-1"
               >
-                <Plus size={14} /> Add Medicine
+                <Plus className="w-3.5 h-3.5" /> Add
               </button>
             </div>
 
-            {/* Medicine Chips List */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {billingData.medicines.map((m, idx) => (
-                <div
-                  key={m.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    borderRadius: 8,
-                    background: '#ecfeff',
-                    border: '1px solid #a5f3fc',
-                    fontSize: 12,
-                  }}
-                >
-                  <div>
-                    <span style={{ fontWeight: 700, color: '#0e7490', marginRight: 6 }}>
-                      {idx + 1}. {m.name}
-                    </span>
-                    <span style={{ color: '#475569' }}>
-                      {m.dosage ? `(${m.dosage})` : ''} • {m.frequency} • {m.duration}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleRemoveMedicine(m.id)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#dc2626',
-                      cursor: 'pointer',
-                      padding: 2,
-                      display: 'flex',
-                    }}
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              ))}
+            {/* Added Medicines Dynamic List */}
+            <div className="space-y-1.5 max-h-48 overflow-y-auto pt-1">
+              {billingData.medicines.length === 0 ? (
+                <p className="text-[11px] text-slate-400 italic text-center p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-white/10">
+                  No medicines added yet. Type a prescription item above.
+                </p>
+              ) : (
+                billingData.medicines.map((item, idx) => {
+                  const label = typeof item === 'string' ? item : item.name
+                  return (
+                    <div
+                      key={idx}
+                      className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-between text-xs group"
+                    >
+                      <div className="flex items-center gap-2 truncate pr-2">
+                        <span className="w-4 h-4 rounded-full bg-[#4A5D23]/15 text-[#4A5D23] dark:text-[#A3B799] text-[10px] font-bold flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span className="font-medium text-slate-800 dark:text-slate-200 truncate">{label}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMedicine(idx)}
+                        className="p-1 rounded text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition opacity-80 group-hover:opacity-100"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )
+                })
+              )}
             </div>
           </div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '4px 0' }} />
-
-          {/* Clinical Notes */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <FileText size={12} /> Clinical Advice / Notes
+          {/* Optional Clinical Notes */}
+          <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-white/10">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400">
+              Clinical Instructions / Notes (Optional)
             </label>
             <textarea
-              rows={3}
-              value={billingData.notes}
+              rows={2}
+              value={billingData.notes || ''}
               onChange={e => onChangeBillingData({ ...billingData, notes: e.target.value })}
-              placeholder="e.g. Avoid cold drinks. Warm saline gargles 3 times daily."
-              style={{
-                padding: '9px 12px',
-                borderRadius: 10,
-                border: '1px solid #cbd5e1',
-                fontSize: 13,
-                outline: 'none',
-                background: '#f8fafc',
-                resize: 'vertical',
-                fontFamily: 'inherit',
-              }}
+              placeholder="e.g. Maintain soft food diet for 48 hours..."
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs focus:outline-none focus:border-[#4A5D23]"
             />
           </div>
         </div>
 
         {/* Drawer Action Footer */}
-        <div
-          style={{
-            padding: '16px 24px',
-            borderTop: '1px solid var(--border, #e2e8f0)',
-            background: 'var(--card, #ffffff)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
-          }}
-        >
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <button
-              onClick={handlePrint}
-              disabled={isGenerating}
-              style={{
-                padding: '11px 16px',
-                borderRadius: 10,
-                background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)',
-                color: '#ffffff',
-                border: 'none',
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: isGenerating ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                boxShadow: '0 4px 14px rgba(8, 145, 178, 0.3)',
-                opacity: isGenerating ? 0.7 : 1,
-              }}
-            >
-              <Printer size={16} />
-              {isGenerating ? 'Printing...' : 'Auto-Print'}
-            </button>
-
-            <button
-              onClick={handleDownload}
-              disabled={isGenerating}
-              style={{
-                padding: '11px 16px',
-                borderRadius: 10,
-                background: '#ffffff',
-                color: '#0891b2',
-                border: '1.5px solid #0891b2',
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: isGenerating ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                opacity: isGenerating ? 0.7 : 1,
-              }}
-            >
-              <Download size={16} />
-              Save PDF
-            </button>
-          </div>
+        <div className="p-5 border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 space-y-2.5">
+          <button
+            type="button"
+            onClick={handleGenerateBillAndPrint}
+            disabled={isGenerating}
+            className="w-full py-3 rounded-xl bg-[#4A5D23] hover:bg-[#3B4A1C] text-white text-xs font-bold transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {isGenerating ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Printer className="w-4 h-4" />
+            )}
+            <span>Generate Bill &amp; Print</span>
+          </button>
 
           <button
-            onClick={onResetBillingData}
-            style={{
-              padding: '8px',
-              borderRadius: 8,
-              background: '#f1f5f9',
-              color: '#64748b',
-              border: 'none',
-              fontWeight: 600,
-              fontSize: 12,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4,
-            }}
+            type="button"
+            onClick={handleCloudSyncAndDispatch}
+            disabled={isGenerating}
+            className="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
-            <RotateCcw size={13} />
-            Reset Patient Form
+            <CloudUpload className="w-4 h-4" />
+            <span>Save to B2 Vault &amp; Dispatch WAHA</span>
           </button>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleDownloadBill}
+              disabled={isGenerating}
+              className="flex-1 py-2 px-3 rounded-xl border border-slate-300 dark:border-white/20 hover:bg-slate-100 dark:hover:bg-white/10 text-xs font-semibold text-slate-700 dark:text-slate-200 transition flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" /> Download PDF
+            </button>
+            <button
+              type="button"
+              onClick={onResetBillingData}
+              className="py-2 px-3 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition"
+            >
+              Clear Form
+            </button>
+          </div>
         </div>
-      </motion.div>
-      )}
-    </AnimatePresence>
+      </aside>
+    </>
   )
 }

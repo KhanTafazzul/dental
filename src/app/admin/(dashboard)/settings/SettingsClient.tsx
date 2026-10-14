@@ -21,6 +21,7 @@ import {
   User, Bell, CreditCard, Globe, AlertTriangle, CheckCircle2, Lock, Eye, EyeOff, Save,
   Sun, Moon, Sparkles, ExternalLink, ChevronRight, Laptop, FileText
 } from 'lucide-react';
+import PrescriptionSystem from '@/components/prescription/PrescriptionSystem';
 
 export default function SettingsClient() {
   const { theme, toggleTheme } = useTheme();
@@ -264,13 +265,13 @@ export default function SettingsClient() {
 
   // 4. Notification Preferences Matrix
   const [notificationConfig, setNotificationConfig] = useState({
-    invoice: { email: true, whatsapp: true, title: '📄 Invoices & Payment Bills', desc: 'Send digital invoice receipts to patients upon billing checkout' },
-    birthday: { email: false, whatsapp: true, title: '🎂 Patient Birthday Wishes', desc: 'Automated daily birthday greetings with warm wishes' },
-    reminder_24h: { email: true, whatsapp: true, title: '⏰ 24-Hour Pre-Appointment Alert', desc: 'Send tomorrow slot details, token number & clinic location' },
-    reschedule: { email: true, whatsapp: true, title: '📅 Rescheduled Appointment Alert', desc: 'Notify patient instantly when appointment slot is changed' },
-    morning_digest: { email: true, whatsapp: true, title: '🌅 Doctor Morning Briefing Digest', desc: 'Daily morning patient schedule list sent to doctors' },
-    reappointment: { email: true, whatsapp: true, title: '🔁 5-Day Tooth Reappointment Reminder', desc: 'Follow-up reminders for multi-visit procedures' },
-    post_treatment: { email: false, whatsapp: true, title: '💊 Post-Treatment Care & Reviews', desc: 'Post-procedure dental instructions and review feedback' },
+    invoice: { email: true, whatsapp: true, title: 'Invoices & Payment Bills', desc: 'Send digital invoice receipts to patients upon billing checkout' },
+    birthday: { email: false, whatsapp: true, title: 'Patient Birthday Wishes', desc: 'Automated daily birthday greetings with warm wishes' },
+    reminder_24h: { email: true, whatsapp: true, title: '24-Hour Pre-Appointment Alert', desc: 'Send tomorrow slot details, token number & clinic location' },
+    reschedule: { email: true, whatsapp: true, title: 'Rescheduled Appointment Alert', desc: 'Notify patient instantly when appointment slot is changed' },
+    morning_digest: { email: true, whatsapp: true, title: 'Doctor Morning Briefing Digest', desc: 'Daily morning patient schedule list sent to doctors' },
+    reappointment: { email: true, whatsapp: true, title: '5-Day Tooth Reappointment Reminder', desc: 'Follow-up reminders for multi-visit procedures' },
+    post_treatment: { email: false, whatsapp: true, title: 'Post-Treatment Care & Reviews', desc: 'Post-procedure dental instructions and review feedback' },
   })
 
   useEffect(() => {
@@ -397,7 +398,7 @@ export default function SettingsClient() {
           { id: 'treatments', label: '4. Treatments & Pricing', icon: Stethoscope },
           { id: 'medicines', label: '5. Medicines & Stock', icon: Pill },
           { id: 'notifications', label: '6. Notifications', icon: Bell },
-          { id: 'prescription', label: '7. Prescription Pad BG', icon: FileText },
+          { id: 'prescription', label: '7. Prescription Mapper & Billing', icon: FileText },
           { id: 'billing', label: '8. Billing & Plan', icon: CreditCard },
           { id: 'preferences', label: '9. Preferences', icon: Globe },
           { id: 'danger', label: '10. Danger Zone', icon: AlertTriangle, danger: true },
@@ -427,138 +428,8 @@ export default function SettingsClient() {
 
       {/* ═══ CONDITIONAL TAB RENDERER (ONLY RENDERS ACTIVE TAB DOM) ═══ */}
       {activeTab === 'prescription' && (
-        <div className="space-y-6 max-w-4xl">
-          <div className="p-6 sm:p-8 rounded-[24px] bg-white border border-[#E4E7D3] shadow-sm space-y-6">
-            <div className="flex items-center justify-between border-b border-[#F4F6F0] pb-4">
-              <div>
-                <h2 className="text-lg font-bold text-[#2C3325] flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-[#4A5D23]" /> Prescription Pad Background & Dual-Branch Customizer
-                </h2>
-                <p className="text-xs text-[#8A9380]">
-                  Configure official clinic letterhead pads for Hazara & Family Dental Clinic branches independently.
-                </p>
-              </div>
-              <div className="p-3 bg-[#E4E7D3] text-[#4A5D23] rounded-2xl">
-                <FileText className="w-6 h-6" />
-              </div>
-            </div>
-
-            {/* Branch Selector Tabs */}
-            <div className="flex items-center gap-3 p-1.5 bg-[#F4F6F0] rounded-2xl border border-[#E4E7D3]">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedBranchRx('hazara');
-                  const bg = getBranchPadBg('hazara');
-                  setRxPadBg(bg);
-                }}
-                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  selectedBranchRx === 'hazara'
-                    ? 'bg-[#4A5D23] text-white shadow-sm'
-                    : 'text-[#2C3325] hover:bg-[#E4E7D3]/60'
-                }`}
-              >
-                🏥 Hazara Dental Clinic Template 1
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedBranchRx('family');
-                  const bg = getBranchPadBg('family');
-                  setRxPadBg(bg);
-                }}
-                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  selectedBranchRx === 'family'
-                    ? 'bg-[#4A5D23] text-white shadow-sm'
-                    : 'text-[#2C3325] hover:bg-[#E4E7D3]/60'
-                }`}
-              >
-                🏥 Family Dental Clinic Template 2
-              </button>
-            </div>
-
-            <div className="space-y-5 text-xs">
-              <div className="p-4 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] space-y-3">
-                <label className="block text-xs font-bold text-[#2C3325]">
-                  Select Prescription Pad Template for {selectedBranchRx.toUpperCase()} Branch (JPG, PNG, WEBP, PDF)
-                </label>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
-                  onChange={(e) => handleUploadBranchRxPad(e, selectedBranchRx)}
-                  className="block w-full text-xs text-[#2C3325] file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#4A5D23] file:text-white hover:file:bg-[#3D4D1D] file:cursor-pointer cursor-pointer"
-                />
-                <p className="text-[11px] text-[#8A9380]">
-                  Supported formats: High-resolution JPG, PNG, WEBP, or official PDF letterhead pad for {selectedBranchRx.toUpperCase()}.
-                </p>
-              </div>
-
-              {/* Header Margin Offset Slider */}
-              <div className="p-4 rounded-2xl bg-[#F4F6F0] border border-[#E4E7D3] space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs font-bold text-[#2C3325]">Top Header Offset / Prescription Text Margin</label>
-                  <span className="font-mono text-xs font-bold text-[#4A5D23] bg-white px-2 py-0.5 rounded-lg border border-[#E4E7D3]">{headerMargin}px</span>
-                </div>
-                <input
-                  type="range"
-                  min="50"
-                  max="350"
-                  step="5"
-                  value={headerMargin}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    setHeaderMargin(val);
-                    localStorage.setItem('rx_header_margin', String(val));
-                    localStorage.setItem(`rx_header_margin_${selectedBranchRx}`, String(val));
-                  }}
-                  className="w-full accent-[#4A5D23] cursor-pointer"
-                />
-                <p className="text-[11px] text-[#8A9380]">
-                  Adjust vertical margin to ensure doctor's typed clinical notes align perfectly below the printed letterhead banner.
-                </p>
-              </div>
-
-              {/* Live Background Preview */}
-              {rxPadBg ? (
-                <div className="space-y-3 border-t border-[#F4F6F0] pt-4">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-[#4A5D23] flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-[#4A5D23]" /> Active Template Loaded for {selectedBranchRx.toUpperCase()}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveBranchRxPad(selectedBranchRx)}
-                      className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold border border-rose-200 text-xs transition-colors cursor-pointer"
-                    >
-                      Remove Background
-                    </button>
-                  </div>
-                  <div className="p-4 border border-[#E4E7D3] rounded-2xl bg-[#F4F6F0] flex justify-center relative overflow-hidden">
-                    {rxPadBg.startsWith('data:application/pdf') ? (
-                      <div className="p-8 text-center text-xs font-bold text-[#4A5D23]">
-                        📄 PDF Letterhead Pad Attached & Active for {selectedBranchRx.toUpperCase()}
-                      </div>
-                    ) : (
-                      <div className="relative border border-[#E4E7D3] rounded-xl overflow-hidden shadow-md max-w-md w-full bg-white">
-                        <img src={rxPadBg} alt="Prescription Pad Preview" className="w-full max-h-80 object-contain" />
-                        <div 
-                          className="absolute inset-x-4 border-t-2 border-dashed border-[#4A5D23]/60 bg-[#4A5D23]/5 p-3 rounded-lg text-[10px] text-[#2C3325] font-mono"
-                          style={{ top: `${Math.min(headerMargin / 2, 140)}px` }}
-                        >
-                          <span className="font-bold text-[#4A5D23]">Rx Notes Start Line ({headerMargin}px offset)</span>
-                          <p className="mt-1 text-[#8A9380] italic">1. Amoxicillin 500mg - 1 Tab (TDS x 5 days)</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="p-8 text-center bg-[#F4F6F0] border border-dashed border-[#E4E7D3] rounded-2xl text-[#8A9380]">
-                  No custom prescription pad background uploaded for {selectedBranchRx.toUpperCase()} branch. System default digital header will be used.
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="space-y-6 w-full max-w-7xl animate-fade-in">
+          <PrescriptionSystem embedded />
         </div>
       )}
 
@@ -1088,7 +959,7 @@ export default function SettingsClient() {
                           : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700'
                       }`}
                     >
-                      <span>✉️ Email</span>
+                      <span>Email</span>
                       <span className="text-[10px] uppercase font-mono">{config.email ? 'ON' : 'OFF'}</span>
                     </button>
 
@@ -1102,7 +973,7 @@ export default function SettingsClient() {
                           : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700'
                       }`}
                     >
-                      <span>💬 WhatsApp</span>
+                      <span>WhatsApp</span>
                       <span className="text-[10px] uppercase font-mono">{config.whatsapp ? 'ON' : 'OFF'}</span>
                     </button>
                   </div>
@@ -1333,7 +1204,7 @@ export default function SettingsClient() {
                   </div>
 
                   <div className="p-3 bg-white rounded-xl border border-[#E4E7D3] text-[11px] text-[#8A9380] leading-relaxed">
-                    💡 <strong>Tip:</strong> The live preview on the right shows exactly where your doctor notes, patient details, and Rx table will print over your pre-printed prescription pad background.
+                    <strong>Tip:</strong> The live preview on the right shows exactly where your doctor notes, patient details, and Rx table will print over your pre-printed prescription pad background.
                   </div>
                 </div>
 
@@ -1364,7 +1235,7 @@ export default function SettingsClient() {
                       
                       {/* Doctor & Clinic Header Box */}
                       <div className="border-2 border-dashed border-[#4A5D23] bg-[#4A5D23]/10 p-2.5 rounded-xl text-[11px] text-[#2C3325] font-semibold flex items-center justify-between">
-                        <span>🏥 HAZARA & FAMILY DENTAL CLINIC BANNER</span>
+                        <span>HAZARA & FAMILY DENTAL CLINIC BANNER</span>
                         <span className="text-[9px] font-mono text-[#4A5D23] font-bold">PRE-PRINTED HEADER</span>
                       </div>
 

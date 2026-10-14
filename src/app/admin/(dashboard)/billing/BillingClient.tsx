@@ -8,7 +8,7 @@ import OliveInvoiceView, { InvoiceData } from '@/components/billing/OliveInvoice
 import { 
   Receipt, User, Search, PlusCircle, Trash2, Loader2, 
   CheckCircle, Percent, AlertCircle, ShoppingCart, Activity, ShieldAlert, Sparkles, Send, Barcode,
-  CreditCard, Sparkle, Layers, ChevronRight, Check, ArrowRight, Pill, Pause, Play
+  CreditCard, Sparkle, Layers, ChevronRight, Check, ArrowRight, Pill, Pause, Play, X
 } from 'lucide-react'
 import DentalLogo from '@/components/DentalLogo'
 
@@ -586,8 +586,8 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                       </span>
                     )}
                     {isRedirectPaused && (
-                      <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                        ✓ Auto-redirect paused (Staying on bill)
+                      <span className="inline-flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        <Check className="w-3.5 h-3.5" /> Auto-redirect paused (Staying on bill)
                       </span>
                     )}
                   </p>
@@ -1147,8 +1147,9 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                     type="button" 
                     onClick={() => setShowAddMedModal(false)}
                     className="text-slate-400 hover:text-slate-700 dark:hover:text-white text-sm font-bold px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition cursor-pointer"
+                    aria-label="Close modal"
                   >
-                    ✕
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
 
@@ -1289,8 +1290,9 @@ export default function BillingClient({ initialAppointments, initialTreatments }
                     type="button" 
                     onClick={() => setBatchSelectMed(null)}
                     className="text-slate-400 hover:text-slate-700 dark:hover:text-white text-sm font-bold px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition cursor-pointer"
+                    aria-label="Close modal"
                   >
-                    ✕
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
 

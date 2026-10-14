@@ -66,7 +66,7 @@ export async function sendNotification(payload: MessagePayload): Promise<{ succe
   if (settings.channel === 'whatsapp' || settings.channel === 'both') {
     if (cleanPhone) {
       try {
-        const messageText = `${payload.messageBody}${payload.attachmentUrl ? `\n\n📄 Attachment: ${payload.attachmentUrl}` : ''}`
+        const messageText = `${payload.messageBody}${payload.attachmentUrl ? `\n\nAttachment Document: ${payload.attachmentUrl}` : ''}`
         const wahaRes = await sendWahaTextMessage({
           phone: cleanPhone,
           text: messageText,

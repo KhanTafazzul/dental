@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Send, Paperclip, Image as ImageIcon, Search, Check, CheckCheck, Smile,
+  Send, Paperclip, Image as ImageIcon, Search, Check, CheckCheck, Tag,
   FileText, Receipt, Stethoscope, User, ShieldCheck, Phone, Video, MoreVertical,
   ChevronDown, Download, AlertCircle, Clock, Sparkles, Plus, Share2
 } from 'lucide-react'
@@ -50,7 +50,7 @@ interface DoctorChatPortalProps {
   appointments?: any[]
 }
 
-const EMOJI_OPTIONS = ['👍', '❤️', '💡', '🦷', '😂', '👏']
+const CLINICAL_TAGS = ['Acknowledged', 'Priority', 'Prescribed', 'Reviewed', 'Complete']
 
 export default function DoctorChatPortal({
   currentUser,
@@ -84,7 +84,7 @@ export default function DoctorChatPortal({
         text: 'Hello! I reviewed the root canal diagnosis for patient Priya Sharma.',
         timestamp: new Date(now.getTime() - 1000 * 60 * 45).toISOString(),
         isRead: true,
-        reactions: { '👍': [currentUser.id] }
+        reactions: { 'Acknowledged': [currentUser.id] }
       },
       {
         id: 'm2',
@@ -120,7 +120,7 @@ export default function DoctorChatPortal({
         text: 'Thank you Dr. Sarah! The crown fitting looks perfect.',
         timestamp: new Date(now.getTime() - 1000 * 60 * 20).toISOString(),
         isRead: true,
-        reactions: { '❤️': [doctorsList[0]?.id || 'doc-1'] }
+        reactions: { 'Reviewed': [doctorsList[0]?.id || 'doc-1'] }
       }
     ]
   })
@@ -537,20 +537,20 @@ export default function DoctorChatPortal({
                         onClick={() => setActiveReactionMsgId(activeReactionMsgId === msg.id ? null : msg.id)}
                         className={`absolute -top-3 ${isSelf ? '-left-7' : '-right-7'} p-1 rounded-full bg-slate-800 border border-white/20 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer`}
                       >
-                        <Smile className="w-3.5 h-3.5" />
+                        <Tag className="w-3.5 h-3.5" />
                       </button>
 
-                      {/* Emoji Picker Popup */}
+                      {/* Clinical Tag Picker Popup */}
                       {activeReactionMsgId === msg.id && (
                         <div className={`absolute -top-10 ${isSelf ? 'right-0' : 'left-0'} p-1.5 rounded-2xl bg-slate-900 border border-white/20 shadow-2xl flex items-center gap-1.5 z-20`}>
-                          {EMOJI_OPTIONS.map(emoji => (
+                          {CLINICAL_TAGS.map(tag => (
                             <button
-                              key={emoji}
+                              key={tag}
                               type="button"
-                              onClick={() => handleToggleReaction(msg.id, emoji)}
-                              className="hover:scale-125 transition-transform text-sm p-1"
+                              onClick={() => handleToggleReaction(msg.id, tag)}
+                              className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-white/10 hover:bg-emerald-600 hover:text-white transition-colors"
                             >
-                              {emoji}
+                              {tag}
                             </button>
                           ))}
                         </div>
@@ -633,7 +633,7 @@ export default function DoctorChatPortal({
             </button>
           </div>
           <p className="text-[10px] text-emerald-600/70 mt-1.5 text-right px-2">
-            💡 Press <kbd className="px-1 bg-[#050f0c] rounded border border-emerald-900/40 text-emerald-400">Enter</kbd> to send • <kbd className="px-1 bg-[#050f0c] rounded border border-emerald-900/40 text-emerald-400">Shift + Enter</kbd> for multi-line
+            Press <kbd className="px-1 bg-[#050f0c] rounded border border-emerald-900/40 text-emerald-400">Enter</kbd> to send • <kbd className="px-1 bg-[#050f0c] rounded border border-emerald-900/40 text-emerald-400">Shift + Enter</kbd> for multi-line
           </p>
         </div>
       </div>

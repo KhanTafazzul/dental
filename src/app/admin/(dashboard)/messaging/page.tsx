@@ -44,7 +44,7 @@ export default function MessagingCampaignPage() {
 
   // Direct Quick Sender states
   const [testPhone, setTestPhone] = useState('')
-  const [testMessage, setTestMessage] = useState('👋 Hello! Important notification from Hazara & Family Dental Clinic.')
+  const [testMessage, setTestMessage] = useState('Official clinical notification from Hazara & Family Dental Clinics.')
   const [sendingTest, setSendingTest] = useState(false)
   const [testResult, setTestResult] = useState<WahaTestResult | null>(null)
 
@@ -93,7 +93,7 @@ export default function MessagingCampaignPage() {
       const res = await sendWahaOtpAction(testPhone)
       if (res.success) {
         setOtpSent(true)
-        setOtpStatusMsg(res.message)
+        setOtpStatusMsg(res.message || null)
       } else {
         alert(res.error || 'Failed to send OTP via WAHA')
       }
@@ -111,7 +111,7 @@ export default function MessagingCampaignPage() {
       const res = await verifyWahaOtpAction(testPhone, otpInput)
       if (res.success) {
         setOtpVerified(true)
-        setOtpStatusMsg('✓ Mobile number verified on backend!')
+        setOtpStatusMsg('Mobile number verified successfully on server.')
       } else {
         alert(res.error || 'Invalid OTP code.')
       }

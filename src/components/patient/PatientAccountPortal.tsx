@@ -18,7 +18,13 @@ import {
   Trash2,
   FileText,
   CheckCircle2,
+  Lock,
+  KeyRound,
+  Check,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
+import { sendWahaOtpAction, verifyWahaOtpAction } from "@/actions/otp.actions";
 import {
   FamilyMember,
   calculateAgeFromDob,
@@ -31,6 +37,7 @@ import { TelemetryBadge } from "@/components/ui/TelemetryBadge";
 import { AntigravityButton } from "@/components/ui/AntigravityButton";
 import { ProgressiveLoader } from "@/components/ui/ProgressiveLoader";
 import { PatientAccountSkeleton } from "@/components/skeletons/PatientAccountSkeleton";
+import PatientPrescriptionTimeline from "@/components/prescription/PatientPrescriptionTimeline";
 
 export interface PatientProfile {
   id: string;
@@ -99,6 +106,64 @@ function PatientAccountPortalContent() {
   const [newFamilyMobile, setNewFamilyMobile] = useState("");
   const [newFamilyEmail, setNewFamilyEmail] = useState("");
   const [newFamilyGender] = useState<"Male" | "Female" | "Other">("Male");
+
+  // WhatsApp OTP verification for changed mobile numbers
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false);
+  const [phoneOtpInput, setPhoneOtpInput] = useState("");
+  const [sendingPhoneOtp, setSendingPhoneOtp] = useState(false);
+  const [verifyingPhoneOtp, setVerifyingPhoneOtp] = useState(false);
+  const [phoneOtpVerified, setPhoneOtpVerified] = useState(false);
+  const [phoneOtpMsg, setPhoneOtpMsg] = useState<string | null>(null);
+  const [phoneOtpError, setPhoneOtpError] = useState<string | null>(null);
+
+  const isPhoneChanged = useMemo(() => {
+    return Boolean(initialProfile.mobile && profile.mobile.trim() !== initialProfile.mobile.trim());
+  }, [profile.mobile, initialProfile.mobile]);
+
+  const handleSendProfileOtp = async () => {
+    if (!profile.mobile.trim() || profile.mobile.trim().length < 8) {
+      setPhoneOtpError("Please enter a valid mobile number.");
+      return;
+    }
+    setSendingPhoneOtp(true);
+    setPhoneOtpError(null);
+    setPhoneOtpMsg(null);
+    try {
+      const res = await sendWahaOtpAction(profile.mobile);
+      if (res.success) {
+        setPhoneOtpSent(true);
+        setPhoneOtpMsg(res.message || "OTP code sent via WhatsApp.");
+      } else {
+        setPhoneOtpError(res.error || "Failed to send OTP code.");
+      }
+    } catch (err: any) {
+      setPhoneOtpError(err.message || "Error dispatching OTP.");
+    } finally {
+      setSendingPhoneOtp(false);
+    }
+  };
+
+  const handleVerifyProfileOtp = async () => {
+    if (!phoneOtpInput.trim() || phoneOtpInput.trim().length < 6) {
+      setPhoneOtpError("Please enter the 6-digit WhatsApp OTP code.");
+      return;
+    }
+    setVerifyingPhoneOtp(true);
+    setPhoneOtpError(null);
+    try {
+      const res = await verifyWahaOtpAction(profile.mobile, phoneOtpInput);
+      if (res.success) {
+        setPhoneOtpVerified(true);
+        setPhoneOtpMsg("Mobile number verified via WhatsApp.");
+      } else {
+        setPhoneOtpError(res.error || "Invalid or expired OTP code.");
+      }
+    } catch (err: any) {
+      setPhoneOtpError(err.message || "Error verifying OTP.");
+    } finally {
+      setVerifyingPhoneOtp(false);
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -236,6 +301,10 @@ function PatientAccountPortalContent() {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isPhoneChanged && !phoneOtpVerified) {
+      alert("Please verify your new mobile number via the 6-digit WhatsApp OTP code before saving changes.");
+      return;
+    }
     setIsSaving(true);
     try {
       const updatedProfile = {
@@ -247,6 +316,8 @@ function PatientAccountPortalContent() {
       }
       setProfile(updatedProfile);
       setInitialProfile(updatedProfile);
+      setPhoneOtpSent(false);
+      setPhoneOtpVerified(false);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3500);
     } catch (err: unknown) {
@@ -413,14 +484,65 @@ function PatientAccountPortalContent() {
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-[#556B4B]">Mobile Number</label>
+              <div className="space-y-1 sm:col-span-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-semibold text-[#556B4B]">Mobile Number (WhatsApp Contact)</label>
+                  {isPhoneChanged && (
+                    phoneOtpVerified ? (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Check className="w-3 h-3 text-emerald-600" /> Verified via WhatsApp
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleSendProfileOtp}
+                        disabled={sendingPhoneOtp || !profile.mobile.trim()}
+                        className="text-[10px] font-bold text-[#4A5D23] bg-[#E4E7D3] hover:bg-[#4A5D23] hover:text-white px-2.5 py-0.5 rounded-lg transition border border-[#4A5D23]/20 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      >
+                        {sendingPhoneOtp ? <Loader2 className="w-3 h-3 animate-spin" /> : <Lock className="w-3 h-3" />}
+                        Verify via WhatsApp OTP
+                      </button>
+                    )
+                  )}
+                </div>
                 <input
                   type="tel"
                   value={profile.mobile}
-                  onChange={(e) => setProfile({ ...profile, mobile: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#A3B799]/40 bg-white/70 dark:bg-[#1C2618]/70 text-xs focus:outline-none focus:ring-2 focus:ring-[#556B4B]"
+                  onChange={(e) => {
+                    setProfile({ ...profile, mobile: e.target.value });
+                    setPhoneOtpVerified(false);
+                    setPhoneOtpSent(false);
+                  }}
+                  className="w-full px-4 py-2.5 rounded-xl border border-[#A3B799]/40 bg-white/70 dark:bg-[#1C2618]/70 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#556B4B]"
                 />
+
+                {phoneOtpSent && !phoneOtpVerified && (
+                  <div className="p-3 bg-[#E4E7D3]/40 dark:bg-[#182622] border border-[#4A5D23]/30 rounded-xl space-y-2 mt-2">
+                    <span className="text-[11px] font-bold text-[#4A5D23] dark:text-teal-300 flex items-center gap-1">
+                      <KeyRound className="w-3.5 h-3.5" /> Enter 6-Digit WhatsApp Code sent to {profile.mobile}
+                    </span>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        maxLength={6}
+                        placeholder="e.g. 482910"
+                        value={phoneOtpInput}
+                        onChange={(e) => setPhoneOtpInput(e.target.value)}
+                        className="w-full px-3 py-1.5 bg-white dark:bg-[#121c19] border border-slate-200 dark:border-teal-900/40 rounded-lg text-center font-mono font-bold tracking-widest text-xs focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleVerifyProfileOtp}
+                        disabled={verifyingPhoneOtp || phoneOtpInput.length < 6}
+                        className="px-3 py-1.5 bg-[#4A5D23] hover:bg-[#3D4C1D] text-white rounded-lg text-xs font-bold transition flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+                      >
+                        {verifyingPhoneOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Verify Code"}
+                      </button>
+                    </div>
+                    {phoneOtpMsg && <p className="text-[10px] text-slate-600 dark:text-slate-300">{phoneOtpMsg}</p>}
+                    {phoneOtpError && <p className="text-[10px] text-red-600 dark:text-red-400">{phoneOtpError}</p>}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">
@@ -522,36 +644,14 @@ function PatientAccountPortalContent() {
         </AppleLiquidCard>
       )}
 
-      {/* ══ CONTEXTUAL REPORTS TAB ══ */}
+      {/* ══ CONTEXTUAL REPORTS & DIGITAL PRESCRIPTIONS TAB ══ */}
       {activeTab === "reports" && (
-        <AppleLiquidCard variant="light" className="p-6 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-[#A3B799]/30">
-            <h3 className="text-sm font-bold text-[#1C2618] dark:text-[#F5F7F3]">
-              Clinical Reports & X-Rays for <span className="text-[#556B4B]">{activeFamilyMember.fullName}</span>
-            </h3>
-            <TelemetryBadge label={`FILTER: ${activeFamilyMember.relationship}`} variant="sage" />
-          </div>
-
-          <div className="divide-y divide-[#A3B799]/20 border border-[#A3B799]/30 rounded-2xl overflow-hidden">
-            {filteredReports.length === 0 ? (
-              <div className="p-8 text-center text-[#556B4B] text-xs">
-                No clinical reports found for {activeFamilyMember.fullName}.
-              </div>
-            ) : (
-              filteredReports.map((rep) => (
-                <div key={rep.id} className="p-4 flex items-center justify-between text-xs">
-                  <div>
-                    <p className="font-bold text-[#1C2618] dark:text-[#F5F7F3]">{rep.type}</p>
-                    <p className="text-[10px] text-[#556B4B] font-mono">Doctor: {rep.doctor} • Date: {rep.date}</p>
-                  </div>
-                  <AntigravityButton variant="secondary" size="sm">
-                    <FileText className="w-3.5 h-3.5" /> Download PDF
-                  </AntigravityButton>
-                </div>
-              ))
-            )}
-          </div>
-        </AppleLiquidCard>
+        <div className="space-y-6">
+          <PatientPrescriptionTimeline
+            patientId={profile.id || activeFamilyMember.id || 'default-patient'}
+            patientName={activeFamilyMember.fullName || profile.fullName}
+          />
+        </div>
       )}
     </div>
   );

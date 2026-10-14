@@ -75,7 +75,7 @@ function DpdpPageClientContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F7F3] dark:bg-[#0F150D] text-[#1C2618] dark:text-[#E2E8DC] blueprint-grid flex flex-col justify-between transition-colors font-sans">
+    <div className="min-h-screen bg-[#F5F7F3] dark:bg-[#0F150D] text-[#1C2618] dark:text-[#E2E8DC] blueprint-grid flex flex-col justify-between transition-colors font-sans overflow-x-hidden w-full max-w-full">
       <header className="sticky top-0 z-40 bg-[#F5F7F3]/70 dark:bg-[#0F150D]/70 backdrop-blur-2xl border-b border-white/40 dark:border-white/10">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="inline-flex items-center gap-3">
@@ -248,14 +248,24 @@ function DpdpPageClientContent() {
         {activeSection === "dpo" && (
           <AppleLiquidCard variant="light" className="p-8 space-y-4 text-xs">
             <h2 className="text-sm font-bold text-[#1C2618] dark:text-[#F5F7F3]">Data Protection Officer (DPO) Contact</h2>
-            <p className="text-[#556B4B]">Email: dpo@falixdental.com • Address: Hazara & Family Dental Clinics, India</p>
-            <p className="text-[#556B4B]">If unsatisfied with grievance redressal, Data Principals may register a complaint with the Data Protection Board of India (DPBI).</p>
+            <p className="text-[#556B4B]">
+              Email: <a href="mailto:privacy@flynx.site" className="underline font-bold text-[#1C2618] dark:text-[#F5F7F3]">privacy@flynx.site</a> • Clinical Helpline: <a href="tel:+919820012345" className="underline font-bold text-[#1C2618] dark:text-[#F5F7F3]">+91 98200 12345</a>
+            </p>
+            <p className="text-[#556B4B]">Address: Hazara & Family Dental Clinics, Mumbai, Maharashtra, India</p>
+            <p className="text-[#556B4B]">If unsatisfied with grievance redressal, Data Principals may register a statutory complaint with the Data Protection Board of India (DPBI).</p>
           </AppleLiquidCard>
         )}
       </main>
 
-      <footer className="border-t border-[#A3B799]/30 py-6 text-center text-xs text-[#556B4B]">
-        © 2026 Dental Clinic Network • MEITY DPDP 2023 & DPDP Rules 2025 Compliant
+      <footer className="border-t border-[#A3B799]/30 py-6 text-center text-xs text-[#556B4B] px-4">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p>© {new Date().getFullYear()} Hazara & Family Dental Clinics • DPDP Act 2023 & DPDP Rules 2025 Compliant</p>
+          <div className="flex items-center gap-4 font-medium">
+            <Link href="/terms" className="hover:underline">Terms of Service</Link>
+            <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
+            <Link href="/cookies" className="hover:underline">Cookie Policy</Link>
+          </div>
+        </div>
       </footer>
     </div>
   );

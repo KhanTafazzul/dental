@@ -10,6 +10,9 @@ import {
   RotateCcw,
   Printer,
   CreditCard,
+  Sparkles,
+  CheckCircle2,
+  HardDrive
 } from 'lucide-react'
 import type { TemplateConfig, PatientBillingData, CustomFont } from './types'
 import { DEFAULT_TEMPLATE_CONFIG, DEFAULT_BILLING_DATA, PRESET_FIELDS } from './types'
@@ -17,21 +20,27 @@ import FontInjector from './FontInjector'
 import FontManagerModal from './FontManagerModal'
 import TemplateBuilderCanvas from './TemplateBuilderCanvas'
 import BillingDrawer from './BillingDrawer'
+import AdminPrescriptionMasterLog from './AdminPrescriptionMasterLog'
 
 const STORAGE_KEY = 'dental_rx_template_config'
 
-export default function PrescriptionSystem() {
-  const [mode, setMode] = useState<'builder' | 'billing'>('builder')
+interface PrescriptionSystemProps {
+  embedded?: boolean
+}
+
+export default function PrescriptionSystem({ embedded = false }: PrescriptionSystemProps) {
+  // Three main modes: "Template Builder Mode", "Billing Mode", and "B2 Cloud Archive & Master Log"
+  const [mode, setMode] = useState<'builder' | 'billing' | 'archive'>('builder')
   const [fontModalOpen, setFontModalOpen] = useState(false)
   const [billingDrawerOpen, setBillingDrawerOpen] = useState(false)
 
-  // Core Template Configuration State
+  // Core Central State (Requirement: Core Architecture & State)
   const [templateConfig, setTemplateConfig] = useState<TemplateConfig>(DEFAULT_TEMPLATE_CONFIG)
 
-  // Patient Billing Form Data State
+  // Doctor Patient Billing Data State
   const [billingData, setBillingData] = useState<PatientBillingData>(DEFAULT_BILLING_DATA)
 
-  // Load from LocalStorage on mount
+  // Load saved template from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
@@ -43,10 +52,10 @@ export default function PrescriptionSystem() {
         }
       }
     } catch (e) {
-      console.warn('Failed to load prescription template from local storage:', e)
+      console.warn('Notice loading prescription template from storage:', e)
     }
 
-    // Default initialization with preset fields if empty
+    // Default initialization with preset fields
     setTemplateConfig({
       backgroundImage: null,
       customFonts: [],
@@ -54,12 +63,12 @@ export default function PrescriptionSystem() {
     })
   }, [])
 
-  // Save to LocalStorage whenever template changes
+  // Persist template changes to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(templateConfig))
     } catch (e) {
-      console.warn('Failed to save prescription template to local storage:', e)
+      console.warn('Notice saving prescription template to storage:', e)
     }
   }, [templateConfig])
 
@@ -78,7 +87,7 @@ export default function PrescriptionSystem() {
     }))
   }
 
-  // Template Export as JSON file
+  // Export Template Configuration
   function handleExportTemplate() {
     const jsonStr = JSON.stringify(templateConfig, null, 2)
     const blob = new Blob([jsonStr], { type: 'application/json' })
@@ -90,7 +99,7 @@ export default function PrescriptionSystem() {
     URL.revokeObjectURL(url)
   }
 
-  // Template Import from JSON file
+  // Import Template Configuration
   function handleImportTemplate(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -101,20 +110,20 @@ export default function PrescriptionSystem() {
         const parsed = JSON.parse(ev.target?.result as string)
         if (parsed && Array.isArray(parsed.fields)) {
           setTemplateConfig(parsed)
-          alert('Prescription template imported successfully!')
+          alert('Template imported successfully.')
         } else {
-          alert('Invalid template JSON file structure.')
+          alert('Invalid template JSON file format.')
         }
-      } catch (err) {
+      } catch {
         alert('Failed to parse template JSON file.')
       }
     }
     reader.readAsText(file)
   }
 
-  // Reset Template to Defaults
+  // Reset Template
   function handleResetDefault() {
-    if (confirm('Are you sure you want to reset the prescription template to default settings?')) {
+    if (confirm('Are you sure you want to reset the prescription template layout to defaults?')) {
       const defaultConfig: TemplateConfig = {
         backgroundImage: null,
         customFonts: [],
@@ -125,19 +134,10 @@ export default function PrescriptionSystem() {
   }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        width: '100vw',
-        background: 'var(--background, #f8fafc)',
-        color: 'var(--foreground, #0f172a)',
-        fontFamily: 'Inter, system-ui, sans-serif',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Dynamic Font-Face Injector */}
+    <div className={`flex flex-col w-full bg-slate-50 dark:bg-[#0c1412] text-slate-800 dark:text-slate-100 font-sans ${
+      embedded ? 'rounded-3xl border border-slate-200 dark:border-white/10 overflow-hidden min-h-[800px]' : 'h-screen overflow-hidden'
+    }`}>
+      {/* Dynamic Font-Face Injector into Document Head */}
       <FontInjector fonts={templateConfig.customFonts} />
 
       {/* Font Manager Modal */}
@@ -149,7 +149,7 @@ export default function PrescriptionSystem() {
         onRemoveFont={handleRemoveFont}
       />
 
-      {/* Sliding Patient Billing Drawer */}
+      {/* Sliding Billing Drawer */}
       <BillingDrawer
         isOpen={billingDrawerOpen}
         template={templateConfig}
@@ -159,225 +159,140 @@ export default function PrescriptionSystem() {
         onResetBillingData={() => setBillingData(DEFAULT_BILLING_DATA)}
       />
 
-      {/* ─── TOP SYSTEM BAR ─────────────────────────────────────── */}
-      <header
-        style={{
-          height: 68,
-          padding: '0 24px',
-          borderBottom: '1px solid var(--border, #e2e8f0)',
-          background: 'var(--card, #ffffff)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexShrink: 0,
-          boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
-        }}
-      >
-        {/* Title Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 12,
-              background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              boxShadow: '0 4px 12px rgba(8, 145, 178, 0.3)',
-            }}
-          >
-            <FileText size={20} />
+      {/* ─── TOP CONTROL TOOLBAR ─── */}
+      <header className="h-16 px-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-white/10 flex items-center justify-between shrink-0 shadow-xs z-20">
+        
+        {/* Left: Branding & Info */}
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#4A5D23] text-white flex items-center justify-center shadow-sm">
+            <FileText className="w-5 h-5" />
           </div>
           <div>
-            <h1 style={{ fontSize: 17, fontWeight: 700, margin: 0, fontFamily: 'Outfit, sans-serif', color: 'var(--foreground, #134e4a)' }}>
-              Rx Template Mapper &amp; Billing Engine
-            </h1>
-            <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
-              WYSIWYG Dental Prescription Builder &amp; PDF Printer
-            </span>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
+              WYSIWYG Prescription Template Mapper &amp; Billing System
+            </h2>
+            <p className="text-[11px] text-slate-400">
+              {mode === 'builder' ? 'Template Builder Mode (Admin Canvas)' : 'Billing Mode (Doctor Data Entry & Silent Print)'}
+            </p>
           </div>
         </div>
 
-        {/* Mode Selector Segmented Pill Toggle */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            background: '#f1f5f9',
-            padding: 4,
-            borderRadius: 12,
-            border: '1px solid #e2e8f0',
-          }}
-        >
+        {/* Center: Mode Selector Toggle (Template Builder vs Billing Mode) */}
+        <div className="flex items-center p-1 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
           <button
+            type="button"
             onClick={() => setMode('builder')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '8px 18px',
-              borderRadius: 10,
-              border: 'none',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-              background: mode === 'builder' ? '#ffffff' : 'transparent',
-              color: mode === 'builder' ? '#0891b2' : '#64748b',
-              boxShadow: mode === 'builder' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
-              transition: 'all 0.2s ease',
-            }}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+              mode === 'builder'
+                ? 'bg-[#4A5D23] text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+            }`}
           >
-            <Sliders size={15} />
-            1. Template Builder
+            <Sliders className="w-3.5 h-3.5" />
+            <span>Template Builder Mode</span>
           </button>
 
           <button
+            type="button"
             onClick={() => {
               setMode('billing')
               setBillingDrawerOpen(true)
             }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '8px 18px',
-              borderRadius: 10,
-              border: 'none',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-              background: mode === 'billing' ? '#ffffff' : 'transparent',
-              color: mode === 'billing' ? '#0891b2' : '#64748b',
-              boxShadow: mode === 'billing' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
-              transition: 'all 0.2s ease',
-            }}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+              mode === 'billing'
+                ? 'bg-[#4A5D23] text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+            }`}
           >
-            <CreditCard size={15} />
-            2. Billing &amp; Live Print Mode
+            <CreditCard className="w-3.5 h-3.5" />
+            <span>Billing Mode</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMode('archive')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+              mode === 'archive'
+                ? 'bg-[#4A5D23] text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <HardDrive className="w-3.5 h-3.5" />
+            <span>B2 Cloud Vault &amp; Master Log</span>
           </button>
         </div>
 
-        {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* Font Manager Button */}
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2">
+          {/* Font Management Dropdown/Button */}
           <button
+            type="button"
             onClick={() => setFontModalOpen(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 14px',
-              borderRadius: 10,
-              border: '1px solid #cbd5e1',
-              background: '#ffffff',
-              fontSize: 12,
-              fontWeight: 600,
-              color: '#334155',
-              cursor: 'pointer',
-            }}
+            className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-xs font-semibold text-slate-700 dark:text-slate-200 transition flex items-center gap-1.5 cursor-pointer"
           >
-            <Type size={14} color="#0891b2" />
-            Fonts ({templateConfig.customFonts.length})
+            <Type className="w-3.5 h-3.5 text-[#4A5D23]" />
+            <span>Fonts ({templateConfig.customFonts.length})</span>
           </button>
 
-          {/* Import JSON */}
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 14px',
-              borderRadius: 10,
-              border: '1px solid #cbd5e1',
-              background: '#ffffff',
-              fontSize: 12,
-              fontWeight: 600,
-              color: '#334155',
-              cursor: 'pointer',
-            }}
-          >
-            <Upload size={14} color="#0891b2" />
-            Import JSON
-            <input type="file" accept=".json" onChange={handleImportTemplate} style={{ display: 'none' }} />
+          {/* Import Template */}
+          <label className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-xs font-semibold text-slate-700 dark:text-slate-200 transition flex items-center gap-1.5 cursor-pointer">
+            <Upload className="w-3.5 h-3.5 text-[#4A5D23]" />
+            <span>Import</span>
+            <input type="file" accept=".json" onChange={handleImportTemplate} className="hidden" />
           </label>
 
-          {/* Export JSON */}
+          {/* Export Template */}
           <button
+            type="button"
             onClick={handleExportTemplate}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 14px',
-              borderRadius: 10,
-              border: '1px solid #cbd5e1',
-              background: '#ffffff',
-              fontSize: 12,
-              fontWeight: 600,
-              color: '#334155',
-              cursor: 'pointer',
-            }}
+            className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-xs font-semibold text-slate-700 dark:text-slate-200 transition flex items-center gap-1.5 cursor-pointer"
           >
-            <Download size={14} color="#0891b2" />
-            Export JSON
+            <Download className="w-3.5 h-3.5 text-[#4A5D23]" />
+            <span>Export</span>
           </button>
 
           {/* Reset Template */}
           <button
+            type="button"
             onClick={handleResetDefault}
-            title="Reset to default template layout"
-            style={{
-              padding: '8px',
-              borderRadius: 10,
-              border: '1px solid #e2e8f0',
-              background: '#f8fafc',
-              color: '#64748b',
-              cursor: 'pointer',
-            }}
+            title="Reset layout to default"
+            className="p-2 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 transition cursor-pointer"
           >
-            <RotateCcw size={15} />
+            <RotateCcw className="w-3.5 h-3.5" />
           </button>
 
-          {/* Open Billing Drawer Button when in Billing mode */}
+          {/* Billing Drawer Toggle Button */}
           {mode === 'billing' && (
             <button
+              type="button"
               onClick={() => setBillingDrawerOpen(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '9px 16px',
-                borderRadius: 10,
-                background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)',
-                color: '#ffffff',
-                border: 'none',
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(8, 145, 178, 0.25)',
-              }}
+              className="px-3.5 py-1.5 rounded-xl bg-[#4A5D23] hover:bg-[#3B4A1C] text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer ml-1"
             >
-              <Printer size={15} />
-              Open Billing Drawer
+              <Printer className="w-3.5 h-3.5" />
+              <span>Open Billing Drawer</span>
             </button>
           )}
         </div>
       </header>
 
-      {/* ─── MAIN CONTENT AREA ────────────────────────────────────── */}
-      <main style={{ flex: 1, padding: 20, overflow: 'hidden' }}>
-        <TemplateBuilderCanvas
-          backgroundImage={templateConfig.backgroundImage}
-          fields={templateConfig.fields}
-          customFonts={templateConfig.customFonts}
-          billingData={billingData}
-          isBillingMode={mode === 'billing'}
-          onUpdateFields={fields => setTemplateConfig(prev => ({ ...prev, fields }))}
-          onSetBackgroundImage={base64 => setTemplateConfig(prev => ({ ...prev, backgroundImage: base64 }))}
-        />
-      </main>
+      {/* ─── MAIN BUILDER / BILLING / B2 CLOUD MASTER LOG ─── */}
+      {mode === 'archive' ? (
+        <div className="flex-1 p-6 overflow-y-auto">
+          <AdminPrescriptionMasterLog />
+        </div>
+      ) : (
+        <main className="flex-1 p-5 overflow-hidden">
+          <TemplateBuilderCanvas
+            backgroundImage={templateConfig.backgroundImage}
+            fields={templateConfig.fields}
+            customFonts={templateConfig.customFonts}
+            billingData={billingData}
+            isBillingMode={mode === 'billing'}
+            onUpdateFields={fields => setTemplateConfig(prev => ({ ...prev, fields }))}
+            onSetBackgroundImage={base64 => setTemplateConfig(prev => ({ ...prev, backgroundImage: base64 }))}
+          />
+        </main>
+      )}
     </div>
   )
 }

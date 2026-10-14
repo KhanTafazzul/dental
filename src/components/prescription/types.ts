@@ -1,74 +1,63 @@
 // ─────────────────────────────────────────────────────────────
-// Prescription Template Mapper & Billing System – Type Definitions
+// WYSIWYG Prescription Template Mapper & Billing System Types
 // ─────────────────────────────────────────────────────────────
 
 export interface CustomFont {
   id: string;
   name: string;
-  base64Data: string; // Data URL (data:font/ttf;base64,...)
+  base64Data: string; // Base64 data string / Data URL
   format: 'ttf' | 'otf' | 'woff';
 }
 
 export interface BoundingField {
   id: string;
-  name: string;        // Display label e.g. "Patient Name"
-  key: string;         // Data key e.g. "patientName"
-  x: number;           // px position relative to A4 canvas
+  name: string;        // Field display name, e.g. "Patient Name", "Age", "Medicines"
+  key: string;         // Data key mapping
+  x: number;           // Coordinate on A4 canvas
   y: number;
-  width: number;
-  height: number;
-  color: string;       // hex e.g. "#1e293b"
-  fontFamily: string;  // standard or custom font name
-  fontSize: number;    // px
+  width: number;       // Box width
+  height: number;      // Box height
+  color: string;       // Hex color string, e.g. "#1e293b"
+  fontFamily: string;  // Web safe or uploaded custom font name
+  fontSize: number;    // Font size in pixels
 }
 
 export interface MedicineEntry {
   id: string;
   name: string;
-  dosage: string;
-  frequency: string;
-  duration: string;
+  dosage?: string;
+  frequency?: string;
+  duration?: string;
 }
 
 export interface PatientBillingData {
+  patientId?: string;
   patientName: string;
+  email?: string;
   age: string;
   gender: string;
   date: string;
   mobile: string;
-  doctorName: string;
-  medicines: MedicineEntry[];
-  notes: string;
+  doctorName?: string;
+  medicines: (MedicineEntry | string)[]; // Supports string or structured object
+  notes?: string;
 }
 
 export interface TemplateConfig {
-  backgroundImage: string | null; // Base64 data-URL of prescription image
+  backgroundImage: string | null; // Base64 string of blank prescription design
   fields: BoundingField[];
   customFonts: CustomFont[];
 }
 
-// ─── A4 canvas dimensions (screen px) ────────────────────────
-export const CANVAS_WIDTH  = 794;
+// ISO 216 A4 Canvas Aspect Ratio Dimensions (Screen px)
+export const CANVAS_WIDTH = 794;
 export const CANVAS_HEIGHT = 1123;
 
-// ─── PDF dimensions (points, ISO 216 A4) ─────────────────────
-export const PDF_WIDTH  = 595.28;
+// ISO 216 A4 Dimensions in PDF Points (72 points per inch)
+export const PDF_WIDTH = 595.28;
 export const PDF_HEIGHT = 841.89;
 
-// ─── Preset field templates ──────────────────────────────────
-export const PRESET_FIELDS: Omit<BoundingField, 'id'>[] = [
-  { name: 'Patient Name', key: 'patientName', x: 40,  y: 180, width: 300, height: 32, color: '#1e293b', fontFamily: 'Arial', fontSize: 14 },
-  { name: 'Age',          key: 'age',         x: 360, y: 180, width: 120, height: 32, color: '#1e293b', fontFamily: 'Arial', fontSize: 14 },
-  { name: 'Gender',       key: 'gender',      x: 510, y: 180, width: 120, height: 32, color: '#1e293b', fontFamily: 'Arial', fontSize: 14 },
-  { name: 'Date',         key: 'date',        x: 560, y: 80,  width: 180, height: 28, color: '#1e293b', fontFamily: 'Arial', fontSize: 12 },
-  { name: 'Mobile',       key: 'mobile',      x: 40,  y: 230, width: 200, height: 28, color: '#1e293b', fontFamily: 'Arial', fontSize: 12 },
-  { name: 'Doctor Name',  key: 'doctorName',  x: 40,  y: 80,  width: 240, height: 28, color: '#0e7490', fontFamily: 'Arial', fontSize: 13 },
-  { name: 'Medicines',    key: 'medicines',   x: 40,  y: 300, width: 680, height: 300, color: '#1e293b', fontFamily: 'Arial', fontSize: 13 },
-  { name: 'Notes',        key: 'notes',       x: 40,  y: 650, width: 680, height: 120, color: '#475569', fontFamily: 'Arial', fontSize: 12 },
-  { name: 'Diagnosis',    key: 'diagnosis',   x: 260, y: 230, width: 300, height: 28, color: '#1e293b', fontFamily: 'Arial', fontSize: 12 },
-  { name: 'Branch Name',  key: 'branchName',  x: 300, y: 80,  width: 240, height: 28, color: '#4A5D23', fontFamily: 'Arial', fontSize: 13 },
-];
-
+// Pre-installed Web-Safe Fonts
 export const WEB_SAFE_FONTS = [
   'Arial',
   'Times New Roman',
@@ -77,6 +66,16 @@ export const WEB_SAFE_FONTS = [
   'Verdana',
   'Trebuchet MS',
   'Impact',
+];
+
+// Preset Fields for Quick Setup
+export const PRESET_FIELDS: Omit<BoundingField, 'id'>[] = [
+  { name: 'Patient Name', key: 'patientName', x: 40,  y: 160, width: 280, height: 32, color: '#1e293b', fontFamily: 'Arial', fontSize: 14 },
+  { name: 'Age',          key: 'age',         x: 340, y: 160, width: 100, height: 32, color: '#1e293b', fontFamily: 'Arial', fontSize: 14 },
+  { name: 'Date',         key: 'date',        x: 460, y: 160, width: 160, height: 32, color: '#1e293b', fontFamily: 'Arial', fontSize: 14 },
+  { name: 'Mobile',       key: 'mobile',      x: 40,  y: 200, width: 220, height: 30, color: '#1e293b', fontFamily: 'Arial', fontSize: 12 },
+  { name: 'Medicines',    key: 'medicines',   x: 40,  y: 270, width: 680, height: 320, color: '#1e293b', fontFamily: 'Arial', fontSize: 13 },
+  { name: 'Clinical Notes', key: 'notes',     x: 40,  y: 620, width: 680, height: 120, color: '#475569', fontFamily: 'Arial', fontSize: 12 },
 ];
 
 export const DEFAULT_BILLING_DATA: PatientBillingData = {

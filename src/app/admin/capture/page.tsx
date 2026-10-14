@@ -483,7 +483,7 @@ export default function MobileCapturePage() {
   const selectedPatientName = appointments.find(a => a.id === selectedApptId)?.patients?.name || ''
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#070c0a] flex flex-col justify-between p-4 font-sans text-slate-800 dark:text-slate-100 transition-colors duration-300">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#070c0a] flex flex-col justify-between p-4 font-sans text-slate-800 dark:text-slate-100 transition-colors duration-300 overflow-x-hidden w-full max-w-full">
       
       {/* ═══ HEADER (Claymorphic card) ═══ */}
       <header className="py-4 text-center border border-teal-950/10 dark:border-teal-900/30 bg-white dark:bg-[#121c19] rounded-2xl clay mb-6 animate-scale-in">
@@ -1084,7 +1084,7 @@ export default function MobileCapturePage() {
 
       {/* ═══ FOOTER ═══ */}
       <footer className="py-6 text-center border-t border-slate-200/40 dark:border-teal-950/20 text-[10px] text-slate-400 dark:text-teal-500/50 font-medium mt-6">
-        <p>© 2026 Dental Clinics. Private Clinical Portal. Developed by Flynx.site developer Khan Tafazzul</p>
+        <p>© {new Date().getFullYear()} Hazara & Family Dental Clinics. Private Clinical Portal. Designed for clinical staff.</p>
       </footer>
     </div>
   )

@@ -325,16 +325,16 @@ export async function sendDailyDoctorAppointmentDigest(): Promise<{
       }
 
       // Construct WhatsApp Markdown Digest Message dynamically
-      let digestMsg = `🌅 *GOOD MORNING ${doc.name.toUpperCase()}!*\n`
-      digestMsg += `🗓️ *Daily Patient Briefing - ${formattedTodayDate}*\n`
-      digestMsg += `🏢 *Dental Care Clinic*\n`
+      let digestMsg = `[DAILY APPOINTMENT BRIEFING - ${doc.name.toUpperCase()}]\n`
+      digestMsg += `Date: ${formattedTodayDate}\n`
+      digestMsg += `Clinic: Hazara & Family Dental Care\n`
       digestMsg += `─────────────────────────────\n\n`
 
       if (docAppts.length === 0) {
-        digestMsg += `📋 *Today's Schedule:* No appointments currently scheduled for today.\n`
-        digestMsg += `✨ Wish you a pleasant & relaxed day ahead!\n`
+        digestMsg += `Schedule: No appointments currently scheduled for today.\n`
+        digestMsg += `Have a productive clinical day ahead.\n`
       } else {
-        digestMsg += `📋 *Today's Total Appointments: ${docAppts.length}*\n\n`
+        digestMsg += `Total Scheduled Appointments: ${docAppts.length}\n\n`
 
         docAppts.forEach((appt, idx) => {
           const timeLabel = appt.appointment_time || 'Scheduled Slot'
@@ -345,16 +345,15 @@ export async function sendDailyDoctorAppointmentDigest(): Promise<{
           const status = appt.status || 'Confirmed'
           const tokenNum = appt.token_number || (appt.id ? appt.id.slice(0, 4) : `#${idx + 1}`)
 
-          digestMsg += `${idx + 1}️⃣ *${timeLabel}* | *${patientName}*${genderAge}\n`
-          digestMsg += `   📌 *Treatment:* ${service}\n`
-          digestMsg += `   🎟️ *Token:* ${tokenNum} | *Status:* ${status}\n`
-          digestMsg += `   📞 *Contact:* ${patientPhone}\n\n`
+          digestMsg += `Slot ${idx + 1}: ${timeLabel} | Patient: ${patientName}${genderAge}\n`
+          digestMsg += `   Procedure: ${service}\n`
+          digestMsg += `   Token: ${tokenNum} | Status: ${status}\n`
+          digestMsg += `   Contact: ${patientPhone}\n\n`
         })
       }
 
       digestMsg += `─────────────────────────────\n`
-      digestMsg += `📲 *Dental Clinic WhatsApp Notification System*\n`
-      digestMsg += `📌 *Powered by WAHA GOWS Engine on Render*`
+      digestMsg += `Hazara & Family Dental Clinics Automated Notification System`
 
       // Dispatch via WAHA Engine
       const sendRes = await sendWahaTextMessage({
@@ -419,19 +418,19 @@ export async function processWahaIncomingWebhook(payload: Record<string, unknown
 
     if (lowerText.includes('hi') || lowerText.includes('hello') || lowerText.includes('namaste') || lowerText === 'start' || lowerText === 'menu') {
       replyText = 
-        `🦷 *Welcome to Dental Care Clinic WhatsApp Desk!*\n\n` +
-        `How can we assist you today?\n\n` +
-        `1️⃣ *Book Appointment* - Reply '1' or 'Book'\n` +
-        `2️⃣ *Check Doctor Schedule* - Reply '2' or 'Doctors'\n` +
-        `3️⃣ *Clinic Timings & Location* - Reply '3' or 'Info'\n` +
-        `4️⃣ *Emergency Support* - Reply '4' or 'Emergency'\n\n` +
-        `🌐 Or visit our online portal to book instantly!`
+        `[HAZARA & FAMILY DENTAL CLINICS - HELPDESK]\n\n` +
+        `How may we assist you today?\n\n` +
+        `1. Book Appointment - Reply '1' or 'Book'\n` +
+        `2. Check Doctor Schedule - Reply '2' or 'Doctors'\n` +
+        `3. Clinic Timings & Location - Reply '3' or 'Info'\n` +
+        `4. Emergency Inquiries - Reply '4' or 'Emergency'\n\n` +
+        `Visit our website to book online: https://flynx.site`
     } else if (lowerText === '1' || lowerText.includes('book')) {
       replyText = 
-        `📅 *Book Your Dental Appointment*\n\n` +
-        `You can easily schedule your visit with our expert dental team online:\n` +
-        `👉 Visit our booking portal to choose your doctor and preferred slot!\n\n` +
-        `Or reply with your preferred *Date* & *Doctor Name* to request a callback!`
+        `[APPOINTMENT BOOKING]\n\n` +
+        `Schedule your clinical consultation with our dental team online:\n` +
+        `Visit: https://flynx.site/hazara/book or https://flynx.site/family/book\n\n` +
+        `Or reply with your preferred Date, Branch, and Doctor Name to request a confirmation callback.`
     } else if (lowerText === '2' || lowerText.includes('doctor') || lowerText.includes('schedule')) {
       // DYNAMIC QUERY: Fetch real doctors from Supabase
       const { data: dbDoctors } = await adminDb
@@ -439,15 +438,15 @@ export async function processWahaIncomingWebhook(payload: Record<string, unknown
         .select('name, specialty')
 
       if (dbDoctors && dbDoctors.length > 0) {
-        replyText = `👨‍⚕️ *Our Available Dental Specialists:*\n\n`
+        replyText = `[AVAILABLE DENTAL SPECIALISTS]\n\n`
         dbDoctors.forEach((doc: { name?: string; specialty?: string }) => {
-          replyText += `• *${doc.name || 'Doctor'}* - ${doc.specialty || 'Dental Surgeon'}\n`
+          replyText += `• Dr. ${doc.name || 'Doctor'} - ${doc.specialty || 'Dental Surgeon'}\n`
         })
-        replyText += `\n⏰ *Clinic Hours:* Monday to Saturday | 09:00 AM - 08:30 PM`
+        replyText += `\nClinic Hours: Monday to Saturday | 09:00 AM - 07:00 PM`
       } else {
         replyText = 
-          `👨‍⚕️ *Dental Specialists*\n` +
-          `Please reply with your preferred date to view today's available doctors and slots.`
+          `[DENTAL SPECIALISTS]\n` +
+          `Please reply with your preferred date to view available doctors and time slots.`
       }
     } else if (lowerText === '3' || lowerText.includes('info') || lowerText.includes('location')) {
       // DYNAMIC QUERY: Fetch real clinic branches from Supabase
@@ -456,28 +455,28 @@ export async function processWahaIncomingWebhook(payload: Record<string, unknown
         .select('name, address, phone')
 
       if (dbBranches && dbBranches.length > 0) {
-        replyText = `📍 *Dental Care Clinic Locations:*\n\n`
+        replyText = `[CLINIC BRANCH LOCATIONS]\n\n`
         dbBranches.forEach((b: WahaBranchRecord) => {
-          replyText += `🏢 *${b.name}:* ${b.address || 'Medical Center'}\n`
+          replyText += `• ${b.name}: ${b.address || 'Medical Center'}\n`
         })
         if (dbBranches[0]?.phone) {
-          replyText += `\n📞 *Helpline:* ${dbBranches[0].phone}`
+          replyText += `\nHelpline: ${dbBranches[0].phone}`
         }
       } else {
         replyText = 
-          `📍 *Dental Care Clinic*\n` +
-          `Please visit our online portal to view clinic branch locations and helpline numbers!`
+          `[CLINIC BRANCHES]\n` +
+          `Hazara Dental Clinic: Main Clinical Avenue, Medical District\nFamily Dental Clinic: Plaza Block, Commercial Center\nHelpline: +91 98200 12345`
       }
     } else if (lowerText === '4' || lowerText.includes('emergency')) {
       replyText = 
-        `🚨 *Dental Emergency Hotline*\n\n` +
-        `If you are experiencing severe tooth pain, trauma, or bleeding, please contact our emergency hotline immediately or visit our nearest branch!`
+        `[DENTAL EMERGENCY SUPPORT]\n\n` +
+        `If you are experiencing severe oral pain, traumatic dental injury, or uncontrolled bleeding, please contact our emergency line at +91 98200 12345 immediately or report to the nearest hospital trauma center.`
     } else {
       replyText = 
-        `Thank you for contacting Dental Care Clinic! 🦷\n` +
+        `Thank you for contacting Hazara & Family Dental Clinics.\n` +
         `Our team has received your message: "${incomingText}".\n` +
-        `A representative or doctor will get back to you shortly.\n\n` +
-        `Reply 'MENU' to see available options.`
+        `A clinical coordinator will contact you shortly.\n\n` +
+        `Reply 'MENU' to view available options.`
     }
 
     // Send chatbot auto-reply back to user via WAHA

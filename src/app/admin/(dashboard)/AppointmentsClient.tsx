@@ -8,9 +8,11 @@ import { supabase } from '@/lib/supabase'
 import { 
   Search, Calendar, Check, X, AlertCircle, Info, Filter,
   Building, User2, RefreshCw, ChevronDown, CheckCircle2, Clock,
-  FileText, QrCode, UploadCloud, Copy, HelpCircle, User, Plus, Loader2, Sparkles, Printer, Pill, PlusCircle
+  FileText, QrCode, UploadCloud, Copy, HelpCircle, User, Plus, Loader2, Sparkles, Printer, Pill, PlusCircle,
+  Lock, KeyRound
 } from 'lucide-react'
 import { getClientCache, saveClientCache } from '@/lib/clientCache'
+import DoctorPastPrescriptionsDrawer from '@/components/prescription/DoctorPastPrescriptionsDrawer'
 
 interface AppointmentsClientProps {
   initialAppointments: any[]
@@ -42,6 +44,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
 
   // Reports Modal states
   const [showReportsModal, setShowReportsModal] = useState(false)
+  const [showPastRxDrawer, setShowPastRxDrawer] = useState(false)
   const [activeAppt, setActiveAppt] = useState<any | null>(null)
   
   // Form fields
@@ -352,7 +355,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
       const res = await sendWahaOtpAction(offlineMobile)
       if (res.success) {
         setOfflineOtpSent(true)
-        setOfflineOtpMsg(res.message)
+        setOfflineOtpMsg(res.message || null)
       } else {
         alert(res.error || 'Failed to send WhatsApp OTP.')
       }
@@ -370,7 +373,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
       const res = await verifyWahaOtpAction(offlineMobile, offlineOtpInput)
       if (res.success) {
         setOfflineOtpVerified(true)
-        setOfflineOtpMsg('✓ Phone number verified on backend!')
+        setOfflineOtpMsg('Phone number verified successfully on server.')
       } else {
         alert(res.error || 'Invalid OTP code.')
       }
@@ -1016,7 +1019,7 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                         No bill compiled for this appointment
                       </div>
                       <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-normal font-light">
-                        ⚠️ Please go to the <strong>Billing</strong> tab to create the patient's checkout invoice before sending the clinical report.
+                        Notice: Please go to the <strong>Billing</strong> tab to create the patient's checkout invoice before sending the clinical report.
                       </p>
                     </div>
                   )}
@@ -1055,14 +1058,25 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
                       <FileText className="w-4 h-4 text-cyan-600" />
                       Clinical Prescription Notes & Medicines
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddMedDrawer(true)}
-                      className="text-[11px] font-bold text-cyan-700 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/40 hover:bg-cyan-100 border border-cyan-200 dark:border-cyan-800 px-3 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer"
-                    >
-                      <Pill className="w-3.5 h-3.5" />
-                      + Add Medicine
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowPastRxDrawer(true)}
+                        className="text-[11px] font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 border border-amber-200 dark:border-amber-800 px-2.5 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer"
+                        title="Review Past Consultations for this Patient"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Past Rx History
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddMedDrawer(true)}
+                        className="text-[11px] font-bold text-cyan-700 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/40 hover:bg-cyan-100 border border-cyan-200 dark:border-cyan-800 px-3 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer"
+                      >
+                        <Pill className="w-3.5 h-3.5" />
+                        + Add Medicine
+                      </button>
+                    </div>
                   </div>
 
                   {/* Display Prescribed Medicines list if invoice items exist */}
@@ -1301,6 +1315,19 @@ export default function AppointmentsClient({ initialAppointments, branches }: Ap
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Repeat Patient Consultation Previous Prescriptions Drawer */}
+      <DoctorPastPrescriptionsDrawer
+        isOpen={showPastRxDrawer}
+        onClose={() => setShowPastRxDrawer(false)}
+        patientId={activeAppt?.patients?.id || activeAppt?.patient_id || ''}
+        patientName={activeAppt?.patients?.name || activeAppt?.patient_name || 'Patient'}
+        currentAppointmentId={activeAppt?.id}
+        onImportMedicines={(meds) => {
+          const formattedMeds = meds.join('\n')
+          setPrescriptionText((prev) => (prev ? `${prev}\n${formattedMeds}` : formattedMeds))
+        }}
+      />
 
       {/* 5. MODAL overlay for BOOK OFFLINE APPOINTMENT */}
       <AnimatePresence>

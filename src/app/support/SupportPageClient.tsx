@@ -91,7 +91,7 @@ export default function SupportPageClient() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-teal-500 selection:text-slate-950 font-sans relative overflow-hidden flex flex-col justify-between">
+    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-teal-500 selection:text-slate-950 font-sans relative overflow-x-hidden w-full max-w-full flex flex-col justify-between">
       
       {/* Background ambient lighting */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -259,9 +259,14 @@ export default function SupportPageClient() {
                       Best for severe toothache, instant appointment changes, or immediate clinic navigation instructions.
                     </p>
                   </div>
-                  <div className="pt-3 border-t border-white/10">
-                    <span className="text-xs text-slate-400 block font-mono">Hazara / Family Clinic Hotline</span>
-                    <span className="text-xs text-teal-400 font-semibold">SLA: Immediate Call Pick</span>
+                  <div className="pt-3 border-t border-white/10 space-y-1">
+                    <span className="text-[11px] text-slate-400 block">Clickable Direct Dial:</span>
+                    <a href="tel:+919820012345" className="text-xs text-teal-400 font-semibold hover:underline block font-mono">
+                      +91 98200 12345 (Hazara)
+                    </a>
+                    <a href="tel:+919820054321" className="text-xs text-teal-400 font-semibold hover:underline block font-mono">
+                      +91 98200 54321 (Family)
+                    </a>
                   </div>
                 </div>
 
@@ -277,9 +282,16 @@ export default function SupportPageClient() {
                       Best for fast, non-urgent questions about doctor consultation availability or clinic location maps.
                     </p>
                   </div>
-                  <div className="pt-3 border-t border-white/10">
-                    <span className="text-xs text-slate-400 block">Direct Clinic WhatsApp Desk</span>
-                    <span className="text-xs text-teal-400 font-semibold">SLA: 5 - 15 Minutes</span>
+                  <div className="pt-3 border-t border-white/10 space-y-1">
+                    <span className="text-[11px] text-slate-400 block">Direct Clinic WhatsApp (WAHA):</span>
+                    <a 
+                      href="https://wa.me/919820012345" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-xs text-emerald-400 font-semibold hover:underline block font-mono"
+                    >
+                      +91 98200 12345 (Live Chat)
+                    </a>
                   </div>
                 </div>
 
@@ -295,9 +307,14 @@ export default function SupportPageClient() {
                       Best for formal medical prescription copies, DPDP data access/erasure requests, or billing inquiries.
                     </p>
                   </div>
-                  <div className="pt-3 border-t border-white/10">
-                    <span className="text-xs text-slate-400 block font-mono">support@dentalclinic.in</span>
-                    <span className="text-xs text-teal-400 font-semibold">SLA: 72 Business Hours</span>
+                  <div className="pt-3 border-t border-white/10 space-y-1">
+                    <span className="text-[11px] text-slate-400 block">Official Support Inbox:</span>
+                    <a 
+                      href="mailto:care@flynx.site" 
+                      className="text-xs text-teal-400 font-semibold hover:underline block font-mono"
+                    >
+                      care@flynx.site
+                    </a>
                   </div>
                 </div>
 
@@ -458,10 +475,11 @@ export default function SupportPageClient() {
       {/* Footer */}
       <footer className="border-t border-white/10 py-6 text-center text-xs text-slate-500 relative z-10">
         <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© 2026 Dental Care Network • Hazara & Family Dental Stores</p>
+          <p>© {new Date().getFullYear()} Hazara & Family Dental Clinics. All rights reserved.</p>
           <div className="flex items-center gap-4 text-[11px] text-slate-400">
             <Link href="/privacy" className="hover:text-teal-400">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-teal-400">Terms of Service</Link>
+            <Link href="/cookies" className="hover:text-teal-400">Cookie Policy</Link>
             <Link href="/dpdp" className="hover:text-teal-400">DPDP Compliance</Link>
           </div>
         </div>

@@ -29,6 +29,7 @@ export default async function AdminDoctorsPage() {
             id,
             name,
             email,
+            phone,
             specialty,
             picture_url,
             branch_id,

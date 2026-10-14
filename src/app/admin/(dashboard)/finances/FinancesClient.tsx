@@ -1615,12 +1615,12 @@ export default function FinancesClient({
 
       <div className="clay p-2 border border-slate-200/60 flex items-center gap-2 overflow-x-auto">
         {[
-          { key: 'analytics', label: '📊 Graphs & Analytics' },
-          { key: 'closing', label: '💰 Closing Time Payouts' },
-          { key: 'attendance', label: '📅 Attendance Logger' },
-          { key: 'helpers', label: '👷 Helper Boys Details' },
-          { key: 'doctors', label: '👨‍⚕️ Doctor Earnings' },
-          { key: 'extra', label: '📝 Extra Expenses Log' }
+          { key: 'analytics', label: 'Graphs & Analytics' },
+          { key: 'closing', label: 'Closing Time Payouts' },
+          { key: 'attendance', label: 'Attendance Logger' },
+          { key: 'helpers', label: 'Helper Boys Details' },
+          { key: 'doctors', label: 'Doctor Earnings' },
+          { key: 'extra', label: 'Extra Expenses Log' }
         ].map(tab => (
           <button
             key={tab.key}
@@ -2049,7 +2049,7 @@ export default function FinancesClient({
                           </div>
 
                           <div className="text-[9px] text-slate-400 text-center font-medium">
-                            {status === 'present' ? '🟢 Present' : status === 'half_day' ? '🟡 Half Day' : status === 'absent' ? '🔴 Absent' : '⚪ Unmarked'}
+                            {status === 'present' ? 'Present' : status === 'half_day' ? 'Half Day' : status === 'absent' ? 'Absent' : 'Unmarked'}
                           </div>
                         </div>
                       )

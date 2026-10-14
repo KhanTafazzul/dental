@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react'
 import { Rnd } from 'react-rnd'
-import { Plus, Image as ImageIcon, Trash2, Layers, Move, Eye } from 'lucide-react'
+import { Plus, Image as ImageIcon, Trash2, Move, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
 import type { BoundingField, CustomFont, PatientBillingData } from './types'
 import { CANVAS_WIDTH, CANVAS_HEIGHT, PRESET_FIELDS } from './types'
 import FieldSettingsPopover from './FieldSettingsPopover'
@@ -27,6 +27,7 @@ export default function TemplateBuilderCanvas({
   onSetBackgroundImage,
 }: TemplateBuilderCanvasProps) {
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
+  const [zoomScale, setZoomScale] = useState<number>(0.85)
   const bgInputRef = useRef<HTMLInputElement>(null)
 
   const selectedField = fields.find(f => f.id === selectedFieldId)
@@ -50,12 +51,12 @@ export default function TemplateBuilderCanvas({
       ? { ...preset, id: crypto.randomUUID() }
       : {
           id: crypto.randomUUID(),
-          name: 'New Custom Field',
+          name: 'Custom Bounding Box',
           key: 'custom',
-          x: 60,
-          y: 60 + fields.length * 40,
-          width: 200,
-          height: 36,
+          x: 40,
+          y: 60 + fields.length * 35,
+          width: 220,
+          height: 34,
           color: '#1e293b',
           fontFamily: 'Arial',
           fontSize: 13,
@@ -76,7 +77,7 @@ export default function TemplateBuilderCanvas({
     if (selectedFieldId === id) setSelectedFieldId(null)
   }
 
-  // Get field text content depending on mode
+  // Value preview in Billing Mode
   function getFieldDisplayValue(field: BoundingField): string {
     if (!isBillingMode || !billingData) {
       return `[ ${field.name} ]`
@@ -87,10 +88,10 @@ export default function TemplateBuilderCanvas({
         return `[ Prescription Medicines Area ]`
       }
       return billingData.medicines
-        .map(
-          (m, i) =>
-            `${i + 1}. ${m.name} ${m.dosage ? `(${m.dosage})` : ''} - ${m.frequency} ${m.duration ? `[${m.duration}]` : ''}`
-        )
+        .map((m, i) => {
+          if (typeof m === 'string') return `${i + 1}. ${m}`
+          return `${i + 1}. ${m.name} ${m.dosage ? `(${m.dosage})` : ''} ${m.frequency ? `- ${m.frequency}` : ''}`
+        })
         .join('\n')
     }
 
@@ -99,292 +100,213 @@ export default function TemplateBuilderCanvas({
     }
 
     const val = (billingData as any)[field.key]
-    return val ? String(val) : `[ ${field.name} ]`
+    return val !== undefined && val !== '' ? String(val) : `[ ${field.name} ]`
   }
 
   return (
-    <div style={{ display: 'flex', gap: 24, width: '100%', height: '100%', overflow: 'hidden' }}>
+    <div className="flex flex-col lg:flex-row gap-6 w-full h-full min-h-[600px] overflow-hidden select-none">
       
-      {/* ─── LEFT CONTROL TOOLBOX (Builder Mode Only) ────────────── */}
+      {/* ─── LEFT SIDEBAR: FIELD & CANVAS TOOLBOX (Builder Mode Only) ─── */}
       {!isBillingMode && (
-        <div
-          style={{
-            width: 280,
-            flexShrink: 0,
-            background: 'var(--card, #ffffff)',
-            borderRadius: 20,
-            padding: 20,
-            border: '1px solid var(--border, #e2e8f0)',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.05)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 20,
-            height: 'fit-content',
-            maxHeight: '100%',
-            overflowY: 'auto',
-          }}
-        >
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Layers size={20} color="#0891b2" />
-            <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--foreground, #134e4a)', fontFamily: 'Outfit, sans-serif' }}>
-              Template Toolbox
-            </span>
-          </div>
-
-          {/* Background Image Uploader */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Background Prescription Layout
+        <aside className="w-full lg:w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl p-5 flex flex-col gap-5 shrink-0 shadow-sm overflow-y-auto">
+          
+          {/* Background Upload Section */}
+          <div className="space-y-2">
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              1. Blank Prescription Design
             </span>
             <input
-              ref={bgInputRef}
               type="file"
+              ref={bgInputRef}
               accept="image/*"
-              style={{ display: 'none' }}
               onChange={handleBgUpload}
+              className="hidden"
             />
             {backgroundImage ? (
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={() => bgInputRef.current?.click()}
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    borderRadius: 10,
-                    border: '1px solid #cbd5e1',
-                    background: '#f8fafc',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                  }}
+                  className="flex-1 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-xs font-semibold text-slate-700 dark:text-slate-200 transition cursor-pointer flex items-center justify-center gap-1.5"
                 >
-                  <ImageIcon size={14} color="#0891b2" />
-                  Change Background
+                  <ImageIcon className="w-3.5 h-3.5" /> Replace
                 </button>
                 <button
+                  type="button"
                   onClick={() => onSetBackgroundImage(null)}
-                  title="Remove Background"
-                  style={{
-                    padding: '8px 10px',
-                    borderRadius: 10,
-                    border: '1px solid #fee2e2',
-                    background: '#fef2f2',
-                    color: '#dc2626',
-                    cursor: 'pointer',
-                  }}
+                  className="py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 text-xs font-semibold text-rose-600 transition cursor-pointer"
+                  title="Remove background"
                 >
-                  <Trash2 size={15} />
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             ) : (
               <button
+                type="button"
                 onClick={() => bgInputRef.current?.click()}
-                style={{
-                  padding: '12px 14px',
-                  borderRadius: 12,
-                  border: '2px dashed #cbd5e1',
-                  background: '#f8fafc',
-                  color: '#0891b2',
-                  fontWeight: 600,
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  transition: 'background 0.2s',
-                }}
+                className="w-full py-3.5 px-4 rounded-2xl border-2 border-dashed border-[#4A5D23]/40 hover:border-[#4A5D23] bg-[#4A5D23]/5 text-[#4A5D23] dark:text-[#A3B799] text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
               >
-                <ImageIcon size={16} />
-                Upload Background Image
+                <ImageIcon className="w-4 h-4" /> Upload Blank Prescription Pad
               </button>
             )}
           </div>
 
-          {/* Quick Add Presets */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Add Standard Bounding Fields
+          {/* Preset Bounding Boxes */}
+          <div className="space-y-2">
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              2. Add Bounding Boxes
             </span>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div className="grid grid-cols-2 gap-2">
               {PRESET_FIELDS.map(preset => {
                 const isAdded = fields.some(f => f.key === preset.key)
                 return (
                   <button
                     key={preset.key}
+                    type="button"
                     onClick={() => handleAddField(preset)}
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: 10,
-                      border: isAdded ? '1px solid #0891b2' : '1px solid #e2e8f0',
-                      background: isAdded ? '#ecfeff' : '#ffffff',
-                      color: isAdded ? '#0891b2' : '#334155',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      transition: 'all 0.15s ease',
-                    }}
+                    className={`p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
+                      isAdded
+                        ? 'border-[#4A5D23] bg-[#4A5D23]/10 text-[#4A5D23] dark:text-[#A3B799]'
+                        : 'border-slate-200 dark:border-white/10 hover:border-[#4A5D23] bg-slate-50 dark:bg-white/5 text-slate-700 dark:text-slate-300'
+                    }`}
                   >
-                    <span>{preset.name}</span>
-                    <Plus size={13} color={isAdded ? '#0891b2' : '#94a3b8'} />
+                    <span className="truncate">{preset.name}</span>
+                    <Plus className="w-3.5 h-3.5 shrink-0" />
                   </button>
                 )
               })}
             </div>
             <button
+              type="button"
               onClick={() => handleAddField()}
-              style={{
-                marginTop: 4,
-                padding: '10px 14px',
-                borderRadius: 10,
-                background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)',
-                color: '#ffffff',
-                border: 'none',
-                fontWeight: 600,
-                fontSize: 13,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                boxShadow: '0 4px 12px rgba(8, 145, 178, 0.25)',
-              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-[#4A5D23] hover:bg-[#3B4A1C] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer mt-2"
             >
-              <Plus size={15} />
-              Add Custom Box
+              <Plus className="w-4 h-4" /> Add Custom Field Box
             </button>
           </div>
 
-          {/* Active Field List */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Active Fields ({fields.length})
+          {/* Active Field Boxes List */}
+          <div className="space-y-2 flex-1">
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center justify-between">
+              <span>Active Fields ({fields.length})</span>
             </span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 200, overflowY: 'auto' }}>
+            <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
               {fields.map(f => (
                 <div
                   key={f.id}
                   onClick={() => setSelectedFieldId(f.id)}
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: 8,
-                    background: selectedFieldId === f.id ? '#e0f2fe' : '#f8fafc',
-                    border: selectedFieldId === f.id ? '1px solid #0284c7' : '1px solid #e2e8f0',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: selectedFieldId === f.id ? '#0369a1' : '#334155',
-                  }}
+                  className={`p-2.5 rounded-xl border text-xs font-medium flex items-center justify-between transition cursor-pointer ${
+                    selectedFieldId === f.id
+                      ? 'border-[#4A5D23] bg-[#4A5D23]/10 text-[#4A5D23] dark:text-[#A3B799]'
+                      : 'border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'
+                  }`}
                 >
-                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {f.name}
-                  </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Move size={12} color="#94a3b8" />
+                  <span className="truncate">{f.name}</span>
+                  <div className="flex items-center gap-1">
+                    <Move className="w-3.5 h-3.5 text-slate-400 opacity-60" />
                     <button
+                      type="button"
                       onClick={e => {
                         e.stopPropagation()
                         handleRemoveField(f.id)
                       }}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#ef4444',
-                        cursor: 'pointer',
-                        padding: 2,
-                        borderRadius: 4,
-                      }}
+                      className="p-1 rounded text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20"
                     >
-                      <Trash2 size={13} />
+                      <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
+
+          {/* Zoom Controls */}
+          <div className="pt-3 border-t border-slate-200 dark:border-white/10 flex items-center justify-between text-xs text-slate-500">
+            <span>Canvas View</span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setZoomScale(z => Math.max(0.4, z - 0.1))}
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10"
+                title="Zoom Out"
+              >
+                <ZoomOut className="w-3.5 h-3.5" />
+              </button>
+              <span className="font-mono text-[11px] font-bold w-10 text-center">{Math.round(zoomScale * 100)}%</span>
+              <button
+                type="button"
+                onClick={() => setZoomScale(z => Math.min(1.2, z + 0.1))}
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10"
+                title="Zoom In"
+              >
+                <ZoomIn className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setZoomScale(0.85)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10"
+                title="Reset Zoom"
+              >
+                <RotateCcw className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        </aside>
       )}
 
-      {/* ─── MAIN A4 CANVAS AREA ─────────────────────────────────── */}
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'flex-start',
-          overflow: 'auto',
-          padding: 20,
-          background: 'var(--muted, #f1f5f9)',
-          borderRadius: 20,
-          position: 'relative',
-        }}
+      {/* ─── MAIN CANVAS AREA: A4 ASPECT RATIO ─── */}
+      <main
+        className="flex-1 overflow-auto bg-slate-100 dark:bg-slate-950/70 border border-slate-200 dark:border-white/10 rounded-3xl p-6 flex justify-center items-start relative"
         onClick={() => setSelectedFieldId(null)}
       >
         <div
           style={{
-            width: CANVAS_WIDTH,
-            height: CANVAS_HEIGHT,
-            position: 'relative',
-            background: '#ffffff',
-            boxShadow: '0 25px 60px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.06)',
-            borderRadius: 4,
-            overflow: 'hidden',
-            flexShrink: 0,
+            width: `${CANVAS_WIDTH}px`,
+            height: `${CANVAS_HEIGHT}px`,
+            transform: `scale(${zoomScale})`,
             transformOrigin: 'top center',
           }}
+          className="relative bg-white shadow-2xl rounded-sm overflow-hidden shrink-0 border border-slate-200 transition-transform duration-150"
           onClick={e => e.stopPropagation()}
         >
           {/* Background Image Layer */}
-          {backgroundImage && (
+          {backgroundImage ? (
             <img
               src={backgroundImage}
-              alt="Prescription Background"
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                pointerEvents: 'none',
-                userSelect: 'none',
-              }}
+              alt="Prescription Background Pad"
+              className="absolute inset-0 w-full h-full object-fill pointer-events-none select-none"
             />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300 dark:text-slate-600 border-2 border-dashed border-slate-200 dark:border-white/10 m-8 rounded-2xl pointer-events-none">
+              <ImageIcon className="w-16 h-16 mb-2 opacity-40" />
+              <p className="font-bold text-sm">Upload Blank Prescription Pad Template</p>
+              <p className="text-xs opacity-70">A4 Ratio (794 x 1123 px)</p>
+            </div>
           )}
 
-          {/* Bounding Box Layers */}
+          {/* Render Fields via react-rnd */}
           {fields.map(field => {
             const isSelected = selectedFieldId === field.id && !isBillingMode
 
+            // In Billing Mode, render clean static overlay
             if (isBillingMode) {
-              // Read-only canvas rendering for Billing mode preview
               return (
                 <div
                   key={field.id}
                   style={{
                     position: 'absolute',
-                    left: field.x,
-                    top: field.y,
-                    width: field.width,
-                    height: field.height,
+                    left: `${field.x}px`,
+                    top: `${field.y}px`,
+                    width: `${field.width}px`,
+                    height: `${field.height}px`,
                     color: field.color || '#1e293b',
                     fontFamily: field.fontFamily || 'Arial',
                     fontSize: `${field.fontSize}px`,
                     lineHeight: 1.25,
                     overflow: 'hidden',
-                    wordBreak: 'break-word',
-                    whiteSpace: 'pre-wrap',
+                    wordWrap: 'break-word',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: field.key === 'medicines' || field.key === 'notes' ? 'pre-wrap' : 'nowrap',
                     pointerEvents: 'none',
                   }}
                 >
@@ -393,6 +315,7 @@ export default function TemplateBuilderCanvas({
               )
             }
 
+            // In Builder Mode, render draggable and resizable Rnd box with strict boundary enforcement
             return (
               <Rnd
                 key={field.id}
@@ -415,19 +338,13 @@ export default function TemplateBuilderCanvas({
                   e.stopPropagation()
                   setSelectedFieldId(field.id)
                 }}
-                style={{
-                  border: isSelected ? '2px dashed #0891b2' : '1px dashed rgba(8, 145, 178, 0.4)',
-                  background: isSelected ? 'rgba(8, 145, 178, 0.08)' : 'rgba(8, 145, 178, 0.02)',
-                  borderRadius: 4,
-                  boxSizing: 'border-box',
-                  cursor: 'move',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  justifyContent: 'flex-start',
-                  padding: 4,
-                  transition: 'border-color 0.15s, background 0.15s',
-                }}
+                className={`transition-colors cursor-move flex items-start justify-start p-1 box-border rounded select-none ${
+                  isSelected
+                    ? 'border-2 border-dashed border-[#4A5D23] bg-[#4A5D23]/10 ring-2 ring-[#4A5D23]/30 z-30'
+                    : 'border border-dashed border-sky-500/70 bg-sky-500/5 hover:border-[#4A5D23] z-10'
+                }`}
               >
+                {/* STRICT BOUNDARY ENFORCED INNER BOX: overflow: hidden, word-wrap: break-word, text-overflow: ellipsis */}
                 <div
                   style={{
                     width: '100%',
@@ -437,20 +354,20 @@ export default function TemplateBuilderCanvas({
                     fontSize: `${field.fontSize}px`,
                     lineHeight: 1.2,
                     overflow: 'hidden',
-                    wordBreak: 'break-word',
-                    whiteSpace: 'pre-wrap',
-                    userSelect: 'none',
+                    wordWrap: 'break-word',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {field.name}
                 </div>
 
-                {/* Floating inline settings popover positioning */}
+                {/* Inline Field Settings Popover */}
                 {isSelected && (
                   <div
                     style={{
                       position: 'absolute',
-                      top: field.y + field.height + 340 > CANVAS_HEIGHT ? -335 : field.height + 8,
+                      top: field.y + field.height + 360 > CANVAS_HEIGHT ? -360 : field.height + 8,
                       left: Math.min(0, CANVAS_WIDTH - field.x - 330),
                       zIndex: 100,
                     }}
@@ -468,7 +385,7 @@ export default function TemplateBuilderCanvas({
             )
           })}
         </div>
-      </div>
+      </main>
     </div>
   )
 }
